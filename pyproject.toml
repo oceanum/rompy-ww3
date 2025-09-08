@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rompy_ww3"
+description = "Rompy WW3 Config package."
+readme = "README.rst"
+authors = [
+  {name = "Rompy Developers", email = "developers@rompy.com"}
+]
+maintainers = [
+  {name = "Rompy Developers", email = "developers@rompy.com"}
+]
+classifiers = [
+
+]
+license = {text = "Apache Software License 2.0"}
+dependencies = [
+  "rompy",
+  "typer"
+]
+
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+    "coverage",
+    "mypy",
+    "pytest",
+    "ruff"
+    "black"
+    "requests"
+]
+docs = [
+    "autodoc_pydantic",
+    "ipython",
+    "nbsphinx",
+    "pydata_sphinx_theme",
+    "sphinx<7.3.6",
+    "sphinx-collections",
+]
+
+[project.scripts]
+rompy_ww3 = "rompy_ww3.cli:app"
+
+[project.entry-points."rompy.config"]
+ww3 = "rompy_ww3.config:Config"
+
+[project.entry-points."rompy.source"]
+# Register here any new source. For example:
+# ww3_source_type = "rompy_ww3.source:WW3Source"
+
+[project.urls]
+bugs = "https://github.com/rom-py/rompy_ww3/issues"
+changelog = "https://github.com/rom-py/rompy_ww3/blob/master/changelog.md"
+homepage = "https://github.com/rom-py/rompy_ww3"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.package-data]
+"*" = ["*.*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "rompy_ww3.__version__"}
