@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rompy_ww3"
 description = "Rompy WW3 Config package."
-readme = "README.rst"
+readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
   {name = "Rompy Developers", email = "developers@rompy.com"}
 ]
@@ -18,7 +18,8 @@ classifiers = [
 license = {text = "Apache Software License 2.0"}
 dependencies = [
   "rompy",
-  "typer"
+  "typer",
+  "rich"
 ]
 
 dynamic = ["version"]
@@ -28,9 +29,9 @@ dev = [
     "coverage",
     "mypy",
     "pytest",
-    "ruff"
-    "black"
-    "requests"
+    "ruff",
+    "black",
+    "requests",
 ]
 docs = [
     "autodoc_pydantic",
@@ -52,9 +53,9 @@ ww3 = "rompy_ww3.config:Config"
 # ww3_source_type = "rompy_ww3.source:WW3Source"
 
 [project.urls]
-bugs = "https://github.com/rom-py/rompy_ww3/issues"
-changelog = "https://github.com/rom-py/rompy_ww3/blob/master/changelog.md"
-homepage = "https://github.com/rom-py/rompy_ww3"
+bugs = "https://github.com/rom-py/rompy-ww3/issues"
+changelog = "https://github.com/rom-py/rompy-ww3/blob/main/CHANGELOG.md"
+homepage = "https://github.com/rom-py/rompy-ww3"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
