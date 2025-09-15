@@ -48,10 +48,58 @@ rompy's modular architecture to streamline the creation of WW3 model control
 files, input datasets, and boundary conditions using templated configurations
 and pydantic validation.
 
+## Key Features
+
+- **Pydantic-based Namelists**: Complete implementation of WW3 namelist classes with validation
+- **Automatic Namelist Generation**: Generate properly formatted WW3 namelist files from Python objects
+- **Template Context Generation**: Create rich context for Jinja2 templates with all configuration data
+- **Validation System**: Built-in validation for namelist completeness and consistency
+- **Modular Architecture**: Separate classes for each namelist section (DOMAIN, INPUT, OUTPUT, etc.)
+- **Integration with rompy**: Seamless integration with the core rompy framework
+
+## Core Components
+
+- **Config**: Main configuration class integrating all namelist components
+- **Grid**: WW3-specific grid parameters and namelist generation
+- **Data**: WW3-specific data handling with forcing and assimilation support
+- **Source**: WW3-specific data sources with variable mapping
+- **Namelists**: Complete set of Pydantic models for WW3 namelists
+- **NamelistComposer**: System for composing and validating complete namelist configurations
+
 
 # Documentation
 
 See https://rom-py.github.io/rompy-ww3/
+
+## Quick Start Example
+
+```python
+from rompy_ww3.config import Config
+from rompy_ww3.namelists import Domain, Input
+
+# Create a basic WW3 configuration
+config = Config(
+    domain=Domain(
+        start="20230101 000000",
+        stop="20230107 000000",
+        iostyp=1
+    ),
+    input_nml=Input(
+        forcing={
+            "winds": "T",
+            "water_levels": "T"
+        }
+    )
+)
+
+# Generate namelist files
+result = config(runtime=your_runtime_object)
+
+# Generate template context for use in templates
+context = config.get_template_context()
+```
+
+For more detailed examples, see the [examples directory](./examples).
 
 # Code Formatting and Pre-commit Hooks
 
