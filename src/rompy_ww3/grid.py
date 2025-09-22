@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 from typing import Literal, Optional
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from rompy.core.grid import BaseGrid, RegularGrid
 
@@ -91,6 +91,71 @@ class Grid(RegularGrid):
         description="Northern boundary of the grid"
     )
     
+    @model_validator(mode="after")
+    def validate_grid_parameters(self) -> "Grid":
+        """Validate grid parameters."""
+        # Validate grid type
+        if self.grid_type and self.grid_type not in ["RECT", "CURV", "UNST"]:
+            raise ValueError("grid_type must be one of 'RECT', 'CURV', or 'UNST'")
+        
+        # Validate coordinate system
+        if self.coordinate_system and self.coordinate_system not in ["SPHE", "CART"]:
+            raise ValueError("coordinate_system must be one of 'SPHE' or 'CART'")
+        
+        # Validate grid closure
+        if self.grid_closure and self.grid_closure not in ["NONE", "SMPL", "TRPL"]:
+            raise ValueError("grid_closure must be one of 'NONE', 'SMPL', or 'TRPL'")
+        
+        # Validate rectilinear grid parameters
+        if self.grid_type == "RECT":
+            if self.nx is not None and self.nx <= 0:
+                raise ValueError("nx must be positive for RECT grids")
+            if self.ny is not None and self.ny <= 0:
+                raise ValueError("ny must be positive for RECT grids")
+            if self.sx is not None and self.sx <= 0:
+                raise ValueError("sx must be positive for RECT grids")
+            if self.sy is not None and self.sy <= 0:
+                raise ValueError("sy must be positive for RECT grids")
+        
+        # Validate boundaries
+        if self.x0 is not None and self.x1 is not None and self.x0 >= self.x1:
+            raise ValueError("x0 must be less than x1")
+        if self.y0 is not None and self.y1 is not None and self.y0 >= self.y1:
+            raise ValueError("y0 must be less than y1")
+            
+        return self
+    
+    @property
+    def grid_dimensions(self) -> tuple[Optional[int], Optional[int]]:
+        """Get grid dimensions (nx, ny)."""
+        return (self.nx, self.ny)
+    
+    @property
+    def grid_spacing(self) -> tuple[Optional[float], Optional[float]]:
+        """Get grid spacing (sx, sy)."""
+        return (self.sx, self.sy)
+    
+    @property
+    def grid_boundaries(self) -> tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
+        """Get grid boundaries (x0, y0, x1, y1)."""
+        return (self.x0, self.y0, self.x1, self.y1)
+    
+    def calculate_grid_size(self) -> Optional[float]:
+        """Calculate approximate grid area in square degrees or square meters.
+        
+        Returns:
+            Approximate grid area or None if boundaries are not defined.
+        """
+        if self.x0 is None or self.x1 is None or self.y0 is None or self.y1 is None:
+            return None
+        
+        if self.coordinate_system == "SPHE":
+            # Approximate area calculation for spherical coordinates (in square degrees)
+            return (self.x1 - self.x0) * (self.y1 - self.y0)
+        else:
+            # Cartesian coordinates (in square meters or whatever units are used)
+            return (self.x1 - self.x0) * (self.y1 - self.y0)
+    
     def generate_grid_nml(self) -> str:
         """Generate GRID_NML namelist content."""
         lines = []
@@ -149,3 +214,31 @@ class Grid(RegularGrid):
                 f.write(rect_nml_content)
                 
         logger.info(f"Wrote grid files to {workdir}")
+    
+    def get_template_context(self) -> dict:
+        """Generate template context for Jinja2 templates.
+        
+        Returns:
+            Dictionary containing grid parameters for templates.
+        """
+        return {
+            "name": self.name,
+            "grid_type": self.grid_type,
+            "coordinate_system": self.coordinate_system,
+            "grid_closure": self.grid_closure,
+            "zlim": self.zlim,
+            "dmin": self.dmin,
+            "nx": self.nx,
+            "ny": self.ny,
+            "sx": self.sx,
+            "sy": self.sy,
+            "sf": self.sf,
+            "x0": self.x0,
+            "y0": self.y0,
+            "x1": self.x1,
+            "y1": self.y1,
+            "grid_dimensions": self.grid_dimensions,
+            "grid_spacing": self.grid_spacing,
+            "grid_boundaries": self.grid_boundaries,
+            "grid_area": self.calculate_grid_size()
+        }
