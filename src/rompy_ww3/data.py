@@ -2,8 +2,8 @@
 
 import logging
 from pathlib import Path
-from typing import Literal, Optional, Dict, Any
-from pydantic import Field
+from typing import Literal, Optional, Dict, Any, List
+from pydantic import Field, model_validator
 
 from rompy.core.data import DataBlob, DataGrid
 
@@ -62,6 +62,49 @@ class Data(DataGrid):
         description="Time step in seconds"
     )
     
+    # Homogeneous data values (for forcing_flag = 'H')
+    homogeneous_values: Optional[List[float]] = Field(
+        default=None,
+        description="Homogeneous values for data (used when forcing_flag = 'H')"
+    )
+    
+    # Variable mapping for source data
+    variable_mapping: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Mapping of WW3 variable names to source variable names"
+    )
+    
+    @model_validator(mode="after")
+    def validate_data_parameters(self) -> "Data":
+        """Validate data parameters."""
+        # Validate forcing flag
+        if self.forcing_flag and self.forcing_flag not in ["F", "T", "H", "C"]:
+            raise ValueError("forcing_flag must be one of 'F', 'T', 'H', or 'C'")
+        
+        # Validate assimilation flag
+        if self.assim_flag and self.assim_flag not in ["F", "T"]:
+            raise ValueError("assim_flag must be one of 'F' or 'T'")
+        
+        # Validate data type
+        valid_data_types = [
+            "winds", "currents", "water_levels", "ice_conc", "air_density", 
+            "atm_momentum", "spectra", "mean", "spec1d", "mud_density",
+            "mud_thickness", "mud_viscosity"
+        ]
+        if self.data_type and self.data_type not in valid_data_types:
+            raise ValueError(f"data_type must be one of {valid_data_types}")
+        
+        # Validate file format
+        valid_formats = ["netcdf", "binary", "ascii", "grib"]
+        if self.file_format and self.file_format not in valid_formats:
+            raise ValueError(f"file_format must be one of {valid_formats}")
+        
+        # Validate time step
+        if self.time_step is not None and self.time_step <= 0:
+            raise ValueError("time_step must be positive")
+            
+        return self
+    
     def get_forcing_config(self) -> Dict[str, Any]:
         """Get configuration for INPUT_NML forcing parameters."""
         config = {}
@@ -74,7 +117,10 @@ class Data(DataGrid):
                 "water_levels": "FORCING%WATER_LEVELS",
                 "ice_conc": "FORCING%ICE_CONC",
                 "air_density": "FORCING%AIR_DENSITY",
-                "atm_momentum": "FORCING%ATM_MOMENTUM"
+                "atm_momentum": "FORCING%ATM_MOMENTUM",
+                "mud_density": "FORCING%MUD_DENSITY",
+                "mud_thickness": "FORCING%MUD_THICKNESS",
+                "mud_viscosity": "FORCING%MUD_VISCOSITY"
             }
             
             if self.data_type in forcing_mapping:
@@ -130,5 +176,61 @@ class Data(DataGrid):
             f.write(f"Start Time: {self.start_time or 'unspecified'}\n")
             f.write(f"End Time: {self.end_time or 'unspecified'}\n")
             f.write(f"Time Step: {self.time_step or 'unspecified'}\n")
+            if self.homogeneous_values:
+                f.write(f"Homogeneous Values: {self.homogeneous_values}\n")
+            if self.variable_mapping:
+                f.write(f"Variable Mapping: {self.variable_mapping}\n")
             
         logger.info(f"Wrote data configuration to {config_file}")
+    
+    def get_template_context(self) -> Dict[str, Any]:
+        """Generate template context for Jinja2 templates.
+        
+        Returns:
+            Dictionary containing data parameters for templates.
+        """
+        return {
+            "data_type": self.data_type,
+            "forcing_flag": self.forcing_flag,
+            "assim_flag": self.assim_flag,
+            "file_format": self.file_format,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "time_step": self.time_step,
+            "homogeneous_values": self.homogeneous_values,
+            "variable_mapping": self.variable_mapping,
+            "forcing_config": self.get_forcing_config(),
+            "assim_config": self.get_assim_config()
+        }
+    
+    def is_homogeneous(self) -> bool:
+        """Check if this data is homogeneous.
+        
+        Returns:
+            True if forcing_flag is 'H', False otherwise.
+        """
+        return self.forcing_flag == "H"
+    
+    def is_from_file(self) -> bool:
+        """Check if this data is from a file.
+        
+        Returns:
+            True if forcing_flag is 'T', False otherwise.
+        """
+        return self.forcing_flag == "T"
+    
+    def is_coupled(self) -> bool:
+        """Check if this data is coupled.
+        
+        Returns:
+            True if forcing_flag is 'C', False otherwise.
+        """
+        return self.forcing_flag == "C"
+    
+    def is_disabled(self) -> bool:
+        """Check if this data is disabled.
+        
+        Returns:
+            True if forcing_flag is 'F', False otherwise.
+        """
+        return self.forcing_flag == "F"

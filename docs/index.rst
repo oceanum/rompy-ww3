@@ -8,6 +8,7 @@ Welcome to rompy-ww3's documentation!
    readme
    installation
    usage
+   namelists
    modules
    contributing
    authors
