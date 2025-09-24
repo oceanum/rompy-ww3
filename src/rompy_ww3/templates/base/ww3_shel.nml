@@ -1,0 +1,92 @@
+$WW3 - Model configuration template used by rompy
+$Template: {{_template}}
+$Generated: {{runtime._generated_at}} on {{runtime._generated_on}} by {{runtime._generated_by}}
+$
+
+{% if config.domain %}
+{{ namelists.get('domain.nml', '') }}
+{% endif %}
+
+{% if config.input_nml %}
+{{ namelists.get('input.nml', '') }}
+{% endif %}
+
+{% if config.output_type %}
+{{ namelists.get('output_type.nml', '') }}
+{% endif %}
+
+{% if config.output_date %}
+{{ namelists.get('output_date.nml', '') }}
+{% endif %}
+
+{% if config.homog_count %}
+{{ namelists.get('homog_count.nml', '') }}
+{% endif %}
+
+{% if config.homog_input %}
+{{ namelists.get('homog_input.nml', '') }}
+{% endif %}
+
+{% if config.spectrum %}
+{{ namelists.get('spectrum.nml', '') }}
+{% endif %}
+
+{% if config.run %}
+{{ namelists.get('run.nml', '') }}
+{% endif %}
+
+{% if config.timesteps %}
+{{ namelists.get('timesteps.nml', '') }}
+{% endif %}
+
+{% if config.grid %}
+{{ namelists.get('grid.nml', '') }}
+{% endif %}
+
+{% if config.rect %}
+{{ namelists.get('rect.nml', '') }}
+{% endif %}
+
+{% if config.bound %}
+{{ namelists.get('bound.nml', '') }}
+{% endif %}
+
+{% if config.forcing %}
+{{ namelists.get('forcing.nml', '') }}
+{% endif %}
+
+{% if config.track %}
+{{ namelists.get('track.nml', '') }}
+{% endif %}
+
+{% if config.field %}
+{{ namelists.get('field.nml', '') }}
+{% endif %}
+
+{% if config.point %}
+{{ namelists.get('point.nml', '') }}
+{% endif %}
+
+{% if config.restart %}
+{{ namelists.get('restart.nml', '') }}
+{% endif %}
+
+{% if config.update %}
+{{ namelists.get('update.nml', '') }}
+{% endif %}
+
+{% if config.unformatted %}
+{{ namelists.get('unformatted.nml', '') }}
+{% endif %}
+
+{% if config.point_output %}
+{{ namelists.get('point_output.nml', '') }}
+{% endif %}
+
+{% if config.restart_update %}
+{{ namelists.get('restart_update.nml', '') }}
+{% endif %}
+
+{% if config.parameters %}
+{{ namelists.get('parameters.nml', '') }}
+{% endif %}
