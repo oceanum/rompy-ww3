@@ -1,7 +1,5 @@
 
----
-title: "Relocatable Ocean Modelling in PYthon (rompy)"
----
+# Relocatable Ocean Modelling in PYthon (rompy)
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15093426.svg)](https://doi.org/10.5281/zenodo.15093426)
 [![GitHub Pages](https://github.com/rom-py/rompy-ww3/actions/workflows/sphinx_docs_to_gh_pages.yaml/badge.svg)](https://rom-py.github.io/rompy-ww3/)
@@ -29,6 +27,7 @@ operational workflows. Current model support includes SWAN and SCHISM, with
 ongoing development for additional models and cloud/HPC backends.
 
 Key Features:
+
 - Modular architecture with clear separation of configuration and execution logic
 - Templated, reproducible model configuration using pydantic and xarray
 - Unified interfaces for grids, data, boundaries, and spectra
@@ -39,7 +38,6 @@ Key Features:
 
 rompy is under active development—features, model support, and documentation are continually evolving. Contributions and feedback are welcome!
 
-
 # WAVEWATCH III (WW3) Plugin
 
 This package provides a plugin for the rompy framework to facilitate the setup,
@@ -48,14 +46,42 @@ rompy's modular architecture to streamline the creation of WW3 model control
 files, input datasets, and boundary conditions using templated configurations
 and pydantic validation.
 
-## Key Features
+## Features
 
-- **Pydantic-based Namelists**: Complete implementation of WW3 namelist classes with validation
-- **Automatic Namelist Generation**: Generate properly formatted WW3 namelist files from Python objects
-- **Template Context Generation**: Create rich context for Jinja2 templates with all configuration data
-- **Validation System**: Built-in validation for namelist completeness and consistency
-- **Modular Architecture**: Separate classes for each namelist section (DOMAIN, INPUT, OUTPUT, etc.)
-- **Integration with rompy**: Seamless integration with the core rompy framework
+This package provides:
+
+- Complete WW3 model configuration capabilities with all namelist components
+- Integration with the rompy framework
+- Comprehensive namelist generation for single-grid and multi-grid configurations
+- Support for all WW3 model components: domain, input, output, forcing, boundary, grid, and more
+- Ready-to-use examples including full model run configurations
+
+## Implemented Namelist Components
+
+The rompy-ww3 plugin includes complete implementations for all major WW3 namelist components:
+
+- **DOMAIN_NML**: Domain definition and model timing
+- **INPUT_NML**: Input data configuration for single-grid models
+- **INPUT_GRID_NML**: Input grid specification for multi-grid models
+- **MODEL_GRID_NML**: Model grid specification for multi-grid models
+- **OUTPUT_TYPE_NML**: Output field specifications
+- **OUTPUT_DATE_NML**: Output timing configuration
+- **HOMOG_COUNT_NML**: Homogeneous input counts
+- **HOMOG_INPUT_NML**: Homogeneous input specifications
+- **SPECTRUM_NML**: Frequency and direction discretization
+- **RUN_NML**: Run parameterization
+- **TIMESTEPS_NML**: Time step configuration
+- **GRID_NML & RECT_NML**: Grid preprocessing parameters
+- **BOUND_NML**: Boundary input preprocessing
+- **FORCING_NML**: Forcing field preprocessing
+- **TRACK_NML**: Track output post-processing
+- **FIELD_NML**: Field output post-processing
+- **POINT_NML**: Point output post-processing
+- **RESTART_NML**: Restart file initialization
+- **OUNF_NML**: Unformatted output (user-created)
+- **OUNP_NML**: Point output (user-created)
+- **UPRSTR_NML**: Restart update (user-created)
+- **PARAMS_NML**: Model parameters (user-created)
 
 ## Core Components
 
@@ -66,10 +92,9 @@ and pydantic validation.
 - **Namelists**: Complete set of Pydantic models for WW3 namelists
 - **NamelistComposer**: System for composing and validating complete namelist configurations
 
-
 # Documentation
 
-See https://rom-py.github.io/rompy-ww3/
+See <https://rom-py.github.io/rompy-ww3/>
 
 ## Quick Start Example
 
@@ -137,31 +162,23 @@ For more advanced configuration, see `tbump.toml` in the project root.
 > - [rompy-schism](https://github.com/rom-py/rompy-schism)
 > - [rompy-notebooks](https://github.com/rom-py/rompy-notebooks)
 
-.. image:: https://img.shields.io/pypi/v/rompy_ww3.svg
-        :target: https://pypi.python.org/pypi/rompy_ww3
+.. image:: <https://img.shields.io/pypi/v/rompy_ww3.svg>
+        :target: <https://pypi.python.org/pypi/rompy_ww3>
 
-.. image:: https://img.shields.io/travis/rom-py/rompy_ww3.svg
-        :target: https://travis-ci.com/rom-py/rompy_ww3
+.. image:: <https://img.shields.io/travis/rom-py/rompy_ww3.svg>
+        :target: <https://travis-ci.com/rom-py/rompy_ww3>
 
-.. image:: https://readthedocs.org/projects/rompy-ww3/badge/?version=latest
-        :target: https://rompy-ww3.readthedocs.io/en/latest/?version=latest
+.. image:: <https://readthedocs.org/projects/rompy-ww3/badge/?version=latest>
+        :target: <https://rompy-ww3.readthedocs.io/en/latest/?version=latest>
         :alt: Documentation Status
-
-
-
 
 Rompy WW3 Config package.
 
-
-* Free software: Apache Software License 2.0
-* Documentation: https://rompy-ww3.readthedocs.io.
-
+- Free software: Apache Software License 2.0
+- Documentation: <https://rompy-ww3.readthedocs.io>.
 
 Features
 --------
-
-
-
 
 Code Formatting and Pre-commit Hooks
 ------------------------------------
