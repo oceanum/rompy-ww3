@@ -7,27 +7,16 @@ from .basemodel import NamelistBaseModel
 
 class Spectrum(NamelistBaseModel):
     """SPECTRUM_NML namelist for WW3.
-    
+
     Defines the spectrum parameterization.
     """
-    
-    xfr: Optional[float] = Field(
-        default=None,
-        description="Frequency increment"
-    )
-    freq1: Optional[float] = Field(
-        default=None,
-        description="First frequency (Hz)"
-    )
+
+    xfr: Optional[float] = Field(default=None, description="Frequency increment")
+    freq1: Optional[float] = Field(default=None, description="First frequency (Hz)")
     nk: Optional[int] = Field(
-        default=None,
-        description="Number of frequencies (wavenumbers)"
+        default=None, description="Number of frequencies (wavenumbers)"
     )
-    nth: Optional[int] = Field(
-        default=None,
-        description="Number of direction bins"
-    )
+    nth: Optional[int] = Field(default=None, description="Number of direction bins")
     thoff: Optional[float] = Field(
-        default=None,
-        description="Relative offset of first direction [-0.5,0.5]"
+        default=None, description="Relative offset of first direction [-0.5,0.5]"
     )

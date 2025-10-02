@@ -5,9 +5,6 @@
 import pytest
 
 
-from rompy_ww3 import rompy_ww3
-
-
 @pytest.fixture
 def response():
     """Sample pytest fixture.
