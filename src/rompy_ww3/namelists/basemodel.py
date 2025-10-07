@@ -81,6 +81,21 @@ class NamelistBaseModel(BaseModel):
             "Point": "POINT_NML",
             "Restart": "RESTART_NML",
             "Update": "UPDATE_NML",
+            "Depth": "DEPTH_NML",
+            "Mask": "MASK_NML",
+            "Obstacle": "OBST_NML",
+            "Slope": "SLOPE_NML",
+            "Sediment": "SED_NML",
+            "InboundCount": "INBND_COUNT_NML",
+            "InboundPointList": "INBND_POINT_NML",
+            "ExcludedCount": "EXCL_COUNT_NML",
+            "ExcludedPointList": "EXCL_POINT_NML",
+            "ExcludedBodyList": "EXCL_BODY_NML",
+            "OutboundCount": "OUTBND_COUNT_NML",
+            "OutboundLineList": "OUTBND_LINE_NML",
+            "Curv": "CURV_NML",
+            "Unst": "UNST_NML",
+            "Smc": "SMC_NML",
         }
 
         if class_name in namelist_mapping:

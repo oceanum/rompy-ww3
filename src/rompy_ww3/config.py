@@ -27,6 +27,21 @@ from .namelists import (
     PointOutput,
     RestartUpdate,
     ModelParameters,
+    Depth,
+    Mask,
+    Obstacle,
+    Slope,
+    Sediment,
+    InboundCount,
+    InboundPointList,
+    ExcludedCount,
+    ExcludedPointList,
+    ExcludedBodyList,
+    OutboundCount,
+    OutboundLineList,
+    Curv,
+    Unst,
+    Smc,
 )
 from pydantic import Field as PydanticField
 
@@ -119,6 +134,51 @@ class Config(BaseConfig):
     )
     parameters: Optional[ModelParameters] = PydanticField(
         default=None, description="PARAMS_NML namelist configuration"
+    )
+    depth: Optional[Depth] = PydanticField(
+        default=None, description="DEPTH_NML namelist configuration"
+    )
+    mask: Optional[Mask] = PydanticField(
+        default=None, description="MASK_NML namelist configuration"
+    )
+    obstacle: Optional[Obstacle] = PydanticField(
+        default=None, description="OBST_NML namelist configuration"
+    )
+    slope: Optional[Slope] = PydanticField(
+        default=None, description="SLOPE_NML namelist configuration"
+    )
+    sediment: Optional[Sediment] = PydanticField(
+        default=None, description="SED_NML namelist configuration"
+    )
+    inbound_count: Optional[InboundCount] = PydanticField(
+        default=None, description="INBND_COUNT_NML namelist configuration"
+    )
+    inbound_points: Optional[InboundPointList] = PydanticField(
+        default=None, description="INBND_POINT_NML namelist configuration"
+    )
+    excluded_count: Optional[ExcludedCount] = PydanticField(
+        default=None, description="EXCL_COUNT_NML namelist configuration"
+    )
+    excluded_points: Optional[ExcludedPointList] = PydanticField(
+        default=None, description="EXCL_POINT_NML namelist configuration"
+    )
+    excluded_bodies: Optional[ExcludedBodyList] = PydanticField(
+        default=None, description="EXCL_BODY_NML namelist configuration"
+    )
+    outbound_count: Optional[OutboundCount] = PydanticField(
+        default=None, description="OUTBND_COUNT_NML namelist configuration"
+    )
+    outbound_lines: Optional[OutboundLineList] = PydanticField(
+        default=None, description="OUTBND_LINE_NML namelist configuration"
+    )
+    curv: Optional[Curv] = PydanticField(
+        default=None, description="CURV_NML namelist configuration"
+    )
+    unst: Optional[Unst] = PydanticField(
+        default=None, description="UNST_NML namelist configuration"
+    )
+    smc: Optional[Smc] = PydanticField(
+        default=None, description="SMC_NML namelist configuration"
     )
 
     def __call__(self, runtime) -> dict:
@@ -285,6 +345,53 @@ class Config(BaseConfig):
         if self.parameters:
             namelists["parameters.nml"] = self.parameters.render()
 
+        # Additional grid preprocessing namelist configurations
+        if self.depth:
+            namelists["depth.nml"] = self.depth.render()
+
+        if self.mask:
+            namelists["mask.nml"] = self.mask.render()
+
+        if self.obstacle:
+            namelists["obstacle.nml"] = self.obstacle.render()
+
+        if self.slope:
+            namelists["slope.nml"] = self.slope.render()
+
+        if self.sediment:
+            namelists["sediment.nml"] = self.sediment.render()
+
+        if self.inbound_count:
+            namelists["inbound_count.nml"] = self.inbound_count.render()
+
+        if self.inbound_points:
+            namelists["inbound_points.nml"] = self.inbound_points.render()
+
+        if self.excluded_count:
+            namelists["excluded_count.nml"] = self.excluded_count.render()
+
+        if self.excluded_points:
+            namelists["excluded_points.nml"] = self.excluded_points.render()
+
+        if self.excluded_bodies:
+            namelists["excluded_bodies.nml"] = self.excluded_bodies.render()
+
+        if self.outbound_count:
+            namelists["outbound_count.nml"] = self.outbound_count.render()
+
+        if self.outbound_lines:
+            namelists["outbound_lines.nml"] = self.outbound_lines.render()
+
+        # Additional grid type namelist configurations
+        if self.curv:
+            namelists["curv.nml"] = self.curv.render()
+
+        if self.unst:
+            namelists["unst.nml"] = self.unst.render()
+
+        if self.smc:
+            namelists["smc.nml"] = self.smc.render()
+
         return namelists
 
     def get_template_context(self) -> Dict[str, Any]:
@@ -412,6 +519,85 @@ class Config(BaseConfig):
             rendered = self.timesteps.render().replace("\\n", "\n")
             grid_content.extend(rendered.split("\n"))
             grid_content.append("")
+
+        # Add optional depth-related namelists
+        if self.depth:
+            rendered = self.depth.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        if self.mask:
+            rendered = self.mask.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        if self.obstacle:
+            rendered = self.obstacle.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        if self.slope:
+            rendered = self.slope.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        if self.sediment:
+            rendered = self.sediment.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        # Add inbound boundary point namelists
+        if self.inbound_count:
+            rendered = self.inbound_count.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        if self.inbound_points:
+            rendered = self.inbound_points.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        # Add excluded point and body namelists
+        if self.excluded_count:
+            rendered = self.excluded_count.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        if self.excluded_points:
+            rendered = self.excluded_points.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        if self.excluded_bodies:
+            rendered = self.excluded_bodies.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        # Add outbound boundary line namelists
+        if self.outbound_count:
+            rendered = self.outbound_count.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        if self.outbound_lines:
+            rendered = self.outbound_lines.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        # Add grid type specific namelists based on grid type
+        if self.grid:
+            if self.grid.grid_type == "CURV" and self.curv:
+                rendered = self.curv.render().replace("\\n", "\n")
+                grid_content.extend(rendered.split("\n"))
+                grid_content.append("")
+            elif self.grid.grid_type == "UNST" and self.unst:
+                rendered = self.unst.render().replace("\\n", "\n")
+                grid_content.extend(rendered.split("\n"))
+                grid_content.append("")
+            elif self.grid.grid_type == "SMC" and self.smc:
+                rendered = self.smc.render().replace("\\n", "\n")
+                grid_content.extend(rendered.split("\n"))
+                grid_content.append("")
 
         with open(output_path, "w") as f:
             f.write("\n".join(grid_content))

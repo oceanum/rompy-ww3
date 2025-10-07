@@ -87,8 +87,10 @@ class Grid(RegularGrid):
     def validate_grid_parameters(self) -> "Grid":
         """Validate grid parameters."""
         # Validate grid type
-        if self.grid_type and self.grid_type not in ["RECT", "CURV", "UNST"]:
-            raise ValueError("grid_type must be one of 'RECT', 'CURV', or 'UNST'")
+        if self.grid_type and self.grid_type not in ["RECT", "CURV", "UNST", "SMC"]:
+            raise ValueError(
+                "grid_type must be one of 'RECT', 'CURV', 'UNST', or 'SMC'"
+            )
 
         # Validate coordinate system
         if self.coordinate_system and self.coordinate_system not in ["SPHE", "CART"]:
