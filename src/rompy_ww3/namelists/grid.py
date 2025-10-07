@@ -28,10 +28,10 @@ class Grid(NamelistBaseModel):
         description="Grid closure: 'NONE', 'SMPL' (simple), 'TRPL' (tripole)",
     )
     zlim: Optional[float] = Field(
-        default=None, description="Minimum depth limit (meters)"
+        default=-0.1, description="Minimum depth limit (meters)"
     )
     dmin: Optional[float] = Field(
-        default=None, description="Minimum depth for wave propagation (meters)"
+        default=2.5, description="Minimum depth for wave propagation (meters)"
     )
 
 

@@ -14,6 +14,7 @@ from .namelists import (
     HomogInput,
     Spectrum,
     Run,
+    Timesteps,
     Field,
     Rect,
     Bound,
@@ -72,10 +73,13 @@ class Config(BaseConfig):
         default=None, description="HOMOG_INPUT_NML namelist configurations"
     )
     spectrum: Optional[Spectrum] = PydanticField(
-        default=None, description="SPECTRUM_NML namelist configuration"
+        default_factory=Spectrum, description="SPECTRUM_NML namelist configuration"
     )
     run: Optional[Run] = PydanticField(
         default=None, description="RUN_NML namelist configuration"
+    )
+    timesteps: Optional[Timesteps] = PydanticField(
+        ..., description="TIMESTEPS_NML namelist configuration"
     )
     grid: Optional[Grid] = PydanticField(
         default=None, description="GRID_NML namelist configuration"
@@ -238,6 +242,9 @@ class Config(BaseConfig):
         if self.run:
             namelists["run.nml"] = self.run.render()
 
+        if self.timesteps:
+            namelists["timesteps.nml"] = self.timesteps.render()
+
         if self.grid:
             namelists["grid.nml"] = self.grid.generate_grid_nml()
             namelists["rect.nml"] = self.grid.generate_rect_nml()
@@ -296,6 +303,7 @@ class Config(BaseConfig):
             "homog_input": self.homog_input,
             "spectrum": self.spectrum,
             "run": self.run,
+            "timesteps": self.timesteps,
             "grid": self.grid,
             "rect": self.rect,
             "bound": self.bound,
@@ -397,6 +405,12 @@ class Config(BaseConfig):
         # Add RECT_NML
         if self.grid and self.grid.grid_type == "RECT":
             grid_content.append(self.grid.generate_rect_nml())
+            grid_content.append("")
+
+        # Add TIMESTEPS_NML
+        if self.timesteps:
+            rendered = self.timesteps.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
             grid_content.append("")
 
         with open(output_path, "w") as f:

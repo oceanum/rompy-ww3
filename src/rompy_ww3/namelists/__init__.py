@@ -8,6 +8,7 @@ from .output_date import OutputDate, AllDate, IDate
 from .homogeneous import HomogCount, HomogInput
 from .spectrum import Spectrum
 from .run import Run
+from .timesteps import Timesteps
 from .grid import Grid, Rect
 from .bound import Bound
 from .forcing import Forcing, ForcingField, ForcingGrid
@@ -36,6 +37,7 @@ __all__ = [
     "HomogInput",
     "Spectrum",
     "Run",
+    "Timesteps",
     "Grid",
     "Rect",
     "Bound",
