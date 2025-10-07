@@ -5,7 +5,7 @@ Test cases for WW3 template context generation.
 import tempfile
 from pathlib import Path
 from rompy_ww3.config import Config
-from rompy_ww3.namelists import Domain, Input
+from rompy_ww3.namelists import Domain, Input, Timesteps
 
 
 def test_template_context_generation():
@@ -15,6 +15,7 @@ def test_template_context_generation():
     config = Config(
         domain=Domain(start="20230101 000000", stop="20230102 000000", iostyp=1),
         input_nml=Input(forcing={"winds": "T", "water_levels": "T"}),
+        timesteps=Timesteps(dtmax=2700.0, dtxy=900.0, dtkth=1350.0, dtmin=10.0),
     )
 
     # Generate template context
@@ -49,7 +50,11 @@ def test_template_context_generation():
 def test_run_script_generation():
     """Test run script generation."""
 
-    config = Config()
+    config = Config(
+        domain=Domain(start="20230101 000000", stop="20230102 000000", iostyp=0),
+        input_nml=Input(),
+        timesteps=Timesteps(dtmax=2700.0, dtxy=900.0, dtkth=1350.0, dtmin=10.0),
+    )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         workdir = Path(tmpdir) / "run"

@@ -21,6 +21,7 @@ from rompy_ww3.namelists import (
     HomogCount,
     Spectrum,
     Run,
+    Timesteps,
     Bound,
     Update,
     ModelParameters,
@@ -83,6 +84,13 @@ def test_ww3_control_file_generation():
                 flcth=True,  # Direction shift
                 flck=True,  # Wavenumber shift
                 flsou=True,  # Source terms
+            ),
+            # Timesteps parameters
+            timesteps=Timesteps(
+                dtmax=2700.0,  # Maximum CFL timestep (3 * dtxy)
+                dtxy=900.0,  # Propagation timestep
+                dtkth=1350.0,  # Refraction timestep (between dtmax/10 and dtmax/2)
+                dtmin=10.0,  # Minimum time step
             ),
             # Boundary parameters
             bound=Bound(

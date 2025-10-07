@@ -5,7 +5,7 @@ Test cases for WW3 Config class.
 import tempfile
 from pathlib import Path
 from rompy_ww3.config import Config
-from rompy_ww3.namelists import Domain, Input, HomogInput
+from rompy_ww3.namelists import Domain, Input, HomogInput, Timesteps
 
 
 def test_config_with_namelists():
@@ -15,6 +15,7 @@ def test_config_with_namelists():
     config = Config(
         domain=Domain(start="20230101 000000", stop="20230102 000000", iostyp=1),
         input_nml=Input(forcing={"winds": "T", "water_levels": "T"}),
+        timesteps=Timesteps(dtmax=2700.0, dtxy=900.0, dtkth=1350.0, dtmin=10.0),
         homog_input=[
             HomogInput(name="WND", date="20230101 000000", value1=10.0, value2=90.0),
             HomogInput(name="WND", date="20230101 060000", value1=15.0, value2=120.0),

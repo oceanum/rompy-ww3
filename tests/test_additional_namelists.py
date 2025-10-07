@@ -7,6 +7,7 @@ from pathlib import Path
 from rompy_ww3.namelists import (
     Spectrum,
     Run,
+    Timesteps,
     Grid,
     Bound,
     Forcing,
@@ -59,6 +60,29 @@ def test_run_nml():
     assert "RUN%FLCK = T" in rendered
     assert "RUN%FLSOU = T" in rendered
     assert "/" in rendered
+
+
+def test_timesteps_nml():
+    """Test TIMESTEPS_NML namelist."""
+    timesteps = Timesteps(
+        dtmax=2700.0,  # Maximum CFL timestep (3 * dtxy)
+        dtxy=900.0,  # Propagation timestep
+        dtkth=1350.0,  # Refraction timestep (between dtmax/10 and dtmax/2)
+        dtmin=10.0,  # Minimum time step
+    )
+
+    rendered = timesteps.render()
+    print("\nTIMESTEPS_NML rendered:")
+    print(rendered)
+
+    assert "&TIMESTEPS_NML" in rendered
+    assert "TIMESTEPS%DTMAX" in rendered
+    assert "TIMESTEPS%DTXY" in rendered
+    assert "TIMESTEPS%DTKTH" in rendered
+    assert "TIMESTEPS%DTMIN" in rendered
+    assert "/" in rendered
+
+    print("TIMESTEPS_NML test passed!")
 
 
 def test_grid_nml():

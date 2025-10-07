@@ -5,7 +5,7 @@ Test cases for WW3 namelist composition system.
 import tempfile
 from pathlib import Path
 from rompy_ww3.namelist_composer import NamelistComposition, compose_namelists
-from rompy_ww3.namelists import Domain, Input, HomogCount, HomogInput
+from rompy_ww3.namelists import Domain, Input, HomogCount, HomogInput, Timesteps
 from rompy_ww3.config import Config
 
 
@@ -85,6 +85,7 @@ def test_composition_from_config():
     config = Config(
         domain=Domain(start="20230101 000000", stop="20230102 000000"),
         input_nml=Input(forcing={"winds": "T"}),
+        timesteps=Timesteps(dtmax=2700.0, dtxy=900.0, dtkth=1350.0, dtmin=10.0),
     )
 
     # Create composition from config
