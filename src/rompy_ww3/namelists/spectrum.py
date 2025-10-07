@@ -11,12 +11,12 @@ class Spectrum(NamelistBaseModel):
     Defines the spectrum parameterization.
     """
 
-    xfr: Optional[float] = Field(default=None, description="Frequency increment")
-    freq1: Optional[float] = Field(default=None, description="First frequency (Hz)")
+    xfr: Optional[float] = Field(default=1.1, description="Frequency increment")
+    freq1: Optional[float] = Field(default=0.035714, description="First frequency (Hz)")
     nk: Optional[int] = Field(
-        default=None, description="Number of frequencies (wavenumbers)"
+        default=25, description="Number of frequencies (wavenumbers)"
     )
-    nth: Optional[int] = Field(default=None, description="Number of direction bins")
+    nth: Optional[int] = Field(default=25, description="Number of direction bins")
     thoff: Optional[float] = Field(
         default=None, description="Relative offset of first direction [-0.5,0.5]"
     )
