@@ -41,18 +41,23 @@ class InboundPointList(NamelistBaseModel):
     )
 
     def render(self) -> str:
-        """Render the namelist content with indexed parameters."""
+        """Render the namelist content with unindexed parameters."""
         lines = ["&INBND_POINT_NML"]
 
         for i, point in enumerate(self.points, 1):
+            # Format as unindexed: INBND_POINT(I) = x_index y_index connect
+            values = []
             if point.x_index is not None:
-                lines.append(f"  INBND_POINT({i})%X_INDEX = {point.x_index}")
+                values.append(str(point.x_index))
             if point.y_index is not None:
-                lines.append(f"  INBND_POINT({i})%Y_INDEX = {point.y_index}")
+                values.append(str(point.y_index))
             if point.connect is not None:
-                lines.append(
-                    f"  INBND_POINT({i})%CONNECT = {'T' if point.connect else 'F'}"
-                )
+                values.append("T" if point.connect else "F")
+
+            if values:
+                # Simple space-separated format - Fortran will read this correctly
+                spaced_values = " ".join(values)
+                lines.append(f"  INBND_POINT({i})         = {spaced_values}")
             lines.append("")  # Add a blank line between points for readability
 
         lines.append("/")

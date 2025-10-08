@@ -53,18 +53,23 @@ class ExcludedPointList(NamelistBaseModel):
     )
 
     def render(self) -> str:
-        """Render the namelist content with indexed parameters."""
+        """Render the namelist content with unindexed parameters."""
         lines = ["&EXCL_POINT_NML"]
 
         for j, point in enumerate(self.points, 1):
+            # Format as unindexed: EXCL_POINT(J) = x_index y_index connect
+            values = []
             if point.x_index is not None:
-                lines.append(f"  EXCL_POINT({j})%X_INDEX = {point.x_index}")
+                values.append(str(point.x_index))
             if point.y_index is not None:
-                lines.append(f"  EXCL_POINT({j})%Y_INDEX = {point.y_index}")
+                values.append(str(point.y_index))
             if point.connect is not None:
-                lines.append(
-                    f"  EXCL_POINT({j})%CONNECT = {'T' if point.connect else 'F'}"
-                )
+                values.append("T" if point.connect else "F")
+
+            if values:
+                # Simple space-separated format - Fortran will read this correctly
+                spaced_values = " ".join(values)
+                lines.append(f"  EXCL_POINT({j})       = {spaced_values}")
             lines.append("")  # Add a blank line between points for readability
 
         lines.append("/")
@@ -82,14 +87,21 @@ class ExcludedBodyList(NamelistBaseModel):
     )
 
     def render(self) -> str:
-        """Render the namelist content with indexed parameters."""
+        """Render the namelist content with unindexed parameters."""
         lines = ["&EXCL_BODY_NML"]
 
         for k, body in enumerate(self.bodies, 1):
+            # Format as unindexed: EXCL_BODY(K) = x_index y_index
+            values = []
             if body.x_index is not None:
-                lines.append(f"  EXCL_BODY({k})%X_INDEX = {body.x_index}")
+                values.append(str(body.x_index))
             if body.y_index is not None:
-                lines.append(f"  EXCL_BODY({k})%Y_INDEX = {body.y_index}")
+                values.append(str(body.y_index))
+
+            if values:
+                # Simple space-separated format - Fortran will read this correctly
+                spaced_values = " ".join(values)
+                lines.append(f"  EXCL_BODY({k})        = {spaced_values}")
             lines.append("")  # Add a blank line between bodies for readability
 
         lines.append("/")
