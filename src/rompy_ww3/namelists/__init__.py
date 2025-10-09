@@ -2,7 +2,15 @@
 
 from .basemodel import NamelistBaseModel
 from .domain import Domain
-from .input import Input, InputGrid, ModelGrid
+from .input import (
+    Input,
+    InputGrid,
+    ModelGrid,
+    InputForcing,
+    InputAssim,
+    ModelGridForcing,
+    ModelGridResource,
+)
 from .output_type import OutputType, AllType, IType
 from .output_date import OutputDate, AllDate, IDate
 from .homogeneous import HomogCount, HomogInput
@@ -44,6 +52,10 @@ __all__ = [
     "Input",
     "InputGrid",
     "ModelGrid",
+    "InputForcing",
+    "InputAssim",
+    "ModelGridForcing",
+    "ModelGridResource",
     "OutputType",
     "AllType",
     "IType",
