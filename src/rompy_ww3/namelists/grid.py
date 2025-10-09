@@ -1,7 +1,7 @@
 """GRID_NML and RECT_NML namelist implementation for WW3."""
 
 from typing import Optional
-from pydantic import Field, BaseModel
+from pydantic import Field
 from .basemodel import NamelistBaseModel
 
 

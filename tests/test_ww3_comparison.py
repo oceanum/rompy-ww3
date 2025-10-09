@@ -52,11 +52,6 @@ from rompy_ww3.namelists import (
     OutboundLine,
     InputGrid,
     ModelGrid,
-    Curv,
-    CoordData,
-    Unst,
-    Smc,
-    SMCFile,
 )
 
 
@@ -594,7 +589,7 @@ def test_ww3_control_file_comparison():
                             f"  - Additional in generated file: {', '.join(result['missing_in_reference'])}"
                         )
                     if result["differences"]:
-                        print(f"  - Value differences:")
+                        print("  - Value differences:")
                         for diff in result["differences"]:
                             print(f"    * {diff}")
 
