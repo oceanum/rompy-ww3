@@ -4,10 +4,12 @@ import logging
 from pathlib import Path
 from typing import Literal, Optional, List, Dict, Any
 from rompy.core.config import BaseConfig
-from .grid import Grid
+from .grid import Grid as GridModel
 from .namelists import (
     Domain,
     Input,
+    InputGrid,
+    ModelGrid,
     OutputType,
     OutputDate,
     HomogCount,
@@ -75,6 +77,18 @@ class Config(BaseConfig):
     input_nml: Optional[Input] = PydanticField(
         default=None, description="INPUT_NML namelist configuration"
     )
+    input_grid: Optional[InputGrid] = PydanticField(
+        default=None,
+        description="INPUT_GRID_NML namelist configuration (for multi-grid)",
+    )
+    model_grid: Optional[ModelGrid] = PydanticField(
+        default=None,
+        description="MODEL_GRID_NML namelist configuration (for multi-grid)",
+    )
+    model_grids: Optional[List[ModelGrid]] = PydanticField(
+        default=None,
+        description="List of MODEL_GRID_NML namelist configurations (for multi-grid)",
+    )
     output_type: Optional[OutputType] = PydanticField(
         default=None, description="OUTPUT_TYPE_NML namelist configuration"
     )
@@ -96,8 +110,12 @@ class Config(BaseConfig):
     timesteps: Optional[Timesteps] = PydanticField(
         ..., description="TIMESTEPS_NML namelist configuration"
     )
-    grid: Optional[Grid] = PydanticField(
+    grid: Optional[GridModel] = PydanticField(
         default=None, description="GRID_NML namelist configuration"
+    )
+    grids: Optional[List[GridModel]] = PydanticField(
+        default=None,
+        description="List of GRID_NML namelist configurations (for multi-grid)",
     )
     rect: Optional[Rect] = PydanticField(
         default=None, description="RECT_NML namelist configuration"
@@ -716,11 +734,58 @@ class Config(BaseConfig):
             multi_content.extend(rendered.split("\n"))
             multi_content.append("")
 
-        # Add INPUT_GRID_NML if needed
-        # This would typically be handled by a separate class in full implementation
+        # Add INPUT_GRID_NML if defined
+        if self.input_grid:
+            rendered = self.input_grid.render().replace("\\n", "\n")
+            multi_content.extend(rendered.split("\n"))
+            multi_content.append("")
+        elif self.model_grids:  # If we have model grids but no specific input grid
+            for i, model_grid in enumerate(self.model_grids):
+                # Assuming each model grid has corresponding input
+                if model_grid.name:
+                    input_grid_nml = f"&INPUT_GRID_NML\n  INPUT({i+1})%NAME = '{model_grid.name}'\n/\n"
+                    multi_content.append(input_grid_nml)
+                    multi_content.append("")
 
-        # Add MODEL_GRID_NML if needed
-        # This would typically be handled by a separate class in full implementation
+        # Add MODEL_GRID_NML configurations
+        if self.model_grids:
+            for i, model_grid in enumerate(self.model_grids):
+                rendered = model_grid.render().replace("\\n", "\n")
+                # Replace the namelist name to be MODEL_GRID_NML instead of whatever is in the render
+                lines = rendered.split("\n")
+                updated_lines = []
+                for line in lines:
+                    if line.strip().startswith("&"):
+                        updated_lines.append("&MODEL_GRID_NML")
+                    elif line.strip() == "/":
+                        updated_lines.append(
+                            f"  MODEL_NAME = '{model_grid.name}'  ! Index: {i+1}"
+                        )
+                        updated_lines.append("/")
+                    else:
+                        # Need to update the fields to use the proper indexed format
+                        updated_line = line.replace("MODEL%", f"MODEL({i+1})%")
+                        updated_lines.append(updated_line)
+                multi_content.extend(updated_lines)
+                multi_content.append("")
+        elif self.model_grid:  # Single model grid
+            rendered = self.model_grid.render().replace("\\n", "\n")
+            # Replace the namelist name and fields to use proper indexed format
+            lines = rendered.split("\n")
+            updated_lines = []
+            for line in lines:
+                if line.strip().startswith("&"):
+                    updated_lines.append("&MODEL_GRID_NML")
+                elif line.strip() == "/":
+                    updated_lines.append(
+                        f"  MODEL_NAME = '{self.model_grid.name}'  ! Index: 1"
+                    )
+                    updated_lines.append("/")
+                else:
+                    updated_line = line.replace("MODEL%", "MODEL(1)%")
+                    updated_lines.append(updated_line)
+            multi_content.extend(updated_lines)
+            multi_content.append("")
 
         # Add OUTPUT_TYPE_NML
         if self.output_type:
@@ -734,7 +799,7 @@ class Config(BaseConfig):
             multi_content.extend(rendered.split("\n"))
             multi_content.append("")
 
-        # Add HOMOG_COUNT_NML
+        # Add HOMOG_COUNT_NML if needed for multi-grid
         if self.homog_count:
             rendered = self.homog_count.render().replace("\\n", "\n")
             multi_content.extend(rendered.split("\n"))
