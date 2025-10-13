@@ -9,6 +9,9 @@ import xarray as xr
 from rompy.core.data import DataGrid
 from rompy.core.source import SourceBase
 
+# Import the existing WW3 namelist objects
+from rompy_ww3.namelists.forcing import Forcing, ForcingField, ForcingGrid
+
 
 logger = logging.getLogger(__name__)
 
@@ -139,8 +142,8 @@ class Data(DataGrid):
             raise ValueError("time_step must be positive")
 
         # If we're using file input (T) but don't have a source, that's an issue
-        if self.forcing_flag == "T" and getattr(self, "source", None) is None:
-            raise ValueError("Forcing flag 'T' requires a source to be specified")
+        # We'll check this in the get method instead since the source comes from the parent class
+        # The parent DataGrid class requires a source, but in WW3 we can have homogeneous data
 
         return self
 
@@ -180,9 +183,10 @@ class Data(DataGrid):
         source = getattr(self, "source", None)
         if source:
             logger.info(f"Retrieving data from source: {source}")
-            source_file = source.get(destdir=destdir)
+            # Use the parent's get method to handle the source properly
+            source_file = super().get(destdir, *args, **kwargs)
 
-            # Load the dataset to check if we need to crop it
+            # Open the source file to apply additional filtering if needed
             ds = xr.open_dataset(source_file)
 
             # Apply temporal cropping if needed
@@ -216,10 +220,60 @@ class Data(DataGrid):
                 if isinstance(grid, (RegularGrid, TriGrid)):
                     ds = self._filter_grid(ds, grid)
 
-            # Create the processed file with the filtered data
-            processed_file = destdir / self.input_filename
-            ds.to_netcdf(processed_file)
+            # Close the dataset before saving to avoid file handle conflicts
             ds.close()
+
+            # Create a temporary file to avoid file locking issues
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as tmp_file:
+                temp_path = Path(tmp_file.name)
+
+            # Reopen dataset to save with changes
+            ds = xr.open_dataset(source_file)
+
+            # Apply temporal cropping if needed (reapply to the reopened dataset)
+            if self.start_time or self.end_time:
+                time_dim = "time"  # Default time dimension name
+                if time_dim in ds.dims:
+                    start_time = (
+                        self.start_time
+                        if self.start_time
+                        else ds[time_dim].isel({time_dim: 0}).values
+                    )
+                    end_time = (
+                        self.end_time
+                        if self.end_time
+                        else ds[time_dim].isel({time_dim: -1}).values
+                    )
+
+                    # Convert string times to datetime if needed
+                    if isinstance(start_time, str):
+                        start_time = datetime.strptime(start_time, "%Y%m%d %H%M%S")
+                    if isinstance(end_time, str):
+                        end_time = datetime.strptime(end_time, "%Y%m%d %H%M%S")
+
+                    ds = ds.sel({time_dim: slice(start_time, end_time)})
+
+            # Apply spatial cropping if grid is provided (reapply to the reopened dataset)
+            if "grid" in kwargs:
+                from rompy.core.grid import RegularGrid, TriGrid
+
+                grid = kwargs["grid"]
+                if isinstance(grid, (RegularGrid, TriGrid)):
+                    ds = self._filter_grid(ds, grid)
+
+            # Save the processed data to a temporary file first
+            ds.to_netcdf(temp_path, mode="w")
+            ds.close()
+
+            # Now create the processed file with the correct name
+            processed_file = destdir / self.input_filename
+
+            # Move the temporary file to the final location with the correct name
+            import shutil
+
+            shutil.move(str(temp_path), processed_file)
         else:
             # If no source, assume the input file already exists
             processed_file = destdir / self.input_filename
@@ -251,74 +305,81 @@ class Data(DataGrid):
         return destdir / output_file
 
     def write_namelist(self, nml_file: Union[str, Path]) -> None:
-        """Write the ww3_prnc namelist file to disk for external use."""
-        import textwrap
-
+        """Write the ww3_prnc namelist file to disk for external use using existing namelist objects."""
         nml_file = Path(nml_file)
 
-        # Prepare the content of the namelist
-        nml_content = textwrap.dedent(
-            f"""\
-        &FORCING_NML
-          FORCING%TIMESTART = '{self.start_time or "19000101 000000"}'
-          FORCING%TIMESTOP = '{self.end_time or "29001231 000000"}'
-          FORCING%GRID%{self.grid_type.upper()} = .TRUE.
-        """
-        )
+        # Create the Forcing namelist object
+        forcing_nml = self.get_forcing_nml()
 
-        # Add the appropriate field flag based on data type
-        field_flags = {
-            "winds": "FORCING%FIELD%WINDS",
-            "currents": "FORCING%FIELD%CURRENTS",
-            "water_levels": "FORCING%FIELD%WATER_LEVELS",
-            "ice_conc": "FORCING%FIELD%ICE_CONC",
-            "air_density": "FORCING%FIELD%AIR_DENSITY",
-            "atm_momentum": "FORCING%FIELD%ATM_MOMENTUM",
-            "mud_density": "FORCING%FIELD%MUD_DENSITY",
-            "mud_thickness": "FORCING%FIELD%MUD_THICKNESS",
-            "mud_viscosity": "FORCING%FIELD%MUD_VISCOSITY",
-        }
-
-        if self.data_type in field_flags:
-            nml_content += f"  {field_flags[self.data_type]} = .TRUE.\n"
-
-        nml_content += "&END\n\n&FILE_NML\n"
-        nml_content += f"  FILE%FILENAME = '{self.input_filename}'\n"
-
-        # Add variable mapping if provided
-        if self.variable_mapping:
-            # Determine the number of components based on the data type
-            n_components = 1
-            if self.data_type in ["winds", "currents"]:
-                n_components = 2
-            elif self.data_type == "wind_ast":  # wind with air-sea temp diff
-                n_components = 3
-
-            for i in range(1, n_components + 1):
-                var_key = f"VAR({i})"
-                var_name = self.variable_mapping.get(var_key)
-                if var_name:
-                    nml_content += f"  FILE%{var_key} = '{var_name}'\n"
-
-        # Set default variable names if not provided
-        if not self.variable_mapping:
-            default_vars = {
-                "winds": ["UWND", "VWND"],
-                "currents": ["UCUR", "VCUR"],
-                "water_levels": ["LEVEL"],
-                "ice_conc": ["ICEC"],
-            }
-            if self.data_type in default_vars:
-                for i, var_name in enumerate(default_vars[self.data_type], 1):
-                    nml_content += f"  FILE%VAR({i}) = '{var_name}'\n"
-
-        nml_content += "&END\n"
-
-        # Write to file
+        # Write forcing namelist to file
         with open(nml_file, "w") as f:
-            f.write(nml_content)
+            f.write(forcing_nml.render())
+            # Add FILE_NML section since it's not part of the Forcing object
+            f.write("\n&FILE_NML\n")
+            f.write(f"  FILE%FILENAME = '{self.input_filename}'\n")
+
+            # Add variable mapping if provided
+            if self.variable_mapping:
+                # Determine the number of components based on the data type
+                n_components = 1
+                if self.data_type in ["winds", "currents"]:
+                    n_components = 2
+                elif self.data_type == "wind_ast":  # wind with air-sea temp diff
+                    n_components = 3
+
+                for i in range(1, n_components + 1):
+                    var_key = f"VAR({i})"
+                    var_name = self.variable_mapping.get(var_key)
+                    if var_name:
+                        f.write(f"  FILE%{var_key} = '{var_name}'\n")
+
+            # Set default variable names if not provided
+            if not self.variable_mapping:
+                default_vars = {
+                    "winds": ["UWND", "VWND"],
+                    "currents": ["UCUR", "VCUR"],
+                    "water_levels": ["LEVEL"],
+                    "ice_conc": ["ICEC"],
+                }
+                if self.data_type in default_vars:
+                    for i, var_name in enumerate(default_vars[self.data_type], 1):
+                        f.write(f"  FILE%VAR({i}) = '{var_name}'\n")
+
+            f.write("&END\n")
 
         logger.info(f"Wrote ww3_prnc namelist to: {nml_file}")
+
+    def get_forcing_nml(self):
+        """Get the Forcing namelist object."""
+        # Create ForcingField based on data_type
+        field_params = {
+            "winds": {"winds": True},
+            "currents": {"currents": True},
+            "water_levels": {"water_levels": True},
+            "ice_conc": {"ice_conc": True},
+            "air_density": {"air_density": True},
+            "atm_momentum": {"atm_momentum": True},
+            "mud_density": {"mud_density": True},
+            "mud_thickness": {"mud_thickness": True},
+            "mud_viscosity": {"mud_viscosity": True},
+        }
+
+        field_config = field_params.get(self.data_type, {})
+        forcing_field = ForcingField(**field_config)
+
+        # Create ForcingGrid based on grid_type
+        grid_params = {self.grid_type: True}
+        forcing_grid = ForcingGrid(**grid_params)
+
+        # Create the main Forcing object
+        forcing = Forcing(
+            timestart=self.start_time or "19000101 000000",
+            timestop=self.end_time or "29001231 000000",
+            field=forcing_field,
+            grid=forcing_grid,
+        )
+
+        return forcing
 
     def get_forcing_config(self) -> Dict[str, Any]:
         """Get configuration for INPUT_NML forcing parameters."""

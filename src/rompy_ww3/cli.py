@@ -150,7 +150,7 @@ def list_components():
 def validate_config(
     config_file: Path = typer.Argument(
         ..., help="Path to the WW3 configuration file (JSON format)"
-    )
+    ),
 ):
     """Validate a WW3 configuration file."""
     if not config_file.exists():

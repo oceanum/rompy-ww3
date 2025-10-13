@@ -743,7 +743,7 @@ class Config(BaseConfig):
             for i, model_grid in enumerate(self.model_grids):
                 # Assuming each model grid has corresponding input
                 if model_grid.name:
-                    input_grid_nml = f"&INPUT_GRID_NML\n  INPUT({i+1})%NAME = '{model_grid.name}'\n/\n"
+                    input_grid_nml = f"&INPUT_GRID_NML\n  INPUT({i + 1})%NAME = '{model_grid.name}'\n/\n"
                     multi_content.append(input_grid_nml)
                     multi_content.append("")
 
@@ -759,12 +759,12 @@ class Config(BaseConfig):
                         updated_lines.append("&MODEL_GRID_NML")
                     elif line.strip() == "/":
                         updated_lines.append(
-                            f"  MODEL_NAME = '{model_grid.name}'  ! Index: {i+1}"
+                            f"  MODEL_NAME = '{model_grid.name}'  ! Index: {i + 1}"
                         )
                         updated_lines.append("/")
                     else:
                         # Need to update the fields to use the proper indexed format
-                        updated_line = line.replace("MODEL%", f"MODEL({i+1})%")
+                        updated_line = line.replace("MODEL%", f"MODEL({i + 1})%")
                         updated_lines.append(updated_line)
                 multi_content.extend(updated_lines)
                 multi_content.append("")
