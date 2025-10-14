@@ -9,6 +9,7 @@ Welcome to rompy-ww3's documentation!
    installation
    usage
    namelists
+   architecture
    modules
    contributing
    authors
