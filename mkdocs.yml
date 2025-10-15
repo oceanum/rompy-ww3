@@ -1,5 +1,5 @@
 site_name: rompy-ww3
-site_url: https://rom-py.github.io/rompy-ww3/
+site_url: http://127.0.0.1:8001/
 repo_url: https://github.com/rom-py/rompy-ww3
 repo_name: rom-py/rompy-ww3
 edit_uri: edit/main/docs/
@@ -10,6 +10,7 @@ nav:
   - Usage: usage.md
   - Contributing: contributing.md
   - Architecture: architecture.md
+  - Configuration Schema: config-schema.md
   - API Reference:
     - Config: reference/config.md
     - Grid: reference/grid.md

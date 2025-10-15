@@ -1,0 +1,348 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "WW3 Schema Documentation",
+    "version": "1.0.0",
+    "description": "Schema documentation for WW3 Config and Data objects"
+  },
+  "paths": {
+    "/config": {
+      "get": {
+        "summary": "Get WW3 Configuration Structure",
+        "description": "Defines the structure and properties of the WW3 configuration object",
+        "responses": {
+          "200": {
+            "description": "WW3 Configuration Schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Config"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data": {
+      "get": {
+        "summary": "Get WW3 Data Structure",
+        "description": "Defines the structure and properties of the WW3 data object",
+        "responses": {
+          "200": {
+            "description": "WW3 Data Schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Config": {
+        "type": "object",
+        "title": "Config",
+        "description": "Ww3 config class.",
+        "properties": {
+          "model_type": {
+            "type": "string",
+            "description": "Model type discriminator",
+            "default": "ww3"
+          },
+          "template": {
+            "type": "string",
+            "description": "The model config template directory",
+            "default": "/home/tdurrant/source/rompy/rompy-ww3/mkdocs/src/rompy_ww3/templates/base"
+          },
+          "checkout": {
+            "description": "The git branch to use if the template is a git repo",
+            "default": "main"
+          },
+          "domain": {
+            "description": "DOMAIN_NML namelist configuration",
+            "default": null
+          },
+          "input_nml": {
+            "description": "INPUT_NML namelist configuration",
+            "default": null
+          },
+          "input_grid": {
+            "description": "INPUT_GRID_NML namelist configuration (for multi-grid)",
+            "default": null
+          },
+          "model_grid": {
+            "description": "MODEL_GRID_NML namelist configuration (for multi-grid)",
+            "default": null
+          },
+          "model_grids": {
+            "description": "List of MODEL_GRID_NML namelist configurations (for multi-grid)",
+            "default": null
+          },
+          "output_type": {
+            "description": "OUTPUT_TYPE_NML namelist configuration",
+            "default": null
+          },
+          "output_date": {
+            "description": "OUTPUT_DATE_NML namelist configuration",
+            "default": null
+          },
+          "homog_count": {
+            "description": "HOMOG_COUNT_NML namelist configuration",
+            "default": null
+          },
+          "homog_input": {
+            "description": "HOMOG_INPUT_NML namelist configurations",
+            "default": null
+          },
+          "spectrum": {
+            "description": "SPECTRUM_NML namelist configuration"
+          },
+          "run": {
+            "description": "RUN_NML namelist configuration",
+            "default": null
+          },
+          "timesteps": {
+            "description": "TIMESTEPS_NML namelist configuration"
+          },
+          "grid": {
+            "description": "GRID_NML namelist configuration",
+            "default": null
+          },
+          "grids": {
+            "description": "List of GRID_NML namelist configurations (for multi-grid)",
+            "default": null
+          },
+          "rect": {
+            "description": "RECT_NML namelist configuration",
+            "default": null
+          },
+          "bound": {
+            "description": "BOUND_NML namelist configuration",
+            "default": null
+          },
+          "forcing": {
+            "description": "FORCING_NML namelist configuration",
+            "default": null
+          },
+          "track": {
+            "description": "TRACK_NML namelist configuration",
+            "default": null
+          },
+          "field_nml": {
+            "description": "FIELD_NML namelist configuration",
+            "default": null
+          },
+          "point": {
+            "description": "POINT_NML namelist configuration",
+            "default": null
+          },
+          "restart": {
+            "description": "RESTART_NML namelist configuration",
+            "default": null
+          },
+          "update": {
+            "description": "UPDATE_NML namelist configuration",
+            "default": null
+          },
+          "unformatted": {
+            "description": "OUNF_NML namelist configuration",
+            "default": null
+          },
+          "point_output": {
+            "description": "OUNP_NML namelist configuration",
+            "default": null
+          },
+          "restart_update": {
+            "description": "UPRSTR_NML namelist configuration",
+            "default": null
+          },
+          "parameters": {
+            "description": "PARAMS_NML namelist configuration",
+            "default": null
+          },
+          "depth": {
+            "description": "DEPTH_NML namelist configuration",
+            "default": null
+          },
+          "mask": {
+            "description": "MASK_NML namelist configuration",
+            "default": null
+          },
+          "obstacle": {
+            "description": "OBST_NML namelist configuration",
+            "default": null
+          },
+          "slope": {
+            "description": "SLOPE_NML namelist configuration",
+            "default": null
+          },
+          "sediment": {
+            "description": "SED_NML namelist configuration",
+            "default": null
+          },
+          "inbound_count": {
+            "description": "INBND_COUNT_NML namelist configuration",
+            "default": null
+          },
+          "inbound_points": {
+            "description": "INBND_POINT_NML namelist configuration",
+            "default": null
+          },
+          "excluded_count": {
+            "description": "EXCL_COUNT_NML namelist configuration",
+            "default": null
+          },
+          "excluded_points": {
+            "description": "EXCL_POINT_NML namelist configuration",
+            "default": null
+          },
+          "excluded_bodies": {
+            "description": "EXCL_BODY_NML namelist configuration",
+            "default": null
+          },
+          "outbound_count": {
+            "description": "OUTBND_COUNT_NML namelist configuration",
+            "default": null
+          },
+          "outbound_lines": {
+            "description": "OUTBND_LINE_NML namelist configuration",
+            "default": null
+          },
+          "curv": {
+            "description": "CURV_NML namelist configuration",
+            "default": null
+          },
+          "unst": {
+            "description": "UNST_NML namelist configuration",
+            "default": null
+          },
+          "smc": {
+            "description": "SMC_NML namelist configuration",
+            "default": null
+          }
+        },
+        "required": [
+          "timesteps"
+        ]
+      },
+      "Data": {
+        "type": "object",
+        "title": "Data",
+        "description": "Ww3 data class with WW3-specific data handling capabilities.\n\nThis class extends DataGrid with WW3-specific data handling for wave model inputs.\nIt uses rompy Source objects to read large lazy datasets, crops the required\narea and time from the data, writes to the rompy WW3 workspace, and updates\nthe appropriate nml objects internally to point to the processed files.",
+        "properties": {
+          "model_type": {
+            "type": "string",
+            "description": "Model type discriminator",
+            "default": "ww3"
+          },
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for this data source",
+            "default": "data"
+          },
+          "source": {
+            "description": "Source reader, must return an xarray gridded dataset in the open method"
+          },
+          "filter": {
+            "description": "Optional filter specification to apply to the dataset"
+          },
+          "variables": {
+            "description": "Subset of variables to extract from the dataset",
+            "default": []
+          },
+          "coords": {
+            "description": "Names of the coordinates in the dataset",
+            "default": {
+              "t": "time",
+              "x": "longitude",
+              "y": "latitude",
+              "z": null,
+              "s": null
+            }
+          },
+          "crop_data": {
+            "type": "boolean",
+            "description": "Update crop filters from Grid and Time objects if passed to get method",
+            "default": true
+          },
+          "buffer": {
+            "type": "number",
+            "description": "Space to buffer the grid bounding box if `filter_grid` is True",
+            "default": 0.0
+          },
+          "time_buffer": {
+            "type": "array",
+            "description": "Number of source data timesteps to buffer the time range if `filter_time` is True",
+            "default": [
+              0,
+              0
+            ]
+          },
+          "data_type": {
+            "description": "Type of data: 'winds', 'currents', 'water_levels', 'ice_conc', etc.",
+            "default": null
+          },
+          "forcing_flag": {
+            "description": "Forcing flag: 'F' (no), 'T' (file), 'H' (homogeneous), 'C' (coupled)",
+            "default": "T"
+          },
+          "assim_flag": {
+            "description": "Assimilation flag: 'F' (no), 'T' (file)",
+            "default": "F"
+          },
+          "file_format": {
+            "description": "File format for input data (e.g., 'netcdf')",
+            "default": "netcdf"
+          },
+          "start_time": {
+            "description": "Start time for data (yyyymmdd hhmmss)",
+            "default": null
+          },
+          "end_time": {
+            "description": "End time for data (yyyymmdd hhmmss)",
+            "default": null
+          },
+          "time_step": {
+            "description": "Time step in seconds",
+            "default": null
+          },
+          "homogeneous_values": {
+            "description": "Homogeneous values for data (used when forcing_flag = 'H')",
+            "default": null
+          },
+          "variable_mapping": {
+            "description": "Mapping of WW3 variable names to source variable names",
+            "default": null
+          },
+          "grid_type": {
+            "type": "string",
+            "description": "Grid type for forcing data: 'asis' or 'latlon'",
+            "default": "latlon"
+          },
+          "input_filename": {
+            "type": "string",
+            "description": "Name of the input file to be processed by ww3_prnc",
+            "default": "input.nc"
+          },
+          "time_shift": {
+            "description": "Time shift for input data (yyyymmdd hhmmss)",
+            "default": null
+          },
+          "output_file": {
+            "description": "Output file name after preprocessing (e.g., 'wind.ww3', 'current.ww3')",
+            "default": null
+          }
+        },
+        "required": [
+          "source"
+        ]
+      }
+    }
+  }
+}
