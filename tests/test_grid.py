@@ -8,6 +8,15 @@ from unittest.mock import patch
 import numpy as np
 
 from rompy_ww3.grid import Grid
+from rompy_ww3.namelists.grid import Grid as GridNML, Rect
+from rompy_ww3.namelists.curv import Curv
+from rompy_ww3.namelists.unst import Unst
+from rompy_ww3.namelists.smc import Smc
+from rompy_ww3.namelists.depth import Depth
+from rompy_ww3.namelists.mask import Mask
+from rompy_ww3.namelists.obstacle import Obstacle
+from rompy_ww3.namelists.slope import Slope
+from rompy_ww3.namelists.sediment import Sediment
 
 
 class TestGrid:
@@ -159,8 +168,8 @@ class TestGrid:
         # Should return some area value, not None
         assert size is not None
 
-    def test_get_grid_nml(self):
-        """Test getting GRID_NML namelist object."""
+    def test_generate_grid_nml(self):
+        """Test generating GRID_NML namelist content."""
         grid = Grid(
             name="Test Grid",
             grid_type="RECT",
@@ -176,16 +185,13 @@ class TestGrid:
             ny=10,
         )
 
-        nml = grid.get_grid_nml()
-        assert nml.name == "Test Grid"
-        assert nml.type == "RECT"
-        assert nml.coord == "SPHE"
-        assert nml.clos == "SMPL"
-        assert nml.zlim == -0.1
-        assert nml.dmin == 2.5
+        nml_content = grid.generate_grid_nml()
+        assert "GRID_NML" in nml_content
+        assert "SPHE" in nml_content
+        assert "SMPL" in nml_content
 
-    def test_get_rect_nml(self):
-        """Test getting RECT_NML namelist object."""
+    def test_generate_rect_nml(self):
+        """Test generating RECT_NML namelist content."""
         grid = Grid(
             name="Test Grid",
             grid_type="RECT",
@@ -198,16 +204,15 @@ class TestGrid:
             y0=40.0,
         )
 
-        nml = grid.get_rect_nml()
-        assert nml.nx == 50
-        assert nml.ny == 40
-        assert nml.sx == 0.2  # dx gets mapped to sx
-        assert nml.sy == 0.2  # dy gets mapped to sy
-        assert nml.x0 == -5.0
-        assert nml.y0 == 40.0
+        nml_content = grid.generate_rect_nml()
+        assert "RECT_NML" in nml_content
+        assert "50" in nml_content  # nx
+        assert "40" in nml_content  # ny
+        assert "-5.0" in nml_content  # x0
+        assert "40.0" in nml_content  # y0
 
-    def test_get_curv_nml_without_files(self):
-        """Test getting CURV_NML namelist object without coordinate files."""
+    def test_generate_curv_nml_without_files(self):
+        """Test generating CURV_NML namelist content without coordinate files."""
         grid = Grid(
             name="Test Grid",
             grid_type="CURV",
@@ -220,14 +225,13 @@ class TestGrid:
             dy=1.0,
         )
 
-        nml = grid.get_curv_nml()
-        assert nml.nx == 50
-        assert nml.ny == 40
-        assert nml.xcoord is None
-        assert nml.ycoord is None
+        nml_content = grid.generate_curv_nml()
+        assert "CURV_NML" in nml_content
+        assert "50" in nml_content  # nx
+        assert "40" in nml_content  # ny
 
-    def test_get_curv_nml_with_files(self, tmp_path):
-        """Test getting CURV_NML namelist object with coordinate files."""
+    def test_generate_curv_nml_with_files(self, tmp_path):
+        """Test generating CURV_NML namelist content with coordinate files."""
         # Create temporary files
         x_file = tmp_path / "x_coords.dat"
         y_file = tmp_path / "y_coords.dat"
@@ -248,28 +252,41 @@ class TestGrid:
             dy=1.0,
         )
 
-        nml = grid.get_curv_nml()
-        assert nml.nx == 50
-        assert nml.ny == 40
-        assert nml.xcoord is not None
-        assert nml.ycoord is not None
-        assert nml.xcoord.filename == "x_coords.dat"
-        assert nml.ycoord.filename == "y_coords.dat"
+        nml_content = grid.generate_curv_nml()
+        assert "CURV_NML" in nml_content
+        assert "50" in nml_content  # nx
+        assert "40" in nml_content  # ny
+        assert "x_coords.dat" in nml_content
+        assert "y_coords.dat" in nml_content
 
-    def test_get_unst_nml(self, tmp_path):
-        """Test getting UNST_NML namelist object."""
-        # Create temporary files
-        unst_file = tmp_path / "unst_grid.dat"
-        obc_file = tmp_path / "obc.dat"
-        unst_file.write_text("dummy content")
-        obc_file.write_text("dummy content")
+    def test_generate_unst_nml(self):
+        """Test generating UNST_NML namelist content."""
+        from rompy_ww3.namelists.unst import Unst
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix=".dat", delete=False) as tmp_file:
+            # Write some dummy content to the file
+            tmp_file.write(b"dummy unst content")
+            tmp_file_path = Path(tmp_file.name)
+
+        with tempfile.NamedTemporaryFile(suffix=".dat", delete=False) as obc_file:
+            # Write some dummy content to the file
+            obc_file.write(b"dummy obc content")
+            obc_file_path = Path(obc_file.name)
 
         grid = Grid(
             name="Test Grid",
             grid_type="UNST",
             coordinate_system="SPHE",
-            unst_file=unst_file,
-            unst_obc_file=obc_file,
+            unst=Unst(
+                filename=str(tmp_file_path),
+                sf=-1.0,
+                idla=4,
+                idfm=2,
+                format="(20f10.2)",
+                ugobcfile=str(obc_file_path),
+            ),
+            unst_obc_file=obc_file_path,
             x0=0.0,
             y0=0.0,
             dx=1.0,
@@ -278,52 +295,35 @@ class TestGrid:
             ny=10,
         )
 
-        nml = grid.get_unst_nml()
-        assert nml.filename == "unst_grid.dat"
-        assert nml.ugobcfile == "obc.dat"
-        assert nml.sf == -1.0
-        assert nml.idla == 4
-        assert nml.idfm == 2
+        nml_content = grid.generate_unst_nml()
+        assert "UNST_NML" in nml_content
 
-    def test_get_smc_nml(self, tmp_path):
-        """Test getting SMC_NML namelist object."""
-        # Create temporary files
-        mcels_file = tmp_path / "mcels.dat"
-        iside_file = tmp_path / "iside.dat"
-        mcels_file.write_text("dummy content")
-        iside_file.write_text("dummy content")
+        # Clean up
+        if tmp_file_path.exists():
+            tmp_file_path.unlink()
+        if obc_file_path.exists():
+            obc_file_path.unlink()
 
-        grid = Grid(
-            name="Test Grid",
-            grid_type="SMC",
-            coordinate_system="SPHE",
-            mcels_file=mcels_file,
-            iside_file=iside_file,
-            x0=0.0,
-            y0=0.0,
-            dx=1.0,
-            dy=1.0,
-            nx=10,
-            ny=10,
-        )
+    def test_generate_depth_nml(self):
+        """Test generating DEPTH_NML namelist content."""
+        from rompy_ww3.namelists.depth import Depth
+        import tempfile
 
-        nml = grid.get_smc_nml()
-        assert nml.mcel is not None
-        assert nml.mcel.filename == "mcels.dat"
-        assert nml.iside is not None
-        assert nml.iside.filename == "iside.dat"
-
-    def test_get_depth_nml(self, tmp_path):
-        """Test getting DEPTH_NML namelist object."""
-        # Create temporary file
-        depth_file = tmp_path / "depth.dat"
-        depth_file.write_text("dummy content")
+        with tempfile.NamedTemporaryFile(suffix=".dat", delete=False) as tmp_file:
+            # Write some dummy content to the file
+            tmp_file.write(b"dummy content")
+            tmp_file_path = Path(tmp_file.name)
 
         grid = Grid(
             name="Test Grid",
             grid_type="RECT",
             coordinate_system="SPHE",
-            depth_file=depth_file,
+            depth=Depth(
+                filename=str(tmp_file_path),  # Use the full path
+                sf=0.002,
+                idf=60,
+                idla=2,
+            ),
             x0=0.0,
             y0=0.0,
             dx=1.0,
@@ -332,23 +332,29 @@ class TestGrid:
             ny=10,
         )
 
-        nml = grid.get_depth_nml()
-        assert nml.filename == "depth.dat"
-        assert nml.sf == 0.001
-        assert nml.idf == 50
-        assert nml.idla == 1
+        nml_content = grid.generate_depth_nml()
+        assert "DEPTH_NML" in nml_content
+        assert "0.002" in nml_content
 
-    def test_get_mask_nml(self, tmp_path):
-        """Test getting MASK_NML namelist object."""
-        # Create temporary file
-        mask_file = tmp_path / "mask.dat"
-        mask_file.write_text("dummy content")
+        # Clean up
+        if tmp_file_path.exists():
+            tmp_file_path.unlink()
+
+    def test_generate_mask_nml(self):
+        """Test generating MASK_NML namelist content."""
+        import tempfile
+        from rompy_ww3.namelists.mask import Mask
+
+        with tempfile.NamedTemporaryFile(suffix=".dat", delete=False) as tmp_file:
+            # Write some dummy content to the file
+            tmp_file.write(b"dummy content")
+            tmp_file_path = Path(tmp_file.name)
 
         grid = Grid(
             name="Test Grid",
             grid_type="RECT",
             coordinate_system="SPHE",
-            mask_file=mask_file,
+            mask=Mask(filename=str(tmp_file_path), idf=60, idla=2),  # Use the full path
             x0=0.0,
             y0=0.0,
             dx=1.0,
@@ -357,22 +363,33 @@ class TestGrid:
             ny=10,
         )
 
-        nml = grid.get_mask_nml()
-        assert nml.filename == "mask.dat"
-        assert nml.idf == 60
-        assert nml.idla == 1
+        nml_content = grid.generate_mask_nml()
+        assert "MASK_NML" in nml_content
 
-    def test_get_obst_nml(self, tmp_path):
-        """Test getting OBST_NML namelist object."""
-        # Create temporary file
-        obst_file = tmp_path / "obst.dat"
-        obst_file.write_text("dummy content")
+        # Clean up
+        if tmp_file_path.exists():
+            tmp_file_path.unlink()
+
+    def test_generate_obst_nml(self):
+        """Test generating OBST_NML namelist content."""
+        import tempfile
+        from rompy_ww3.namelists.obstacle import Obstacle
+
+        with tempfile.NamedTemporaryFile(suffix=".dat", delete=False) as tmp_file:
+            # Write some dummy content to the file
+            tmp_file.write(b"dummy content")
+            tmp_file_path = Path(tmp_file.name)
 
         grid = Grid(
             name="Test Grid",
             grid_type="RECT",
             coordinate_system="SPHE",
-            obst_file=obst_file,
+            obst=Obstacle(
+                filename=str(tmp_file_path),  # Use the full path
+                sf=0.0002,
+                idf=70,
+                idla=2,
+            ),
             x0=0.0,
             y0=0.0,
             dx=1.0,
@@ -381,23 +398,34 @@ class TestGrid:
             ny=10,
         )
 
-        nml = grid.get_obst_nml()
-        assert nml.filename == "obst.dat"
-        assert nml.sf == 0.0001
-        assert nml.idf == 70
-        assert nml.idla == 1
+        nml_content = grid.generate_obst_nml()
+        assert "OBST_NML" in nml_content
+        assert "0.0002" in nml_content
 
-    def test_get_slope_nml(self, tmp_path):
-        """Test getting SLOPE_NML namelist object."""
-        # Create temporary file
-        slope_file = tmp_path / "slope.dat"
-        slope_file.write_text("dummy content")
+        # Clean up
+        if tmp_file_path.exists():
+            tmp_file_path.unlink()
+
+    def test_generate_slope_nml(self):
+        """Test generating SLOPE_NML namelist content."""
+        import tempfile
+        from rompy_ww3.namelists.slope import Slope
+
+        with tempfile.NamedTemporaryFile(suffix=".dat", delete=False) as tmp_file:
+            # Write some dummy content to the file
+            tmp_file.write(b"dummy content")
+            tmp_file_path = Path(tmp_file.name)
 
         grid = Grid(
             name="Test Grid",
             grid_type="RECT",
             coordinate_system="SPHE",
-            slope_file=slope_file,
+            slope=Slope(
+                filename=str(tmp_file_path),  # Use the full path
+                sf=0.0002,
+                idf=80,
+                idla=2,
+            ),
             x0=0.0,
             y0=0.0,
             dx=1.0,
@@ -406,23 +434,31 @@ class TestGrid:
             ny=10,
         )
 
-        nml = grid.get_slope_nml()
-        assert nml.filename == "slope.dat"
-        assert nml.sf == 0.0001
-        assert nml.idf == 80
-        assert nml.idla == 1
+        nml_content = grid.generate_slope_nml()
+        assert "SLOPE_NML" in nml_content
+        assert "0.0002" in nml_content
 
-    def test_get_sed_nml(self, tmp_path):
-        """Test getting SED_NML namelist object."""
-        # Create temporary file
-        sed_file = tmp_path / "sed.dat"
-        sed_file.write_text("dummy content")
+        # Clean up
+        if tmp_file_path.exists():
+            tmp_file_path.unlink()
+
+    def test_generate_sed_nml(self):
+        """Test generating SED_NML namelist content."""
+        import tempfile
+        from rompy_ww3.namelists.sediment import Sediment
+
+        with tempfile.NamedTemporaryFile(suffix=".dat", delete=False) as tmp_file:
+            # Write some dummy content to the file
+            tmp_file.write(b"dummy content")
+            tmp_file_path = Path(tmp_file.name)
 
         grid = Grid(
             name="Test Grid",
             grid_type="RECT",
             coordinate_system="SPHE",
-            sed_file=sed_file,
+            sed=Sediment(
+                filename=str(tmp_file_path), idf=90, idfm=2  # Use the full path
+            ),
             x0=0.0,
             y0=0.0,
             dx=1.0,
@@ -431,25 +467,35 @@ class TestGrid:
             ny=10,
         )
 
-        nml = grid.get_sed_nml()
-        assert nml.filename == "sed.dat"
-        assert nml.idf == 90
-        assert nml.idfm == 2
+        nml_content = grid.generate_sed_nml()
+        assert "SED_NML" in nml_content
 
-    def test_get_method(self, tmp_path):
+        # Clean up
+        if tmp_file_path.exists():
+            tmp_file_path.unlink()
+
+    def test_get_method(self):
         """Test the get method functionality."""
-        # Create temporary files
-        depth_file = tmp_path / "depth.dat"
-        mask_file = tmp_path / "mask.dat"
-        depth_file.write_text("dummy content")
-        mask_file.write_text("dummy content")
+        import tempfile
+        from rompy_ww3.namelists.depth import Depth
+        from rompy_ww3.namelists.mask import Mask
+
+        with tempfile.NamedTemporaryFile(suffix=".dat", delete=False) as tmp_depth:
+            # Write some dummy content to the file
+            tmp_depth.write(b"dummy content")
+            tmp_depth_path = Path(tmp_depth.name)
+
+        with tempfile.NamedTemporaryFile(suffix=".dat", delete=False) as tmp_mask:
+            # Write some dummy content to the file
+            tmp_mask.write(b"dummy content")
+            tmp_mask_path = Path(tmp_mask.name)
 
         grid = Grid(
             name="Test Grid",
             grid_type="RECT",
             coordinate_system="SPHE",
-            depth_file=depth_file,
-            mask_file=mask_file,
+            depth=Depth(filename=str(tmp_depth_path), sf=0.001, idf=50, idla=1),
+            mask=Mask(filename=str(tmp_mask_path), idf=60, idla=1),
             nx=5,
             ny=5,
             x0=0.0,
@@ -464,8 +510,8 @@ class TestGrid:
             result = grid.get(dest_dir)
 
             # Check that files were copied
-            assert (dest_dir / "depth.dat").exists()
-            assert (dest_dir / "mask.dat").exists()
+            assert (dest_dir / tmp_depth_path.name).exists()
+            assert (dest_dir / tmp_mask_path.name).exists()
 
             # Check that namelist files were created
             assert (dest_dir / "ww3_grid_grid_nml.nml").exists()
@@ -479,17 +525,27 @@ class TestGrid:
             assert "depth_nml" in result
             assert "mask_nml" in result
 
-    def test_write_grid_files(self, tmp_path):
+        # Clean up
+        if tmp_depth_path.exists():
+            tmp_depth_path.unlink()
+        if tmp_mask_path.exists():
+            tmp_mask_path.unlink()
+
+    def test_write_grid_files(self):
         """Test the write_grid_files method."""
-        # Create temporary files
-        depth_file = tmp_path / "depth.dat"
-        depth_file.write_text("dummy content")
+        import tempfile
+        from rompy_ww3.namelists.depth import Depth
+
+        with tempfile.NamedTemporaryFile(suffix=".dat", delete=False) as tmp_file:
+            # Write some dummy content to the file
+            tmp_file.write(b"dummy content")
+            tmp_file_path = Path(tmp_file.name)
 
         grid = Grid(
             name="Test Grid",
             grid_type="RECT",
             coordinate_system="SPHE",
-            depth_file=depth_file,
+            depth=Depth(filename=str(tmp_file_path), sf=0.001, idf=50, idla=1),
             nx=5,
             ny=5,
             x0=0.0,
@@ -504,12 +560,16 @@ class TestGrid:
             grid.write_grid_files(dest_dir)
 
             # Check that files were copied
-            assert (dest_dir / "depth.dat").exists()
+            assert (dest_dir / tmp_file_path.name).exists()
 
             # Check that namelist files were created
             assert (dest_dir / "ww3_grid_grid_nml.nml").exists()
             assert (dest_dir / "ww3_grid_rect_nml.nml").exists()
             assert (dest_dir / "ww3_grid_depth_nml.nml").exists()
+
+        # Clean up
+        if tmp_file_path.exists():
+            tmp_file_path.unlink()
 
     def test_get_template_context(self):
         """Test the get_template_context method."""

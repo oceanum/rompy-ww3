@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Literal, Optional, List, Dict, Any
 from rompy.core.config import BaseConfig
 from .grid import Grid as GridModel
+from .data import Data as DataModel
 from .namelists import (
     Domain,
     Input,
@@ -199,9 +200,32 @@ class Config(BaseConfig):
         default=None, description="SMC_NML namelist configuration"
     )
 
+    # WW3-specific data objects
+    data: Optional[DataModel] = PydanticField(
+        default=None, description="WW3 Data object for forcing data"
+    )
+
     def __call__(self, runtime) -> dict:
         """Callable where data and config are interfaced and CMD is rendered."""
         staging_dir = runtime.staging_dir
+
+        # Prepare staging directory for WW3 run
+        # This includes retrieving and staging data files using our new objects
+        data_dir = Path(staging_dir) / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        grid_dir = Path(staging_dir) / "grid"
+        grid_dir.mkdir(parents=True, exist_ok=True)
+
+        # Use the new Grid object to get grid files and namelists
+        if self.grid:  # The grid field is the WW3 Grid object
+            logger.info("Processing grid data using WW3 Grid object...")
+            self.grid.get(grid_dir)
+
+        # Use the new Data object to get forcing data files
+        if self.data:
+            logger.info("Processing forcing data using WW3 Data object...")
+            self.data.get(data_dir)
 
         # Generate WW3 control namelist files
         namelists_dir = Path(staging_dir) / "namelists"
@@ -240,7 +264,12 @@ class Config(BaseConfig):
         # Generate model parameters namelist
         self.generate_parameters_namelist(namelists_dir / "namelists.nml")
 
-        ret = {"staging_dir": staging_dir, "namelists_dir": str(namelists_dir)}
+        ret = {
+            "staging_dir": staging_dir,
+            "namelists_dir": str(namelists_dir),
+            "data_dir": str(data_dir) if self.data else None,
+            "grid_dir": str(grid_dir) if self.grid else None,
+        }
         return ret
 
     def _write_homog_input_nml(self, workdir: Path) -> None:
@@ -539,10 +568,19 @@ class Config(BaseConfig):
             grid_content.append("")
 
         # Add optional depth-related namelists
+        # First check for explicit depth namelist in config
         if self.depth:
             rendered = self.depth.render().replace("\\n", "\n")
             grid_content.extend(rendered.split("\n"))
             grid_content.append("")
+        # Then check for depth file in grid object
+        elif self.grid and hasattr(self.grid, "depth_file") and self.grid.depth_file:
+            # Generate depth namelist from grid object's depth file
+            depth_nml = self.grid.get_depth_nml()
+            if depth_nml:
+                rendered = depth_nml.render().replace("\\n", "\n")
+                grid_content.extend(rendered.split("\n"))
+                grid_content.append("")
 
         if self.mask:
             rendered = self.mask.render().replace("\\n", "\n")
