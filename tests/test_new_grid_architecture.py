@@ -1,6 +1,5 @@
 """Comprehensive tests for the new clean WW3 Grid architecture with separate classes per grid type."""
 
-import pytest
 import tempfile
 from pathlib import Path
 from rompy_ww3.grid import RectGrid, CurvGrid, UnstGrid, SmcGrid, AnyWw3Grid
@@ -10,9 +9,6 @@ from rompy_ww3.namelists.unst import Unst
 from rompy_ww3.namelists.smc import Smc
 from rompy_ww3.namelists.depth import Depth
 from rompy_ww3.namelists.mask import Mask
-from rompy_ww3.namelists.obstacle import Obstacle
-from rompy_ww3.namelists.slope import Slope
-from rompy_ww3.namelists.sediment import Sediment
 
 
 def test_rect_grid_creation():

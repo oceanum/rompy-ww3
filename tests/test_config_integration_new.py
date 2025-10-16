@@ -225,10 +225,9 @@ def test_config_integration_with_file_generation():
 
 def test_config_with_multiple_grid_types():
     """Test that Config can work with different grid types through the union type."""
-    from rompy_ww3.grid import CurvGrid, UnstGrid, SmcGrid
+    from rompy_ww3.grid import CurvGrid, UnstGrid
     from rompy_ww3.namelists.curv import Curv
     from rompy_ww3.namelists.unst import Unst
-    from rompy_ww3.namelists.smc import Smc
 
     # Create required timesteps object
     timesteps = Timesteps(

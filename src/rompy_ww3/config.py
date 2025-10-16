@@ -2,11 +2,11 @@
 
 import logging
 from pathlib import Path
-from typing import Literal, Optional, List, Dict, Any, Union
+from typing import Literal, Optional, List, Dict, Any
 from pydantic import Field as PydanticField
 
 from rompy.core.config import BaseConfig
-from .grid import RectGrid, CurvGrid, UnstGrid, SmcGrid, AnyWw3Grid
+from .grid import AnyWw3Grid
 from .data import Data as DataModel
 from .namelists import (
     Domain,

@@ -2,7 +2,6 @@
 
 from typing import Optional
 from pydantic import Field, model_validator
-from pydantic import ValidationInfo
 from .basemodel import NamelistBaseModel
 
 #  -------------------------------------------------------------------- !
