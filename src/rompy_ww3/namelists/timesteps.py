@@ -2,6 +2,7 @@
 
 from typing import Optional
 from pydantic import Field, model_validator
+from pydantic import ValidationInfo
 from .basemodel import NamelistBaseModel
 
 #  -------------------------------------------------------------------- !
@@ -44,30 +45,30 @@ class Timesteps(NamelistBaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_timesteps(cls, model):
+    def validate_timesteps(self) -> "Timesteps":
         """Validate timestep relationships and ranges."""
         # dtmax ≈ 3 × dtxy (±10%)
-        if model.dtmax is not None and model.dtxy is not None:
-            expected_dtmax = 3 * model.dtxy
-            if not (0.9 * expected_dtmax <= model.dtmax <= 1.1 * expected_dtmax):
+        if self.dtmax is not None and self.dtxy is not None:
+            expected_dtmax = 3 * self.dtxy
+            if not (0.9 * expected_dtmax <= self.dtmax <= 1.1 * expected_dtmax):
                 raise ValueError(
-                    f"dtmax ({model.dtmax}) should be about 3 × dtxy ({model.dtxy})"
+                    f"dtmax ({self.dtmax}) should be about 3 × dtxy ({self.dtxy})"
                 )
 
         # dtkth ≈ dtmax/2 or dtmax/10 (±10%)
-        if model.dtkth is not None and model.dtmax is not None:
-            dtkth_half = model.dtmax / 2
-            dtkth_tenth = model.dtmax / 10
-            if not (dtkth_tenth <= model.dtkth <= dtkth_half):
+        if self.dtkth is not None and self.dtmax is not None:
+            dtkth_half = self.dtmax / 2
+            dtkth_tenth = self.dtmax / 10
+            if not (dtkth_tenth <= self.dtkth <= dtkth_half):
                 raise ValueError(
-                    f"dtkth ({model.dtkth}) should be between  dtmax/10 ({dtkth_tenth}) and dtmax/2 ({dtkth_half})"
+                    f"dtkth ({self.dtkth}) should be between  dtmax/10 ({dtkth_tenth}) and dtmax/2 ({dtkth_half})"
                 )
 
         # dtmin between 5 and 60
-        if model.dtmin is not None:
-            if not (5 <= model.dtmin <= 60):
+        if self.dtmin is not None:
+            if not (5 <= self.dtmin <= 60):
                 raise ValueError(
-                    f"dtmin ({model.dtmin}) should be between 5 and 60 seconds"
+                    f"dtmin ({self.dtmin}) should be between 5 and 60 seconds"
                 )
 
-        return model
+        return self
