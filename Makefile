@@ -1,4 +1,4 @@
-.PHONY: clean clean-build clean-pyc clean-test coverage dist docs help install lint lint/flake8
+.PHONY: clean clean-build clean-pyc clean-test coverage dist docs docs-serve docs-build help install lint lint/flake8
 
 .DEFAULT_GOAL := help
 
@@ -51,7 +51,6 @@ clean-test: ## remove test and coverage artifacts
 lint/flake8: ## check style with flake8
 	flake8 rompy_ww3 tests
 
-
 lint: lint/flake8 ## check style
 
 test: ## run tests quickly with the default Python
@@ -66,16 +65,17 @@ coverage: ## check code coverage quickly with the default Python
 	coverage html
 	$(BROWSER) htmlcov/index.html
 
-docs: ## generate Sphinx HTML documentation, including API docs
-	rm -f docs/rompy_ww3.rst
-	rm -f docs/modules.rst
-	sphinx-apidoc -o docs/ rompy_ww3
-	$(MAKE) -C docs clean
-	$(MAKE) -C docs html
-	$(BROWSER) docs/_build/html/index.html
+docs-build: ## build MkDocs documentation
+	mkdocs build
 
-servedocs: docs ## compile the docs watching for changes
-	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
+docs-serve: ## serve MkDocs documentation locally
+	mkdocs serve
+
+docs: docs-serve ## generate and serve MkDocs HTML documentation (alias for docs-serve)
+	# This target is an alias for docs-serve
+
+servedocs: docs ## compile the docs watching for changes (now uses MkDocs)
+	mkdocs serve
 
 release: dist ## package and upload a release
 	twine upload dist/*
