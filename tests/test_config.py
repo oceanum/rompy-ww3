@@ -41,7 +41,7 @@ def test_config_with_namelists():
     # Test writing to files - new behavior generates WW3 control files
     with tempfile.TemporaryDirectory() as tmpdir:
         runtime_mock = type("Runtime", (), {"staging_dir": tmpdir})()
-        result = config(runtime_mock)
+        config(runtime_mock)
 
         # Check that the WW3 control namelists directory was created
         namelists_dir = Path(tmpdir) / "namelists"

@@ -1,24 +1,27 @@
 """Separate grid classes for each WW3 grid type."""
 
 import logging
-from pathlib import Path
-from typing import Literal, Optional, Union, Dict, Any
-from pydantic import Field, model_validator
 import shutil
+from pathlib import Path
+from typing import Any, Dict, Literal, Optional
+from typing import Union
+from typing import Union as TypingUnion
 
+from pydantic import Field, model_validator
 from rompy.core.grid import BaseGrid
 
-# Import the existing WW3 namelist objects
-from rompy_ww3.namelists.grid import Grid as GRID_NML, Rect
 from rompy_ww3.namelists.curv import Curv
-from rompy_ww3.namelists.unst import Unst
-from rompy_ww3.namelists.smc import Smc
 from rompy_ww3.namelists.depth import Depth
+
+# Import the existing WW3 namelist objects
+from rompy_ww3.namelists.grid import Grid as GRID_NML
+from rompy_ww3.namelists.grid import Rect
 from rompy_ww3.namelists.mask import Mask
 from rompy_ww3.namelists.obstacle import Obstacle
-from rompy_ww3.namelists.slope import Slope
 from rompy_ww3.namelists.sediment import Sediment
-
+from rompy_ww3.namelists.slope import Slope
+from rompy_ww3.namelists.smc import Smc
+from rompy_ww3.namelists.unst import Unst
 
 logger = logging.getLogger(__name__)
 
@@ -399,6 +402,4 @@ class SmcGrid(BaseGrid):
 
 
 # Convenience union type for any WW3 grid
-from typing import Union as TypingUnion
-
 AnyWw3Grid = TypingUnion[RectGrid, CurvGrid, UnstGrid, SmcGrid]
