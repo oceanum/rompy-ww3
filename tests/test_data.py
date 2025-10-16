@@ -3,7 +3,6 @@
 import pytest
 from pathlib import Path
 import tempfile
-from unittest.mock import Mock, patch
 import xarray as xr
 import numpy as np
 
@@ -451,7 +450,7 @@ class TestData:
         # Test the get method
         with tempfile.TemporaryDirectory() as temp_dir:
             dest_dir = Path(temp_dir)
-            result = data.get(dest_dir)
+            data.get(dest_dir)
 
             # Check that the processed file was created
             expected_file = dest_dir / "input.nc"

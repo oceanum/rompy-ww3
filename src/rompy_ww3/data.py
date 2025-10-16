@@ -7,7 +7,6 @@ from pydantic import Field, model_validator
 import xarray as xr
 
 from rompy.core.data import DataGrid
-from rompy.core.source import SourceBase
 
 # Import the existing WW3 namelist objects
 from rompy_ww3.namelists.forcing import Forcing, ForcingField, ForcingGrid
