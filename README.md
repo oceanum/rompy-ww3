@@ -40,6 +40,8 @@ rompy is under active development—features, model support, and documentation a
 
 # WAVEWATCH III (WW3) Plugin
 
+**⚠️ NOTE: This WW3 plugin is currently under active development and has not yet been officially released. The API and architecture are subject to change as we refine the  interface.**
+
 This package provides a plugin for the rompy framework to facilitate the setup,
 configuration, and execution of WAVEWATCH III (WW3) models. It leverages
 rompy's modular architecture to streamline the creation of WW3 model control
@@ -51,10 +53,19 @@ and pydantic validation.
 This package provides:
 
 - Complete WW3 model configuration capabilities with all namelist components
-- Integration with the rompy framework
+- Integration with the rompy framework using the new clean architecture
 - Comprehensive namelist generation for single-grid and multi-grid configurations
 - Support for all WW3 model components: domain, input, output, forcing, boundary, grid, and more
 - Ready-to-use examples including full model run configurations
+- Direct namelist object passing with full API access
+- No redundant interfaces or parameter reconstruction
+- Type-safe union types for flexible grid handling
+
+4. Full API Access - complete access to all WW3 namelist parameters through namelist objects
+
+## Implemented Namelist Components
+
+The rompy-ww3 plugin includes complete implementations for all major WW3 namelist components:
 
 ## Implemented Namelist Components
 
@@ -210,3 +221,11 @@ This will update the version in `src/rompy_ww3/__init__.py`, commit the change, 
 tbump is included in the development requirements (`requirements_dev.txt`).
 
 For more advanced configuration, see `tbump.toml` in the project root.
+
+## Development Status
+
+**⚠️ ACTIVE DEVELOPMENT - UNRELEASED**
+
+This WW3 plugin is currently under active development and has not yet been officially released. The architecture and API are being refined to provide the cleanest possible interface for WW3 model configuration.
+
+**Backward compatibility is NOT guaranteed** during this development phase. Changes will strongly favor clean interfaces and architectural improvements over maintaining legacy compatibility.
