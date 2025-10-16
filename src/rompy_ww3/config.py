@@ -2,9 +2,12 @@
 
 import logging
 from pathlib import Path
-from typing import Literal, Optional, List, Dict, Any
+from typing import Literal, Optional, List, Dict, Any, Union
+from pydantic import Field as PydanticField
+
 from rompy.core.config import BaseConfig
-from .grid import Grid as GridModel
+from .grid import RectGrid, CurvGrid, UnstGrid, SmcGrid, AnyWw3Grid
+from .data import Data as DataModel
 from .namelists import (
     Domain,
     Input,
@@ -45,7 +48,6 @@ from .namelists import (
     Unst,
     Smc,
 )
-from pydantic import Field as PydanticField
 
 
 logger = logging.getLogger(__name__)
@@ -110,12 +112,12 @@ class Config(BaseConfig):
     timesteps: Optional[Timesteps] = PydanticField(
         ..., description="TIMESTEPS_NML namelist configuration"
     )
-    grid: Optional[GridModel] = PydanticField(
-        default=None, description="GRID_NML namelist configuration"
+    grid: Optional[AnyWw3Grid] = PydanticField(
+        default=None, description="WW3 Grid object configuration"
     )
-    grids: Optional[List[GridModel]] = PydanticField(
+    grids: Optional[List[AnyWw3Grid]] = PydanticField(
         default=None,
-        description="List of GRID_NML namelist configurations (for multi-grid)",
+        description="List of WW3 Grid objects (for multi-grid)",
     )
     rect: Optional[Rect] = PydanticField(
         default=None, description="RECT_NML namelist configuration"
@@ -199,9 +201,32 @@ class Config(BaseConfig):
         default=None, description="SMC_NML namelist configuration"
     )
 
+    # WW3-specific data objects
+    data: Optional[DataModel] = PydanticField(
+        default=None, description="WW3 Data object for forcing data"
+    )
+
     def __call__(self, runtime) -> dict:
         """Callable where data and config are interfaced and CMD is rendered."""
         staging_dir = runtime.staging_dir
+
+        # Prepare staging directory for WW3 run
+        # This includes retrieving and staging data files using our new objects
+        data_dir = Path(staging_dir) / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        grid_dir = Path(staging_dir) / "grid"
+        grid_dir.mkdir(parents=True, exist_ok=True)
+
+        # Use the new Grid object to get grid files and namelists
+        if self.grid:  # The grid field is the WW3 Grid object
+            logger.info("Processing grid data using WW3 Grid object...")
+            self.grid.get(grid_dir)
+
+        # Use the new Data object to get forcing data files
+        if self.data:
+            logger.info("Processing forcing data using WW3 Data object...")
+            self.data.get(data_dir)
 
         # Generate WW3 control namelist files
         namelists_dir = Path(staging_dir) / "namelists"
@@ -240,7 +265,12 @@ class Config(BaseConfig):
         # Generate model parameters namelist
         self.generate_parameters_namelist(namelists_dir / "namelists.nml")
 
-        ret = {"staging_dir": staging_dir, "namelists_dir": str(namelists_dir)}
+        ret = {
+            "staging_dir": staging_dir,
+            "namelists_dir": str(namelists_dir),
+            "data_dir": str(data_dir) if self.data else None,
+            "grid_dir": str(grid_dir) if self.grid else None,
+        }
         return ret
 
     def _write_homog_input_nml(self, workdir: Path) -> None:
@@ -324,8 +354,12 @@ class Config(BaseConfig):
             namelists["timesteps.nml"] = self.timesteps.render()
 
         if self.grid:
-            namelists["grid.nml"] = self.grid.generate_grid_nml()
-            namelists["rect.nml"] = self.grid.generate_rect_nml()
+            namelists["grid.nml"] = (
+                self.grid.grid_nml.render() if self.grid.grid_nml else ""
+            )
+            namelists["rect.nml"] = (
+                self.grid.rect_nml.render() if self.grid.rect_nml else ""
+            )
 
         if self.rect:
             namelists["rect.nml"] = self.rect.render()
@@ -524,12 +558,29 @@ class Config(BaseConfig):
 
         # Add GRID_NML
         if self.grid:
-            grid_content.append(self.grid.generate_grid_nml())
+            grid_content.append(
+                self.grid.grid_nml.render() if self.grid.grid_nml else ""
+            )
             grid_content.append("")
 
         # Add RECT_NML
-        if self.grid and self.grid.grid_type == "RECT":
-            grid_content.append(self.grid.generate_rect_nml())
+        if self.grid and hasattr(self.grid, "rect_nml") and self.grid.rect_nml:
+            grid_content.append(self.grid.rect_nml.render())
+            grid_content.append("")
+
+        # Add CURV_NML
+        if self.grid and hasattr(self.grid, "curv_nml") and self.grid.curv_nml:
+            grid_content.append(self.grid.curv_nml.render())
+            grid_content.append("")
+
+        # Add UNST_NML
+        if self.grid and hasattr(self.grid, "unst_nml") and self.grid.unst_nml:
+            grid_content.append(self.grid.unst_nml.render())
+            grid_content.append("")
+
+        # Add SMC_NML
+        if self.grid and hasattr(self.grid, "smc_nml") and self.grid.smc_nml:
+            grid_content.append(self.grid.smc_nml.render())
             grid_content.append("")
 
         # Add TIMESTEPS_NML
@@ -539,8 +590,15 @@ class Config(BaseConfig):
             grid_content.append("")
 
         # Add optional depth-related namelists
+        # First check for explicit depth namelist in config
         if self.depth:
             rendered = self.depth.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+        # Then check for depth file in grid object
+        elif self.grid and hasattr(self.grid, "depth") and self.grid.depth:
+            # Use depth namelist from grid object if available and not overridden by config
+            rendered = self.grid.depth.render().replace("\\n", "\n")
             grid_content.extend(rendered.split("\n"))
             grid_content.append("")
 
@@ -602,20 +660,37 @@ class Config(BaseConfig):
             grid_content.extend(rendered.split("\n"))
             grid_content.append("")
 
-        # Add grid type specific namelists based on grid type
-        if self.grid:
-            if self.grid.grid_type == "CURV" and self.curv:
-                rendered = self.curv.render().replace("\\n", "\n")
-                grid_content.extend(rendered.split("\n"))
-                grid_content.append("")
-            elif self.grid.grid_type == "UNST" and self.unst:
-                rendered = self.unst.render().replace("\\n", "\n")
-                grid_content.extend(rendered.split("\n"))
-                grid_content.append("")
-            elif self.grid.grid_type == "SMC" and self.smc:
-                rendered = self.smc.render().replace("\\n", "\n")
-                grid_content.extend(rendered.split("\n"))
-                grid_content.append("")
+        # Add additional grid type specific namelists from config if provided
+        # (these can override grid object's namelist objects when needed)
+        if self.curv:
+            rendered = self.curv.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+        elif self.grid and hasattr(self.grid, "curv") and self.grid.curv:
+            # Use curv namelist from grid object if available
+            rendered = self.grid.curv.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        if self.unst:
+            rendered = self.unst.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+        elif self.grid and hasattr(self.grid, "unst") and self.grid.unst:
+            # Use unst namelist from grid object if available
+            rendered = self.grid.unst.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+
+        if self.smc:
+            rendered = self.smc.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
+        elif self.grid and hasattr(self.grid, "smc") and self.grid.smc:
+            # Use smc namelist from grid object if available
+            rendered = self.grid.smc.render().replace("\\n", "\n")
+            grid_content.extend(rendered.split("\n"))
+            grid_content.append("")
 
         with open(output_path, "w") as f:
             f.write("\n".join(grid_content))

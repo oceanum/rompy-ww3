@@ -237,21 +237,6 @@ def test_file_writing():
         run.write_nml(tmp_path)
         assert (tmp_path / "run.nml").exists()
 
-        # Grid
-        from rompy_ww3.grid import Grid
-
-        grid = Grid(x0=-75.0, y0=35.0, dx=0.204, dy=0.204, nx=50, ny=50)
-        if hasattr(grid, "write_nml"):
-            grid.write_nml(tmp_path)
-            assert (tmp_path / "grid.nml").exists()
-
-        # Rect
-        rect_content = grid.generate_rect_nml()
-        rect_file = tmp_path / "rect.nml"
-        with open(rect_file, "w") as f:
-            f.write(rect_content)
-        assert rect_file.exists()
-
         # Bound
         bound = Bound(mode="READ", file="bound_spec.nc", interp=2)
         bound.write_nml(tmp_path)
