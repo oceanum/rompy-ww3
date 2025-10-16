@@ -2,9 +2,9 @@
 
 import logging
 import shutil
+from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional
-from typing import Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 from typing import Union as TypingUnion
 
 from pydantic import Field, model_validator
@@ -23,12 +23,137 @@ from rompy_ww3.namelists.slope import Slope
 from rompy_ww3.namelists.smc import Smc
 from rompy_ww3.namelists.unst import Unst
 
+
 logger = logging.getLogger(__name__)
 
 HERE = Path(__file__).parent
 
 
-class RectGrid(BaseGrid):
+class BaseWW3Grid(BaseGrid, ABC):
+    """Base class for WW3 grid classes."""
+
+    grid_nml: GRID_NML = Field(
+        description="GRID_NML namelist object for WW3 grid",
+    )
+
+    @property
+    @abstractmethod
+    def grid_specific_nml(self) -> Any:
+        """Return the grid-specific namelist (e.g., rect_nml, curv_nml, etc.)"""
+        pass
+
+    @property
+    @abstractmethod
+    def grid_specific_name(self) -> str:
+        """Return the name of the grid-specific namelist (e.g., 'rect_nml', 'curv_nml', etc.)"""
+        pass
+
+    @property
+    @abstractmethod
+    def namelist_file_attrs(self) -> List[Tuple[str, str]]:
+        """Return list of (attribute_name, filename_attribute) for optional namelist files."""
+        pass
+
+    @property
+    def additional_file_attrs(self) -> List[str]:
+        """Return list of additional file attributes specific to the grid type."""
+        return []
+
+    def _validate_file_exists(
+        self, file_path: Union[str, Path], attr_name: str
+    ) -> None:
+        """Validate that a file exists at the given path."""
+        path = Path(file_path)
+        if not path.exists():
+            raise ValueError(f"File does not exist: {path}")
+
+    def _validate_namelist_files(self) -> None:
+        """Validate that required files exist for optional namelist objects."""
+        for attr_name, _ in self.namelist_file_attrs:
+            nml_obj = getattr(self, attr_name, None)
+            if nml_obj and hasattr(nml_obj, "filename") and nml_obj.filename:
+                self._validate_file_exists(nml_obj.filename, attr_name)
+
+    def _copy_additional_files(self, destdir: Path) -> None:
+        """Copy additional files specific to this grid type."""
+        for attr_name in self.additional_file_attrs:
+            src_file = getattr(self, attr_name, None)
+            if src_file:
+                src_path = Path(src_file)
+                dst_path = destdir / src_path.name
+                if src_path.exists():
+                    shutil.copy2(src_path, dst_path)
+                    logger.info(f"Copied {src_path.name} to {destdir}")
+                else:
+                    raise FileNotFoundError(f"Source file does not exist: {src_path}")
+
+    @model_validator(mode="after")
+    def validate_grid_parameters(self) -> "BaseWW3Grid":
+        """Validate grid parameters including file existence."""
+        # Validate optional namelist files
+        self._validate_namelist_files()
+
+        # Validate any additional files
+        for attr_name in self.additional_file_attrs:
+            file_path = getattr(self, attr_name, None)
+            if file_path:
+                self._validate_file_exists(file_path, attr_name)
+
+        return self
+
+    def get(self, destdir: Union[str, Path], *args, **kwargs) -> Dict[str, Any]:
+        """Copy grid files and return namelist paths."""
+        destdir = Path(destdir)
+        destdir.mkdir(parents=True, exist_ok=True)
+
+        # Copy additional files specific to this grid type
+        self._copy_additional_files(destdir)
+
+        # Copy files referenced in namelist objects
+        for attr_name, filename_attr in self.namelist_file_attrs:
+            nml_obj = getattr(self, attr_name, None)
+            if nml_obj and hasattr(nml_obj, "filename") and nml_obj.filename:
+                src_path = Path(nml_obj.filename)
+                dst_path = destdir / src_path.name
+                if src_path.exists() and not dst_path.exists():
+                    shutil.copy2(src_path, dst_path)
+                    logger.info(f"Copied {src_path.name} to {destdir}")
+                elif src_path.exists() and dst_path.exists():
+                    # File already copied, skip
+                    pass
+                else:
+                    raise FileNotFoundError(f"Source file does not exist: {src_path}")
+
+        # Generate and write the namelist files
+        namelist_objects = {
+            "grid_nml": self.grid_nml,
+            self.grid_specific_name: self.grid_specific_nml,
+        }
+
+        # Add optional namelists if provided - this will be implemented by subclasses
+        self._add_optional_namelists(namelist_objects)
+
+        # Generate and write the namelist files
+        namelist_content = {}
+        for nml_name, nml_obj in namelist_objects.items():
+            if nml_obj:
+                nml_content = nml_obj.render()
+                namelist_content[nml_name] = nml_content
+                filename = f"ww3_grid_{nml_name}.nml"
+
+                with open(destdir / filename, "w") as f:
+                    f.write(nml_content)
+
+        logger.info(f"Copied all grid files to {destdir}")
+        return namelist_content
+
+    def _add_optional_namelists(self, namelist_objects: dict) -> None:
+        """Add optional namelist objects to the dictionary. Implemented by subclasses."""
+        # This method will be overridden by subclasses that have optional files
+        pass
+
+
+class RectGrid(BaseWW3Grid):
     """Rectilinear WW3 grid class."""
 
     model_type: Literal["ww3_rect"] = Field(
@@ -37,9 +162,6 @@ class RectGrid(BaseGrid):
     )
 
     # Grid namelist objects - REQUIRED for RECT grids
-    grid_nml: GRID_NML = Field(
-        description="GRID_NML namelist object for rectilinear grid",
-    )
     rect_nml: Rect = Field(
         description="RECT_NML namelist object for rectilinear grid",
     )
@@ -66,29 +188,18 @@ class RectGrid(BaseGrid):
         description="Sediment namelist object for rectilinear grid",
     )
 
-    @model_validator(mode="after")
-    def validate_rect_grid_parameters(self) -> "RectGrid":
-        """Validate rectilinear grid parameters."""
-        # Validate that required files exist if specified
-        namelist_attrs = ["depth", "mask", "obst", "slope", "sed"]
-        for attr_name in namelist_attrs:
-            nml_obj = getattr(self, attr_name, None)
-            if nml_obj and hasattr(nml_obj, "filename") and nml_obj.filename:
-                file_path = Path(nml_obj.filename)
-                if not file_path.exists():
-                    raise ValueError(
-                        f"File referenced in {attr_name} does not exist: {file_path}"
-                    )
+    @property
+    def grid_specific_nml(self) -> Rect:
+        return self.rect_nml
 
-        return self
+    @property
+    def grid_specific_name(self) -> str:
+        return "rect_nml"
 
-    def get(self, destdir: Union[str, Path], *args, **kwargs) -> Dict[str, Any]:
-        """Copy rectilinear grid files and return namelist paths."""
-        destdir = Path(destdir)
-        destdir.mkdir(parents=True, exist_ok=True)
-
-        # Copy files referenced in namelist objects
-        namelist_file_attrs = [
+    @property
+    def namelist_file_attrs(self) -> List[Tuple[str, str]]:
+        """Return list of (attribute_name, filename_attribute) for optional namelist files."""
+        return [
             ("depth", "filename"),
             ("mask", "filename"),
             ("obst", "filename"),
@@ -96,27 +207,8 @@ class RectGrid(BaseGrid):
             ("sed", "filename"),
         ]
 
-        for attr_name, filename_attr in namelist_file_attrs:
-            nml_obj = getattr(self, attr_name, None)
-            if nml_obj and hasattr(nml_obj, "filename") and nml_obj.filename:
-                src_path = Path(nml_obj.filename)
-                dst_path = destdir / src_path.name
-                if src_path.exists() and not dst_path.exists():
-                    shutil.copy2(src_path, dst_path)
-                    logger.info(f"Copied {src_path.name} to {destdir}")
-                elif src_path.exists() and dst_path.exists():
-                    # File already copied, skip
-                    pass
-                else:
-                    raise FileNotFoundError(f"Source file does not exist: {src_path}")
-
-        # Generate and write the namelist files
-        namelist_objects = {
-            "grid_nml": self.grid_nml,
-            "rect_nml": self.rect_nml,
-        }
-
-        # Add optional namelists if provided
+    def _add_optional_namelists(self, namelist_objects: dict) -> None:
+        """Add optional namelist objects to the dictionary."""
         if self.depth:
             namelist_objects["depth_nml"] = self.depth
         if self.mask:
@@ -128,22 +220,8 @@ class RectGrid(BaseGrid):
         if self.sed:
             namelist_objects["sed_nml"] = self.sed
 
-        # Generate and write the namelist files
-        namelist_content = {}
-        for nml_name, nml_obj in namelist_objects.items():
-            if nml_obj:
-                nml_content = nml_obj.render()
-                namelist_content[nml_name] = nml_content
-                filename = f"ww3_grid_{nml_name}.nml"
 
-                with open(destdir / filename, "w") as f:
-                    f.write(nml_content)
-
-        logger.info(f"Copied all rectilinear grid files to {destdir}")
-        return namelist_content
-
-
-class CurvGrid(BaseGrid):
+class CurvGrid(BaseWW3Grid):
     """Curvilinear WW3 grid class."""
 
     model_type: Literal["ww3_curv"] = Field(
@@ -152,11 +230,16 @@ class CurvGrid(BaseGrid):
     )
 
     # Grid namelist objects - REQUIRED for CURV grids
-    grid_nml: GRID_NML = Field(
-        description="GRID_NML namelist object for curvilinear grid",
-    )
     curv_nml: Curv = Field(
         description="CURV_NML namelist object for curvilinear grid",
+    )
+
+    # Coordinate files - REQUIRED for CURV grids
+    x_coord_file: Path = Field(
+        description="Path to x-coordinate file for curvilinear grid",
+    )
+    y_coord_file: Path = Field(
+        description="Path to y-coordinate file for curvilinear grid",
     )
 
     # File-based namelist objects - OPTIONAL for CURV grids
@@ -181,57 +264,22 @@ class CurvGrid(BaseGrid):
         description="Sediment namelist object for curvilinear grid",
     )
 
-    # Coordinate files - REQUIRED for CURV grids
-    x_coord_file: Path = Field(
-        description="Path to x-coordinate file for curvilinear grid",
-    )
-    y_coord_file: Path = Field(
-        description="Path to y-coordinate file for curvilinear grid",
-    )
+    @property
+    def grid_specific_nml(self) -> Curv:
+        return self.curv_nml
 
-    @model_validator(mode="after")
-    def validate_curv_grid_parameters(self) -> "CurvGrid":
-        """Validate curvilinear grid parameters."""
-        # Validate coordinate files
-        file_attrs = ["x_coord_file", "y_coord_file"]
-        for attr_name in file_attrs:
-            file_path = getattr(self, attr_name, None)
-            if file_path and not Path(file_path).exists():
-                raise ValueError(f"File does not exist: {file_path}")
+    @property
+    def grid_specific_name(self) -> str:
+        return "curv_nml"
 
-        # Validate namelist object files
-        namelist_attrs = ["depth", "mask", "obst", "slope", "sed"]
-        for attr_name in namelist_attrs:
-            nml_obj = getattr(self, attr_name, None)
-            if nml_obj and hasattr(nml_obj, "filename") and nml_obj.filename:
-                file_path = Path(nml_obj.filename)
-                if not file_path.exists():
-                    raise ValueError(
-                        f"File referenced in {attr_name} does not exist: {file_path}"
-                    )
+    @property
+    def additional_file_attrs(self) -> List[str]:
+        return ["x_coord_file", "y_coord_file"]
 
-        return self
-
-    def get(self, destdir: Union[str, Path], *args, **kwargs) -> Dict[str, Any]:
-        """Copy curvilinear grid files and return namelist paths."""
-        destdir = Path(destdir)
-        destdir.mkdir(parents=True, exist_ok=True)
-
-        # Copy coordinate files
-        file_attrs = ["x_coord_file", "y_coord_file"]
-        for attr_name in file_attrs:
-            src_file = getattr(self, attr_name, None)
-            if src_file:
-                src_path = Path(src_file)
-                dst_path = destdir / src_path.name
-                if src_path.exists():
-                    shutil.copy2(src_path, dst_path)
-                    logger.info(f"Copied {src_path.name} to {destdir}")
-                else:
-                    raise FileNotFoundError(f"Source file does not exist: {src_path}")
-
-        # Copy files referenced in namelist objects
-        namelist_file_attrs = [
+    @property
+    def namelist_file_attrs(self) -> List[Tuple[str, str]]:
+        """Return list of (attribute_name, filename_attribute) for optional namelist files."""
+        return [
             ("depth", "filename"),
             ("mask", "filename"),
             ("obst", "filename"),
@@ -239,27 +287,8 @@ class CurvGrid(BaseGrid):
             ("sed", "filename"),
         ]
 
-        for attr_name, filename_attr in namelist_file_attrs:
-            nml_obj = getattr(self, attr_name, None)
-            if nml_obj and hasattr(nml_obj, "filename") and nml_obj.filename:
-                src_path = Path(nml_obj.filename)
-                dst_path = destdir / src_path.name
-                if src_path.exists() and not dst_path.exists():
-                    shutil.copy2(src_path, dst_path)
-                    logger.info(f"Copied {src_path.name} to {destdir}")
-                elif src_path.exists() and dst_path.exists():
-                    # File already copied, skip
-                    pass
-                else:
-                    raise FileNotFoundError(f"Source file does not exist: {src_path}")
-
-        # Generate and write the namelist files
-        namelist_objects = {
-            "grid_nml": self.grid_nml,
-            "curv_nml": self.curv_nml,
-        }
-
-        # Add optional namelists if provided
+    def _add_optional_namelists(self, namelist_objects: dict) -> None:
+        """Add optional namelist objects to the dictionary."""
         if self.depth:
             namelist_objects["depth_nml"] = self.depth
         if self.mask:
@@ -271,22 +300,8 @@ class CurvGrid(BaseGrid):
         if self.sed:
             namelist_objects["sed_nml"] = self.sed
 
-        # Generate and write the namelist files
-        namelist_content = {}
-        for nml_name, nml_obj in namelist_objects.items():
-            if nml_obj:
-                nml_content = nml_obj.render()
-                namelist_content[nml_name] = nml_content
-                filename = f"ww3_grid_{nml_name}.nml"
 
-                with open(destdir / filename, "w") as f:
-                    f.write(nml_content)
-
-        logger.info(f"Copied all curvilinear grid files to {destdir}")
-        return namelist_content
-
-
-class UnstGrid(BaseGrid):
+class UnstGrid(BaseWW3Grid):
     """Unstructured WW3 grid class."""
 
     model_type: Literal["ww3_unst"] = Field(
@@ -295,9 +310,6 @@ class UnstGrid(BaseGrid):
     )
 
     # Grid namelist objects - REQUIRED for UNST grids
-    grid_nml: GRID_NML = Field(
-        description="GRID_NML namelist object for unstructured grid",
-    )
     unst_nml: Unst = Field(
         description="UNST_NML namelist object for unstructured grid",
     )
@@ -308,52 +320,29 @@ class UnstGrid(BaseGrid):
         description="Path to additional boundary list file for unstructured grid",
     )
 
-    @model_validator(mode="after")
-    def validate_unst_grid_parameters(self) -> "UnstGrid":
-        """Validate unstructured grid parameters."""
-        # Validate boundary file if specified
-        if self.unst_obc_file and not Path(self.unst_obc_file).exists():
-            raise ValueError(f"File does not exist: {self.unst_obc_file}")
+    @property
+    def grid_specific_nml(self) -> Unst:
+        return self.unst_nml
 
-        return self
+    @property
+    def grid_specific_name(self) -> str:
+        return "unst_nml"
 
-    def get(self, destdir: Union[str, Path], *args, **kwargs) -> Dict[str, Any]:
-        """Copy unstructured grid files and return namelist paths."""
-        destdir = Path(destdir)
-        destdir.mkdir(parents=True, exist_ok=True)
+    @property
+    def additional_file_attrs(self) -> List[str]:
+        return ["unst_obc_file"] if self.unst_obc_file else []
 
-        # Copy boundary file if specified
-        if self.unst_obc_file:
-            src_path = Path(self.unst_obc_file)
-            dst_path = destdir / src_path.name
-            if src_path.exists():
-                shutil.copy2(src_path, dst_path)
-                logger.info(f"Copied {src_path.name} to {destdir}")
-            else:
-                raise FileNotFoundError(f"Source file does not exist: {src_path}")
+    @property
+    def namelist_file_attrs(self) -> List[Tuple[str, str]]:
+        """Return empty list as UNST grids don't typically use optional namelist files."""
+        return []
 
-        # Generate and write the namelist files
-        namelist_objects = {
-            "grid_nml": self.grid_nml,
-            "unst_nml": self.unst_nml,
-        }
-
-        # Generate and write the namelist files
-        namelist_content = {}
-        for nml_name, nml_obj in namelist_objects.items():
-            if nml_obj:
-                nml_content = nml_obj.render()
-                namelist_content[nml_name] = nml_content
-                filename = f"ww3_grid_{nml_name}.nml"
-
-                with open(destdir / filename, "w") as f:
-                    f.write(nml_content)
-
-        logger.info(f"Copied all unstructured grid files to {destdir}")
-        return namelist_content
+    def _add_optional_namelists(self, namelist_objects: dict) -> None:
+        """Add optional namelist objects to the dictionary. UNST has none."""
+        pass
 
 
-class SmcGrid(BaseGrid):
+class SmcGrid(BaseWW3Grid):
     """SMC (Spherical Multiple-Cell) WW3 grid class."""
 
     model_type: Literal["ww3_smc"] = Field(
@@ -362,43 +351,35 @@ class SmcGrid(BaseGrid):
     )
 
     # Grid namelist objects - REQUIRED for SMC grids
-    grid_nml: GRID_NML = Field(
-        description="GRID_NML namelist object for SMC grid",
-    )
     smc_nml: Smc = Field(
         description="SMC_NML namelist object for SMC grid",
     )
 
-    @model_validator(mode="after")
-    def validate_smc_grid_parameters(self) -> "SmcGrid":
-        """Validate SMC grid parameters."""
-        # No specific validation needed for SMC grids
-        return self
+    @property
+    def grid_specific_nml(self) -> Smc:
+        return self.smc_nml
 
-    def get(self, destdir: Union[str, Path], *args, **kwargs) -> Dict[str, Any]:
-        """Copy SMC grid files and return namelist paths."""
-        destdir = Path(destdir)
-        destdir.mkdir(parents=True, exist_ok=True)
+    @property
+    def grid_specific_name(self) -> str:
+        return "smc_nml"
 
-        # Generate and write the namelist files
-        namelist_objects = {
-            "grid_nml": self.grid_nml,
-            "smc_nml": self.smc_nml,
-        }
+    @property
+    def additional_file_attrs(self) -> List[str]:
+        """Return list of additional file attributes specific to the grid type."""
+        return []
 
-        # Generate and write the namelist files
-        namelist_content = {}
-        for nml_name, nml_obj in namelist_objects.items():
-            if nml_obj:
-                nml_content = nml_obj.render()
-                namelist_content[nml_name] = nml_content
-                filename = f"ww3_grid_{nml_name}.nml"
+    @property
+    def namelist_file_attrs(self) -> List[Tuple[str, str]]:
+        """Return empty list as SMC grids don't typically use optional namelist files."""
+        return []
 
-                with open(destdir / filename, "w") as f:
-                    f.write(nml_content)
+    def _add_optional_namelists(self, namelist_objects: dict) -> None:
+        """Add optional namelist objects to the dictionary. SMC has none."""
+        pass
 
-        logger.info(f"Copied all SMC grid files to {destdir}")
-        return namelist_content
+
+# Convenience union type for any WW3 grid
+AnyWw3Grid = TypingUnion[RectGrid, CurvGrid, UnstGrid, SmcGrid]
 
 
 # Convenience union type for any WW3 grid
