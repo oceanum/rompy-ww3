@@ -108,3 +108,5 @@ ENV/
 .vscode/
 .idea/
 
+# WW3 source code
+WW3-6.07.1
