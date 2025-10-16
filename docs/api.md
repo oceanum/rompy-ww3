@@ -22,21 +22,81 @@ class Config(BaseConfig):
 - `render_namelists()`: Render all namelists as strings
 
 ### rompy_ww3.grid
-WW3-specific grid configuration.
+WW3-specific grid configuration with clean architecture.
 
-#### Grid
+#### RectGrid
 ```python
-class Grid(RegularGrid):
-    name: Optional[str]
-    grid_type: Optional[str]
-    coordinate_system: Optional[str]
-    # ... other grid parameters
+class RectGrid(BaseGrid):
+    grid_type: Literal["base"]
+    model_type: Literal["ww3_rect"]
+    grid_nml: Optional[GRID_NML]
+    rect_nml: Optional[Rect]
+    depth: Optional[Depth]
+    mask: Optional[Mask]
+    obst: Optional[Obstacle]
+    slope: Optional[Slope]
+    sed: Optional[Sediment]
 ```
 
 **Methods:**
-- `generate_grid_nml()`: Generate GRID_NML content
-- `generate_rect_nml()`: Generate RECT_NML content
-- `write_grid_files()`: Write grid namelist files
+- `get()`: Copy grid files and generate namelist content
+- `render_grid_nml()`: Generate GRID_NML content directly from namelist object
+- `render_rect_nml()`: Generate RECT_NML content directly from namelist object
+
+#### CurvGrid
+```python
+class CurvGrid(BaseGrid):
+    grid_type: Literal["base"]
+    model_type: Literal["ww3_curv"]
+    grid_nml: Optional[GRID_NML]
+    curv_nml: Optional[Curv]
+    depth: Optional[Depth]
+    mask: Optional[Mask]
+    obst: Optional[Obstacle]
+    slope: Optional[Slope]
+    sed: Optional[Sediment]
+    x_coord_file: Optional[Path]
+    y_coord_file: Optional[Path]
+```
+
+**Methods:**
+- `get()`: Copy grid files and generate namelist content
+- `render_grid_nml()`: Generate GRID_NML content directly from namelist object
+- `render_curv_nml()`: Generate CURV_NML content directly from namelist object
+
+#### UnstGrid
+```python
+class UnstGrid(BaseGrid):
+    grid_type: Literal["base"]
+    model_type: Literal["ww3_unst"]
+    grid_nml: Optional[GRID_NML]
+    unst_nml: Optional[Unst]
+    unst_obc_file: Optional[Path]
+```
+
+**Methods:**
+- `get()`: Copy grid files and generate namelist content
+- `render_grid_nml()`: Generate GRID_NML content directly from namelist object
+- `render_unst_nml()`: Generate UNST_NML content directly from namelist object
+
+#### SmcGrid
+```python
+class SmcGrid(BaseGrid):
+    grid_type: Literal["base"]
+    model_type: Literal["ww3_smc"]
+    grid_nml: Optional[GRID_NML]
+    smc_nml: Optional[Smc]
+```
+
+**Methods:**
+- `get()`: Copy grid files and generate namelist content
+- `render_grid_nml()`: Generate GRID_NML content directly from namelist object
+- `render_smc_nml()`: Generate SMC_NML content directly from namelist object
+
+#### AnyWw3Grid
+```python
+AnyWw3Grid = Union[RectGrid, CurvGrid, UnstGrid, SmcGrid]
+```
 
 ### rompy_ww3.data
 WW3-specific data handling.
