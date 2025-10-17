@@ -107,6 +107,12 @@ ENV/
 # IDE settings
 .vscode/
 .idea/
+.windsurf/
+.qwen/
+.gemini/
+.winsurf/
+.jetbrains/
 
 # WW3 source code
 WW3-6.07.1
+

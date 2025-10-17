@@ -1,288 +1,309 @@
-# Architecture
+# Component-Based Architecture
 
 ## Overview
 
-rompy-ww3 follows a clean, modular architecture designed to provide direct access to WAVEWATCH III (WW3) namelist functionality while maintaining type safety and ease of use.
+The rompy-ww3 package follows a clean, modular architecture designed to provide direct access to WAVEWATCH III (WW3) namelist functionality while maintaining type safety and ease of use.
+
+This architecture introduces dedicated **Component Models** for each major WW3 control file, building upon the existing clean architecture principles while providing enhanced modularity and flexibility for configuring WAVEWATCH III (WW3) model runs.
 
 ## Key Principles
 
-### 1. **Direct Namelist Object Passing**
-Users pass actual WW3 namelist objects directly to grid classes. This eliminates redundant interfaces and provides full access to the complete WW3 API.
+### 1. **Component Encapsulation**
+Each WW3 control file is represented by a dedicated component class that encapsulates all related namelist objects:
 
-### 2. **Separate Classes Per Grid Type**
-Each WW3 grid type has its own dedicated class:
-- `RectGrid` - Rectilinear grids
-- `CurvGrid` - Curvilinear grids  
-- `UnstGrid` - Unstructured grids
-- `SmcGrid` - Spherical Multiple-Cell (SMC) grids
+- `ShellComponent` → `ww3_shel.nml` (Main model configuration)
+- `GridComponent` → `ww3_grid.nml` (Grid preprocessing configuration)
+- `MultiComponent` → `ww3_multi.nml` (Multi-grid model configuration)
+- `BoundaryComponent` → `ww3_bound.nml` (Boundary preprocessing configuration)
+- `BoundaryUpdateComponent` → `ww3_bounc.nml` (Boundary update configuration)
+- `ControlComponent` → `ww3_prnc.nml` (Print control configuration)
+- `TrackComponent` → `ww3_trnc.nml` (Track output configuration)
+- `UnformattedOutputComponent` → `ww3_ounf.nml` (Unformatted output configuration)
+- `PointOutputComponent` → `ww3_ounp.nml` (Point output configuration)
+- `RestartUpdateComponent` → `ww3_uprstr.nml` (Restart update configuration)
+- `ParametersComponent` → `namelists.nml` (Model parameters configuration)
 
-### 3. **No Redundant Validation**
-Grid classes no longer validate individual parameters or reconstruct namelist objects. Users create namelist objects directly with full API access.
+### 2. **Unified Interface**
+All components inherit from a common base class `WW3ComponentBaseModel` that provides:
 
-### 4. **Union Types for Flexibility**
-The `AnyWw3Grid` union type allows Config to accept any grid type while maintaining type safety.
+- Consistent `render()` method for generating namelist content
+- Backward compatibility with existing `NamelistBaseModel` interface
+- Type safety and validation through Pydantic V2
 
-## Clean Architecture Benefits
-
-### Elimination of Redundant Interfaces
-Wrapper methods that just return objects are eliminated in favor of direct object access:
-
-```python
-# DIRECT ACCESS - CLEAN WAY
-class RectGrid:
-    grid_nml: GRID_NML  # Actual namelist object
-
-# Usage:
-grid = RectGrid(grid_nml=GRID_NML(...))
-content = grid.grid_nml.render()   # Direct call to render()
-```
-
-### No Parameter Reconstruction
-Namelist objects are passed directly rather than being reconstructed from individual parameters:
+### 3. **Composability**
+Components can be composed together to create complete model configurations:
 
 ```python
-# DIRECT NAMelist OBJECT PASSING - CLEAN WAY
-class RectGrid:
-    def __init__(self, grid_nml: GRID_NML, rect_nml: Rect, ...):
-        # Store actual namelist objects directly
-        self.grid_nml = grid_nml  # Actual GRID_NML object
-        self.rect_nml = rect_nml  # Actual Rect object
-        # ... other namelist objects
-        
-    def generate_grid_nml(self):
-        # NO RECONSTRUCTION - just use the passed object!
-        return self.grid_nml.render()
+from rompy_ww3.components import (
+    ShellComponent, 
+    GridComponent, 
+    MultiComponent,
+    BoundaryComponent
+)
+from rompy_ww3.namelists import (
+    Domain, Input, OutputType, OutputDate,
+    Spectrum, Run, Timesteps, Bound
+)
+
+# Create individual components
+shell = ShellComponent(
+    domain=Domain(start="20230101 000000", stop="20230107 000000"),
+    input_nml=Input(forcing={"winds": "T", "water_levels": "T"}),
+    output_type=OutputType(field={"list": "HSIGN TMM10 TM02 PDIR PENT"}),
+    output_date=OutputDate(field_start="20230101 000000", field_stride="3600")
+)
+
+grid = GridComponent(
+    spectrum=Spectrum(xfr=1.1, freq1=0.04, nk=25, nth=24),
+    run=Run(fldry=False, flcx=True, flcy=True),
+    timesteps=Timesteps(dtmax=1800.0, dtxy=600.0, dtmin=10.0)
+)
+
+boundary = BoundaryComponent(
+    bound=Bound(mode="READ", file="boundary_spec.nc", interp=2)
+)
+
+# Components work together through the Config class
+config = Config(
+    shell_component=shell,
+    grid_component=grid,
+    boundary_component=boundary
+)
 ```
+
+### 4. **Backward Compatibility**
+The component-based architecture maintains full backward compatibility:
+
+- Existing namelist objects continue to work as before
+- Traditional Config usage patterns remain unchanged
+- Components can be mixed with traditional namelist objects
+- No breaking changes to existing APIs
 
 ## Component Structure
 
-### Namelists
-Full WW3 namelist implementations that can be used independently or with rompy-ww3 grid classes.
+### Component Base Class
+All components inherit from `WW3ComponentBaseModel` which provides:
 
-### Grid Classes
-Thin wrappers that store and provide access to relevant namelist objects for each grid type.
+```python
+from rompy_ww3.components.basemodel import WW3ComponentBaseModel
 
-### Config Class
-Main configuration class that orchestrates WW3 model setup using the clean grid architecture.
+class MyComponent(WW3ComponentBaseModel):
+    def render(self) -> str:
+        """Render the component to a namelist string."""
+        # Implementation specific to each component
+        pass
+        
+    def write_nml(self, workdir: Union[Path, str]) -> None:
+        """Write the rendered component to a namelist file."""
+        # Implementation provided by base class
+        pass
+```
 
-### Union Types
-Type-safe way to handle multiple grid types in a single interface.
+### Component Fields
+Each component defines fields for the namelist objects it manages:
+
+```python
+class ShellComponent(WW3ComponentBaseModel):
+    """Component for ww3_shel.nml containing shell configuration."""
+    
+    domain: Optional[Domain] = None
+    input_nml: Optional[InputForcing] = None
+    output_type: Optional[OutputType] = None
+    output_date: Optional[OutputDate] = None
+    homog_count: Optional[HomogCount] = None
+    homog_input: Optional[List[HomogInput]] = None
+```
+
+### Component Rendering
+Components provide unified rendering through the `render()` method:
+
+```python
+def render(self) -> str:
+    """Render the shell component as a combined namelist string."""
+    shel_content = []
+    shel_content.append("! WW3 main model configuration")
+    shel_content.append("! Generated by rompy-ww3")
+    shel_content.append("")
+
+    # Add DOMAIN_NML
+    if self.domain:
+        rendered = self.domain.render().replace("\\n", "\n")
+        shel_content.extend(rendered.split("\n"))
+        shel_content.append("")
+
+    # Add INPUT_NML
+    if self.input_nml:
+        rendered = self.input_nml.render().replace("\\n", "\n")
+        shel_content.extend(rendered.split("\n"))
+        shel_content.append("")
+
+    # ... add other namelists as needed
+    
+    return "\n".join(shel_content)
+```
 
 ## Usage Patterns
 
-### 1. Standalone Namelist Usage
+### 1. Basic Component Usage
 ```python
-from rompy_ww3.namelists.grid import Grid as GRID_NML, Rect
+from rompy_ww3.components import ShellComponent, GridComponent
+from rompy_ww3.namelists import Domain, Input, Spectrum, Run, Timesteps
 
-# Create namelist objects directly
-grid_nml = GRID_NML(
-    name="Standalone Grid",
-    type="RECT",
-    coord="SPHE",
-    clos="SMPL",
-    zlim=-0.2,
-    dmin=3.0,
+# Create components with namelist objects
+shell = ShellComponent(
+    domain=Domain(start="20230101 000000", stop="20230107 000000"),
+    input_nml=Input(forcing={"winds": "T"})
 )
 
-rect_nml = Rect(
-    nx=300,
-    ny=150,
-    sx=0.1,
-    sy=0.1,
-    sf=1.5,
-    x0=180.0,
-    y0=20.0,
-    sf0=2.0,
+grid = GridComponent(
+    spectrum=Spectrum(xfr=1.1, freq1=0.04, nk=25, nth=24),
+    run=Run(fldry=False, flcx=True, flcy=True),
+    timesteps=Timesteps(dtmax=1800.0, dtxy=600.0, dtmin=10.0)
 )
 
-# Generate namelist content directly
-grid_content = grid_nml.render()
-rect_content = rect_nml.render()
+# Generate namelist content
+shell_content = shell.render()
+grid_content = grid.render()
 ```
 
-### 2. Grid Class Usage
-```python
-from rompy_ww3.grid import RectGrid
-from rompy_ww3.namelists.grid import Grid as GRID_NML, Rect
-
-# Create namelist objects
-grid_nml = GRID_NML(...)
-rect_nml = Rect(...)
-
-# Pass namelist objects directly to grid
-grid = RectGrid(
-    grid_type="base",
-    model_type="ww3_rect",
-    grid_nml=grid_nml,  # Pass actual objects directly
-    rect_nml=rect_nml,  # No parameter reconstruction!
-)
-
-# Generate content directly through namelist objects
-content = grid.grid_nml.render()  # Direct access
-```
-
-### 3. Config Integration
+### 2. Component-Based Configuration
 ```python
 from rompy_ww3.config import Config
-from rompy_ww3.grid import RectGrid
+from rompy_ww3.components import ShellComponent, GridComponent
 
-# Create grid with namelist objects
-grid = RectGrid(
-    grid_nml=GRID_NML(...),
-    rect_nml=Rect(...),
+# Create all required components
+shell = ShellComponent(
+    domain=Domain(start="20230101 000000", stop="20230107 000000"),
+    input_nml=Input(forcing={"winds": "T"})
 )
 
-# Config accepts any grid type through union type
+grid = GridComponent(
+    spectrum=Spectrum(xfr=1.1, freq1=0.04, nk=25, nth=24),
+    run=Run(fldry=False, flcx=True, flcy=True),
+    timesteps=Timesteps(dtmax=1800.0, dtxy=600.0, dtmin=10.0)
+)
+
+# Pass components to Config
 config = Config(
-    grid=grid,  # AnyWw3Grid union type
+    shell_component=shell,
+    grid_component=grid
 )
 
-# Generate all namelist content
-namelists = config.render_namelists()
+# Generate all namelist files
+result = config(runtime=your_runtime_object)
 ```
 
-## Grid Classes
-
-### RectGrid
-Rectilinear grid implementation with direct namelist object access.
-
-#### Usage
+### 3. Mixed Approach (Components + Traditional)
 ```python
-from rompy_ww3.grid import RectGrid
-from rompy_ww3.namelists.grid import Grid as GRID_NML, Rect
-from rompy_ww3.namelists.depth import Depth
+from rompy_ww3.config import Config
+from rompy_ww3.components import ShellComponent
 
-grid = RectGrid(
-    grid_type="base",
-    model_type="ww3_rect",
-    grid_nml=GRID_NML(
-        name="Rectilinear Grid",
-        type="RECT",
-        coord="SPHE",
-        clos="SMPL",
-        zlim=-0.2,
-        dmin=3.0,
-    ),
-    rect_nml=Rect(
-        nx=300,
-        ny=150,
-        sx=0.1,
-        sy=0.1,
-        sf=1.5,
-        x0=180.0,
-        y0=20.0,
-        sf0=2.0,
-    ),
-    depth=Depth(
-        filename="/path/to/depth.dat",
-        sf=0.002,
-        idf=60,
-        idla=2,
-    ),
+# Mix components with traditional namelist objects
+shell = ShellComponent(
+    domain=Domain(start="20230101 000000", stop="20230107 000000"),
+    input_nml=Input(forcing={"winds": "T"})
+)
+
+# Traditional approach for other namelists
+config = Config(
+    shell_component=shell,  # Component-based
+    spectrum=Spectrum(...),  # Traditional namelist object
+    run=Run(...),           # Traditional namelist object
+    timesteps=Timesteps(...) # Traditional namelist object
 )
 ```
 
-### CurvGrid
-Curvilinear grid implementation with direct namelist object access.
+## Benefits
 
-#### Usage
+### 1. **Enhanced Organization**
+- Clear separation of concerns with dedicated component classes
+- Logical grouping of related namelist objects
+- Easier maintenance and development
+
+### 2. **Improved Reusability**
+- Components can be reused across different configurations
+- Easy composition of complex model setups
+- Modular design promotes code reuse
+
+### 3. **Better Type Safety**
+- Strong typing through Pydantic validation
+- Clear component interfaces
+- IDE support with auto-completion
+
+### 4. **Flexible Architecture**
+- Components can be used independently or together
+- Easy to extend with new component types
+- Backward compatibility maintained
+
+### 5. **Simplified Configuration**
+- Reduced boilerplate code
+- Clear component responsibilities
+- Intuitive API design
+
+## Migration Guide
+
+### From Traditional Approach
 ```python
-from rompy_ww3.grid import CurvGrid
-from rompy_ww3.namelists.grid import Grid as GRID_NML
-from rompy_ww3.namelists.curv import Curv
-
-grid = CurvGrid(
-    grid_type="base",
-    model_type="ww3_curv",
-    grid_nml=GRID_NML(
-        name="Curvilinear Grid",
-        type="CURV",
-        coord="SPHE",
-        clos="SMPL",
-        zlim=-0.3,
-        dmin=4.0,
-    ),
-    curv_nml=Curv(
-        nx=200,
-        ny=100,
-    ),
-    x_coord_file=Path("/path/to/x_coords.dat"),
-    y_coord_file=Path("/path/to/y_coords.dat"),
+# OLD WAY - Direct namelist objects
+config = Config(
+    domain=Domain(start="20230101 000000", stop="20230107 000000"),
+    input_nml=Input(forcing={"winds": "T"}),
+    spectrum=Spectrum(xfr=1.1, freq1=0.04, nk=25, nth=24),
+    run=Run(fldry=False, flcx=True, flcy=True),
+    timesteps=Timesteps(dtmax=1800.0, dtxy=600.0, dtmin=10.0)
 )
 ```
 
-### UnstGrid
-Unstructured grid implementation with direct namelist object access.
-
-#### Usage
+### To Component-Based Approach
 ```python
-from rompy_ww3.grid import UnstGrid
-from rompy_ww3.namelists.grid import Grid as GRID_NML
-from rompy_ww3.namelists.unst import Unst
+# NEW WAY - Component-based approach
+shell = ShellComponent(
+    domain=Domain(start="20230101 000000", stop="20230107 000000"),
+    input_nml=Input(forcing={"winds": "T"})
+)
 
-grid = UnstGrid(
-    grid_type="base",
-    model_type="ww3_unst",
-    grid_nml=GRID_NML(
-        name="Unstructured Grid",
-        type="UNST",
-        coord="SPHE",
-        clos="SMPL",
-        zlim=-0.15,
-        dmin=2.5,
-    ),
-    unst_nml=Unst(
-        filename="unst_grid.dat",
-        sf=-1.0,
-        idla=4,
-        idfm=2,
-        format="(20f10.2)",
-        ugobcfile="obc.dat",
-    ),
-    unst_obc_file=Path("/path/to/obc.dat"),
+grid = GridComponent(
+    spectrum=Spectrum(xfr=1.1, freq1=0.04, nk=25, nth=24),
+    run=Run(fldry=False, flcx=True, flcy=True),
+    timesteps=Timesteps(dtmax=1800.0, dtxy=600.0, dtmin=10.0)
+)
+
+config = Config(
+    shell_component=shell,
+    grid_component=grid
 )
 ```
 
-### SmcGrid
-Spherical Multiple-Cell (SMC) grid implementation with direct namelist object access.
+### Gradual Migration
+The transition can be gradual - mix components with traditional namelist objects:
 
-#### Usage
 ```python
-from rompy_ww3.grid import SmcGrid
-from rompy_ww3.namelists.grid import Grid as GRID_NML
-from rompy_ww3.namelists.smc import Smc
-
-grid = SmcGrid(
-    grid_type="base",
-    model_type="ww3_smc",
-    grid_nml=GRID_NML(
-        name="SMC Grid",
-        type="SMC",
-        coord="SPHE",
-        clos="SMPL",
-        zlim=-0.1,
-        dmin=2.0,
-    ),
-    smc_nml=Smc(),
+# MIGRATION STEP - Mix approaches
+config = Config(
+    shell_component=ShellComponent(...),  # New component approach
+    spectrum=Spectrum(...),              # Traditional approach
+    run=Run(...),                        # Traditional approach
+    timesteps=Timesteps(...)             # Traditional approach
 )
 ```
 
-## Union Type
+## Future Development
 
-### AnyWw3Grid
-Union type that allows Config to accept any grid type while maintaining type safety:
+The component-based architecture provides a solid foundation for future enhancements:
 
-```python
-from rompy_ww3.grid import RectGrid, CurvGrid, UnstGrid, SmcGrid, AnyWw3Grid
+### 1. **Advanced Components**
+- Specialized components for domain-specific use cases
+- Composite components that combine multiple simpler components
+- Dynamic components that adapt based on configuration
 
-# All grid types can be used with the union type
-grids: list[AnyWw3Grid] = [
-    RectGrid(...),
-    CurvGrid(...),
-    UnstGrid(...),
-    SmcGrid(...),
-]
+### 2. **Enhanced Composition**
+- Component composition patterns and best practices
+- Validation across multiple components
+- Dependency management between components
 
-# Config accepts AnyWw3Grid
-config = Config(grid=RectGrid(...))  # Works with any grid type
-```
+### 3. **Extended Functionality**
+- Component lifecycle management
+- Advanced rendering strategies
+- Integration with external configuration systems
+
+The component-based architecture represents the next evolution of rompy-ww3, building upon the clean architecture principles while providing enhanced modularity and flexibility for configuring WW3 model runs.

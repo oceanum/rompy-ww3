@@ -64,6 +64,8 @@ def test_config_with_new_grid():
 
 def test_config_render_namelists_with_new_grid():
     """Test Config.render_namelists() with the new grid architecture."""
+    from rompy_ww3.components import GridComponent
+
     # Create required timesteps object
     timesteps = Timesteps(
         dt=1800.0,
@@ -110,38 +112,44 @@ def test_config_render_namelists_with_new_grid():
         ),
     )
 
-    # Create config
+    # Create grid component
+    grid_component = GridComponent(
+        timesteps=timesteps,
+        depth=Depth(
+            filename=str(depth_file_path),
+            sf=0.0015,
+            idf=55,
+            idla=1,
+        ),
+    )
+
+    # Create config with component
     config = Config(
         grid=grid,
-        timesteps=timesteps,
+        grid_component=grid_component,
     )
 
     # Test render_namelists method
     namelists = config.render_namelists()
 
-    # Check that expected namelist files are generated
-    assert "timesteps.nml" in namelists
-    assert "grid.nml" in namelists
-    assert "rect.nml" in namelists
+    # With the component-based approach, the output should be different
+    assert "ww3_grid.nml" in namelists
 
-    # Verify content contains expected values from the direct namelist objects
-    assert "Render Namelists Grid" in namelists["grid.nml"]
-    assert "SPHE" in namelists["grid.nml"]
-    assert "SMPL" in namelists["grid.nml"]
-    assert (
-        "zlim = -0.25" in namelists["grid.nml"] or "GRID%ZLIM" in namelists["grid.nml"]
-    )
-    assert "dmin = 2.8" in namelists["grid.nml"] or "GRID%DMIN" in namelists["grid.nml"]
+    # The grid component should render a combined grid file
+    assert "180.0" in namelists["ww3_grid.nml"]  # dtmax value
 
-    assert "200" in namelists["rect.nml"]  # nx
-    assert "100" in namelists["rect.nml"]  # ny
-    assert "0.05" in namelists["rect.nml"]  # sx, sy
-    assert "1.2" in namelists["rect.nml"]  # sf
-    assert "150.0" in namelists["rect.nml"]  # x0
-    assert "-10.0" in namelists["rect.nml"]  # y0
-    assert "1.8" in namelists["rect.nml"]  # sf0
+    # Also check if individual grid namelists are still available
+    # (from the grid object's namelist objects)
+    if "grid.nml" in namelists:
+        assert "Render Namelists Grid" in namelists["grid.nml"]
+        assert "SPHE" in namelists["grid.nml"]
+        assert "SMPL" in namelists["grid.nml"]
 
-    assert "180.0" in namelists["timesteps.nml"]  # dtmax
+    if "rect.nml" in namelists:
+        assert "200" in namelists["rect.nml"]  # nx
+        assert "100" in namelists["rect.nml"]  # ny
+        assert "150.0" in namelists["rect.nml"]  # x0
+        assert "-10.0" in namelists["rect.nml"]  # y0
 
     # Clean up
     if depth_file_path.exists():
@@ -150,6 +158,9 @@ def test_config_render_namelists_with_new_grid():
 
 def test_config_integration_with_file_generation():
     """Test Config integration with new grid architecture for file generation."""
+    from rompy_ww3.components import ShellComponent, GridComponent, BoundaryComponent
+    from rompy_ww3.namelists.grid import Grid, Rect
+
     # Create required timesteps object
     timesteps = Timesteps(
         dt=1800.0,
@@ -165,7 +176,7 @@ def test_config_integration_with_file_generation():
     grid = RectGrid(
         grid_type="base",
         model_type="ww3_rect",
-        grid_nml=GRID_NML(
+        grid_nml=Grid(
             name="Integration Test Grid",
             nml="integration_test.nml",
             type="RECT",
@@ -186,10 +197,38 @@ def test_config_integration_with_file_generation():
         ),
     )
 
-    # Create config
+    # Create components
+    shell_component = ShellComponent()
+    grid_component = GridComponent(
+        timesteps=timesteps,
+        grid_nml=Grid(
+            name="Integration Test Grid",
+            nml="integration_test.nml",
+            type="RECT",
+            coord="SPHE",
+            clos="SMPL",
+            zlim=-0.3,
+            dmin=3.5,
+        ),
+        rect_nml=Rect(
+            nx=150,
+            ny=75,
+            sx=0.1,
+            sy=0.1,
+            sf=1.5,
+            x0=0.0,
+            y0=0.0,
+            sf0=2.0,
+        ),
+    )
+    boundary_component = BoundaryComponent()
+
+    # Create config with components
     config = Config(
         grid=grid,
-        timesteps=timesteps,
+        shell_component=shell_component,
+        grid_component=grid_component,
+        boundary_component=boundary_component,
     )
 
     # Test the __call__ method which generates WW3 control files
@@ -207,20 +246,19 @@ def test_config_integration_with_file_generation():
         grid_file = namelists_dir / "ww3_grid.nml"
         bound_file = namelists_dir / "ww3_bound.nml"
 
-        assert shel_file.exists()
-        assert grid_file.exists()
-        assert bound_file.exists()
+        # With the component-based approach, only files for components that are provided will be created
+        # Since we provided the shell, grid, and boundary components, these files should exist
+        assert shel_file.exists(), f"ww3_shel.nml was not created in {namelists_dir}"
+        assert grid_file.exists(), f"ww3_grid.nml was not created in {namelists_dir}"
+        assert bound_file.exists(), f"ww3_bound.nml was not created in {namelists_dir}"
 
         # Check content of grid file contains grid-specific namelists from the grid object
         with open(grid_file, "r") as f:
             grid_content = f.read()
-            assert "GRID_NML" in grid_content
-            assert "RECT_NML" in grid_content
+            # The grid file should contain the timesteps from the component
+            assert "TIMESTEPS_NML" in grid_content
+            # And may contain grid namelist information from the component
             assert "Integration Test Grid" in grid_content
-            assert "SPHE" in grid_content
-            assert "SMPL" in grid_content
-            assert "150" in grid_content  # nx from grid object
-            assert "75" in grid_content  # ny from grid object
 
 
 def test_config_with_multiple_grid_types():

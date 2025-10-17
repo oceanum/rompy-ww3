@@ -380,7 +380,3 @@ class SmcGrid(BaseWW3Grid):
 
 # Convenience union type for any WW3 grid
 AnyWw3Grid = TypingUnion[RectGrid, CurvGrid, UnstGrid, SmcGrid]
-
-
-# Convenience union type for any WW3 grid
-AnyWw3Grid = TypingUnion[RectGrid, CurvGrid, UnstGrid, SmcGrid]

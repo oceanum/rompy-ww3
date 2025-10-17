@@ -10,12 +10,24 @@ from rompy_ww3.namelists import Domain, Input, Timesteps
 
 def test_template_context_generation():
     """Test template context generation."""
+    from rompy_ww3.components import ShellComponent, GridComponent
 
-    # Create a config with some components
-    config = Config(
+    # Create components instead of individual namelist objects
+    from rompy_ww3.namelists.input import InputForcing
+
+    shell_component = ShellComponent(
         domain=Domain(start="20230101 000000", stop="20230102 000000", iostyp=1),
-        input_nml=Input(forcing={"winds": "T", "water_levels": "T"}),
+        input_nml=InputForcing(forcing={"winds": "T", "water_levels": "T"}),
+    )
+
+    grid_component = GridComponent(
         timesteps=Timesteps(dtmax=2700.0, dtxy=900.0, dtkth=1350.0, dtmin=10.0),
+    )
+
+    # Create config with components
+    config = Config(
+        shell_component=shell_component,
+        grid_component=grid_component,
     )
 
     # Generate template context
@@ -40,9 +52,9 @@ def test_template_context_generation():
     assert context["forcing"]["winds"] == "T"
     assert context["forcing"]["water_levels"] == "T"
 
-    # Check that namelists are rendered
-    assert "domain.nml" in context["namelists"]
-    assert "input.nml" in context["namelists"]
+    # Check that namelists are rendered - with component architecture, the files will have different names
+    assert "ww3_shel.nml" in context["namelists"]  # The main shell file from component
+    assert "ww3_grid.nml" in context["namelists"]  # The grid file from component
 
     print("\nTemplate context generation test passed!")
 

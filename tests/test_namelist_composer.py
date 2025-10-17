@@ -80,12 +80,23 @@ def test_namelist_composition():
 
 def test_composition_from_config():
     """Test creating composition from Config object."""
+    from rompy_ww3.components import ShellComponent, GridComponent
+    from rompy_ww3.namelists.input import InputForcing
 
-    # Create a config with namelist components
-    config = Config(
+    # Create components instead of individual namelist objects
+    shell_component = ShellComponent(
         domain=Domain(start="20230101 000000", stop="20230102 000000"),
-        input_nml=Input(forcing={"winds": "T"}),
+        input_nml=InputForcing(forcing={"winds": "T"}),
+    )
+
+    grid_component = GridComponent(
         timesteps=Timesteps(dtmax=2700.0, dtxy=900.0, dtkth=1350.0, dtmin=10.0),
+    )
+
+    # Create config with components
+    config = Config(
+        shell_component=shell_component,
+        grid_component=grid_component,
     )
 
     # Create composition from config
