@@ -160,7 +160,7 @@ class NamelistBaseModel(BaseModel):
                 lines.append(line)
 
         lines.append("/")
-        return "\\n".join(lines)
+        return "\n".join(lines)
 
     def write_nml(self, workdir: Union[Path, str]) -> None:
         """Write namelist to file."""
