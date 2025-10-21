@@ -38,8 +38,11 @@ class WW3ComponentBaseModel(BaseModel):
         filename = f"{self.__class__.__name__.lower()}.nml"
         filepath = workdir / filename
 
-        with open(filepath, "w") as f:
-            f.write(self.render())
+        rendered = self.render()
+
+        if rendered is not None:
+            with open(filepath, "w") as f:
+                f.write(self.render())
 
         logger.info(f"Wrote component to {filepath}")
 
