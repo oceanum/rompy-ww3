@@ -25,31 +25,31 @@ class ShellComponent(WW3ComponentBaseModel):
 
         # Add DOMAIN_NML
         if self.domain:
-            rendered = self.domain.render().replace("\\n", "\n")
+            rendered = self.domain.render()
             shel_content.extend(rendered.split("\n"))
             shel_content.append("")
 
         # Add INPUT_NML
         if self.input_nml:
-            rendered = self.input_nml.render().replace("\\n", "\n")
+            rendered = self.input_nml.render()
             shel_content.extend(rendered.split("\n"))
             shel_content.append("")
 
         # Add OUTPUT_TYPE_NML
         if self.output_type:
-            rendered = self.output_type.render().replace("\\n", "\n")
+            rendered = self.output_type.render()
             shel_content.extend(rendered.split("\n"))
             shel_content.append("")
 
         # Add OUTPUT_DATE_NML
         if self.output_date:
-            rendered = self.output_date.render().replace("\\n", "\n")
+            rendered = self.output_date.render()
             shel_content.extend(rendered.split("\n"))
             shel_content.append("")
 
         # Add HOMOG_COUNT_NML
         if self.homog_count:
-            rendered = self.homog_count.render().replace("\\n", "\n")
+            rendered = self.homog_count.render()
             shel_content.extend(rendered.split("\n"))
             shel_content.append("")
 

@@ -29,13 +29,13 @@ class MultiComponent(WW3ComponentBaseModel):
 
         # Add DOMAIN_NML (for multi-grid specific parameters)
         if self.domain:
-            rendered = self.domain.render().replace("\\n", "\n")
+            rendered = self.domain.render()
             multi_content.extend(rendered.split("\n"))
             multi_content.append("")
 
         # Add INPUT_GRID_NML if defined
         if self.input_grid:
-            rendered = self.input_grid.render().replace("\\n", "\n")
+            rendered = self.input_grid.render()
             multi_content.extend(rendered.split("\n"))
             multi_content.append("")
         elif self.model_grids:  # If we have model grids but no specific input grid
@@ -49,7 +49,7 @@ class MultiComponent(WW3ComponentBaseModel):
         # Add MODEL_GRID_NML configurations
         if self.model_grids:
             for i, model_grid in enumerate(self.model_grids):
-                rendered = model_grid.render().replace("\\n", "\n")
+                rendered = model_grid.render()
                 # Replace the namelist name to be MODEL_GRID_NML instead of whatever is in the render
                 lines = rendered.split("\n")
                 updated_lines = []
@@ -68,7 +68,7 @@ class MultiComponent(WW3ComponentBaseModel):
                 multi_content.extend(updated_lines)
                 multi_content.append("")
         elif self.model_grid:  # Single model grid
-            rendered = self.model_grid.render().replace("\\n", "\n")
+            rendered = self.model_grid.render()
             # Replace the namelist name and fields to use proper indexed format
             lines = rendered.split("\n")
             updated_lines = []
@@ -88,19 +88,19 @@ class MultiComponent(WW3ComponentBaseModel):
 
         # Add OUTPUT_TYPE_NML
         if self.output_type:
-            rendered = self.output_type.render().replace("\\n", "\n")
+            rendered = self.output_type.render()
             multi_content.extend(rendered.split("\n"))
             multi_content.append("")
 
         # Add OUTPUT_DATE_NML
         if self.output_date:
-            rendered = self.output_date.render().replace("\\n", "\n")
+            rendered = self.output_date.render()
             multi_content.extend(rendered.split("\n"))
             multi_content.append("")
 
         # Add HOMOG_COUNT_NML if needed for multi-grid
         if self.homog_count:
-            rendered = self.homog_count.render().replace("\\n", "\n")
+            rendered = self.homog_count.render()
             multi_content.extend(rendered.split("\n"))
             multi_content.append("")
 
