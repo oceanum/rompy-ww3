@@ -13,12 +13,17 @@ class WW3ComponentBaseModel(BaseModel):
     """Base class for WW3 components with common rendering functionality."""
 
     def render(self) -> str:
-        """Render the component to a string representation.
+        """Render namelist as a string."""
 
-        This method should be overridden by subclasses to provide
-        specific rendering logic for each component type.
-        """
-        raise NotImplementedError("Subclasses must implement render() method")
+        content = []
+        # Get the model data
+        model_data = self.model_dump()
+        for key, value in model_data.items():
+            if value is None:
+                continue
+            nml = getattr(self, key)
+            content.append(nml.render())
+        return "\n".join(content)
 
     def write_nml(self, workdir: Union[Path, str]) -> None:
         """Write the rendered component to a namelist file.
@@ -75,5 +80,11 @@ class WW3ComponentBaseModel(BaseModel):
         This method should be overridden by subclasses to provide the appropriate namelist name.
         """
         # Default implementation - should be overridden by subclasses
+        class_name = self.__class__.__name__
+        return f"{class_name.upper()}_NML"
+
+    @property
+    def component_name(self) -> str:
+        """Get the component name for this model"""
         class_name = self.__class__.__name__
         return f"{class_name.upper()}_NML"
