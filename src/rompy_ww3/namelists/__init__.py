@@ -45,6 +45,7 @@ from .outbound import OutboundCount, OutboundLineList, OutboundLine
 from .curv import Curv, CoordData
 from .unst import Unst
 from .smc import Smc, SMCFile
+from .file import File
 
 __all__ = [
     "NamelistBaseModel",
@@ -105,4 +106,5 @@ __all__ = [
     "Unst",
     "Smc",
     "SMCFile",
+    "File",
 ]

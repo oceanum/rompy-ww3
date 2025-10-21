@@ -1,7 +1,9 @@
 """Field preprocessor component for WW3 configuration."""
 
 from typing import Optional
+from pydantic import Field
 from ..namelists.forcing import Forcing
+from ..namelists.file import File
 from .basemodel import WW3ComponentBaseModel
 
 
@@ -9,6 +11,9 @@ class FieldPreprocessorComponent(WW3ComponentBaseModel):
     """Component for ww3_prnc.nml containing field preprocessing configuration."""
 
     forcing: Optional[Forcing] = None
+    file: Optional[File] = Field(
+        default=None, description="FILE_NML configuration for input file preprocessing"
+    )
 
     def render(self) -> str:
         """Render the field preprocessor component as a combined namelist string."""
@@ -26,6 +31,19 @@ class FieldPreprocessorComponent(WW3ComponentBaseModel):
             # Default forcing configuration
             prnc_content.append("&FORCING_NML")
             prnc_content.append("  FORCING%TIDAL = 'FAST'")
+            prnc_content.append("/")
+            prnc_content.append("")
+
+        # Add FILE NML if defined
+        if self.file:
+            rendered = self.file.render().replace("\\n", "\n")
+            prnc_content.extend(rendered.split("\n"))
+        else:
+            # Default file configuration
+            prnc_content.append("&FILE_NML")
+            prnc_content.append(
+                "  FILE%FILENAME = 'input.nc'  ! Default input filename"
+            )
             prnc_content.append("/")
             prnc_content.append("")
 
