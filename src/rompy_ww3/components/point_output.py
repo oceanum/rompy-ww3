@@ -5,7 +5,7 @@ from ..namelists.pointoutput import PointOutput
 from .basemodel import WW3ComponentBaseModel
 
 
-class PointOutputComponent(WW3ComponentBaseModel):
+class Ounp(WW3ComponentBaseModel):
     """Component for ww3_ounp.nml containing point (NetCDF) output configuration."""
 
     point_output: Optional[PointOutput] = None

@@ -9,7 +9,7 @@ from ..namelists.homogeneous import HomogCount, HomogInput
 from .basemodel import WW3ComponentBaseModel
 
 
-class ShellComponent(WW3ComponentBaseModel):
+class Shel(WW3ComponentBaseModel):
     """Component for ww3_shel.nml containing shell configuration."""
 
     domain: Optional[Domain] = None

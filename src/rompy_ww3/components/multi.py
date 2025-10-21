@@ -9,7 +9,7 @@ from ..namelists.homogeneous import HomogCount
 from .basemodel import WW3ComponentBaseModel
 
 
-class MultiComponent(WW3ComponentBaseModel):
+class Multi(WW3ComponentBaseModel):
     """Component for ww3_multi.nml containing multi-grid configuration."""
 
     domain: Optional[Domain] = None

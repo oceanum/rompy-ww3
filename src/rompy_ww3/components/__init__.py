@@ -1,29 +1,29 @@
 """Components package for WW3 configuration."""
 
 from .basemodel import WW3ComponentBaseModel
-from .shell import ShellComponent
-from .grid import GridComponent
-from .multi import MultiComponent
-from .boundary import BoundaryComponent
-from .boundary_update import BoundaryUpdateComponent
-from .field_preprocessor import FieldPreprocessorComponent
-from .track import TrackComponent
-from .field_output import FieldOutputComponent
-from .point_output import PointOutputComponent
-from .restart_update import RestartUpdateComponent
-from .parameters import ParametersComponent
+from .shell import Shel
+from .grid import Grid
+from .multi import Multi
+from .boundary import Bound
+from .boundary_update import Bounc
+from .field_preprocessor import Prnc
+from .track import Trnc
+from .field_output import Ounf
+from .point_output import Ounp
+from .restart_update import Uptstr
+from .parameters import Parameters
 
 __all__ = [
     "WW3ComponentBaseModel",
-    "ShellComponent",
-    "GridComponent",
-    "MultiComponent",
-    "BoundaryComponent",
-    "BoundaryUpdateComponent",
-    "FieldPreprocessorComponent",
-    "TrackComponent",
-    "FieldOutputComponent",
-    "PointOutputComponent",
-    "RestartUpdateComponent",
-    "ParametersComponent",
+    "Shel",
+    "Grid",
+    "Multi",
+    "Bound",
+    "Bounc",
+    "Prnc",
+    "Trnc",
+    "Ounf",
+    "Ounp",
+    "Uptstr",
+    "Parameters",
 ]

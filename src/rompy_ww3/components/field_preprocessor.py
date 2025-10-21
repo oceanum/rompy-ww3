@@ -7,7 +7,7 @@ from ..namelists.file import File
 from .basemodel import WW3ComponentBaseModel
 
 
-class FieldPreprocessorComponent(WW3ComponentBaseModel):
+class Prnc(WW3ComponentBaseModel):
     """Component for ww3_prnc.nml containing field preprocessing configuration."""
 
     forcing: Optional[Forcing] = None

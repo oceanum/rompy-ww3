@@ -35,7 +35,7 @@ class WW3ComponentBaseModel(BaseModel):
         workdir.mkdir(parents=True, exist_ok=True)
 
         # Use lowercase class name for filename
-        filename = f"{self.__class__.__name__.lower()}.nml"
+        filename = f"ww3_{self.__class__.__name__.lower()}.nml"
         filepath = workdir / filename
 
         rendered = self.render()

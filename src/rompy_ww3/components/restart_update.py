@@ -5,7 +5,7 @@ from ..namelists.restartupdate import RestartUpdate
 from .basemodel import WW3ComponentBaseModel
 
 
-class RestartUpdateComponent(WW3ComponentBaseModel):
+class Uptstr(WW3ComponentBaseModel):
     """Component for ww3_uprstr.nml containing restart update configuration."""
 
     restart_update: Optional[RestartUpdate] = None

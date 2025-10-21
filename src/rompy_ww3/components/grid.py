@@ -19,7 +19,7 @@ from ..namelists.grid import Grid, Rect
 from .basemodel import WW3ComponentBaseModel
 
 
-class GridComponent(WW3ComponentBaseModel):
+class Grid(WW3ComponentBaseModel):
     """Component for ww3_grid.nml containing grid configuration."""
 
     spectrum: Optional[Spectrum] = None
