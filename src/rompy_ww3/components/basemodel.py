@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class WW3ComponentBaseModel(BaseModel):
     """Base class for WW3 components with common rendering functionality."""
 
-    def render(self) -> str:
+    def render(self, *args, **kwargs) -> str:
         """Render namelist as a string."""
 
         content = []
@@ -21,30 +21,36 @@ class WW3ComponentBaseModel(BaseModel):
         for key, value in model_data.items():
             if value is None:
                 continue
-            nml = getattr(self, key)
-            content.append(nml.render())
+            if isinstance(value, list):
+                nmllist = getattr(self, key)
+                for item in nmllist:
+                    content.append(item.render(*args, **kwargs))
+            else:
+                nml = getattr(self, key)
+                content.append(nml.render(*args, **kwargs))
         return "\n".join(content)
 
-    def write_nml(self, workdir: Union[Path, str]) -> None:
+    def write_nml(self, destdir: Union[Path, str], *args, **kwargs) -> None:
         """Write the rendered component to a namelist file.
 
         Args:
-            workdir: Directory to write the namelist file to
+            destdir: Directory to write the namelist file to
         """
-        workdir = Path(workdir)
-        workdir.mkdir(parents=True, exist_ok=True)
+        destdir = Path(destdir)
+        destdir.mkdir(parents=True, exist_ok=True)
 
         # Use lowercase class name for filename
         filename = f"ww3_{self.__class__.__name__.lower()}.nml"
-        filepath = workdir / filename
+        filepath = destdir / filename
 
-        rendered = self.render()
+        rendered = self.render(destdir=destdir, *args, **kwargs)
 
         if rendered is not None:
             with open(filepath, "w") as f:
-                f.write(self.render())
+                f.write(rendered)
 
         logger.info(f"Wrote component to {filepath}")
+        return filepath
 
     def model_dump(self, *args, **kwargs) -> dict:
         """Return the component as a dictionary.

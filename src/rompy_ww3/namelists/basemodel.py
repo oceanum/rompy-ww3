@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Union
 from pydantic import BaseModel, model_serializer, model_validator
+from rompy.model import RompyBaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,7 @@ class NamelistBaseModel(BaseModel):
             else:
                 return f"{snake_name}_NML"
 
-    def render(self) -> str:
+    def render(self, *args, **kwargs) -> str:
         """Render namelist as a string."""
         lines = []
 
@@ -128,7 +129,11 @@ class NamelistBaseModel(BaseModel):
         comma_fields = getattr(self, "_comma_fields", [])
 
         for key, value in model_data.items():
-            # Handle nested objects (like forcing, field, etc.)
+            nml = getattr(self, key)
+            if isinstance(nml, RompyBaseModel) and value is not None:
+                # Get the rendered output of the nested object
+                value = nml.get(*args, **kwargs)
+            # Handle nested objects that are dictionaries
             if isinstance(value, dict):
                 # Handle nested objects like forcing, field, etc.
                 for sub_key, sub_value in value.items():
@@ -162,16 +167,16 @@ class NamelistBaseModel(BaseModel):
         lines.append("/")
         return "\n".join(lines)
 
-    def write_nml(self, workdir: Union[Path, str]) -> None:
+    def write_nml(self, destdir: Union[Path, str], *args, **kwargs) -> None:
         """Write namelist to file."""
-        workdir = Path(workdir)
-        workdir.mkdir(parents=True, exist_ok=True)
+        destdir = Path(destdir)
+        destdir.mkdir(parents=True, exist_ok=True)
 
         # Use lowercase class name for filename
         filename = f"{self.__class__.__name__.lower()}.nml"
-        filepath = workdir / filename
+        filepath = destdir / filename
 
         with open(filepath, "w") as f:
-            f.write(self.render())
+            f.write(self.render(*args, **kwargs))
 
         logger.info(f"Wrote namelist to {filepath}")
