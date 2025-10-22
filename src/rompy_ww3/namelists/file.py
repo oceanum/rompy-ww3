@@ -1,8 +1,9 @@
 """FILE_NML namelist implementation for WW3 preprocessing."""
 
-from typing import Optional
+from typing import Optional, Union
 from pydantic import Field
 from .basemodel import NamelistBaseModel
+from ..core.data import WW3DataBlob
 
 
 class File(NamelistBaseModel):
@@ -11,7 +12,7 @@ class File(NamelistBaseModel):
     Defines the content of the input file for ww3_prnc.
     """
 
-    filename: Optional[str] = Field(
+    filename: Optional[Union[str, WW3DataBlob]] = Field(
         default=None, description="Input filename for preprocessing"
     )
     var1: Optional[str] = Field(

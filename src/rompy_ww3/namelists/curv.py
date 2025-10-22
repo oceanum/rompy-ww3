@@ -1,8 +1,9 @@
 """CURV_NML namelist implementation for WW3."""
 
-from typing import Optional
+from typing import Optional, Union
 from pydantic import Field
 from .basemodel import NamelistBaseModel
+from ..core.data import WW3DataBlob
 
 
 class CoordData(NamelistBaseModel):
@@ -10,7 +11,9 @@ class CoordData(NamelistBaseModel):
 
     sf: Optional[float] = Field(default=1.0, description="Scale factor")
     off: Optional[float] = Field(default=0.0, description="Add offset")
-    filename: Optional[str] = Field(default="unset", description="Filename")
+    filename: Optional[Union[str, WW3DataBlob]] = Field(
+        default="unset", description="Filename"
+    )
     idf: Optional[int] = Field(default=21, description="File unit number")
     idla: Optional[int] = Field(default=1, description="Layout indicator")
     idfm: Optional[int] = Field(default=1, description="Format indicator")

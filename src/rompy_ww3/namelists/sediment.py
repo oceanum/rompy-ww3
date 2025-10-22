@@ -1,8 +1,10 @@
 """SED_NML namelist implementation for WW3."""
 
-from typing import Optional
+from typing import Optional, Union
 from pydantic import Field
+
 from .basemodel import NamelistBaseModel
+from ..core.data import WW3DataBlob
 
 
 class Sediment(NamelistBaseModel):
@@ -14,7 +16,7 @@ class Sediment(NamelistBaseModel):
     sf: Optional[float] = Field(
         default=None, description="Scale factor to apply to sediment values"
     )
-    filename: Optional[str] = Field(
+    filename: Optional[Union[str, WW3DataBlob]] = Field(
         default=None, description="Filename containing sediment data"
     )
     idf: Optional[int] = Field(default=None, description="File unit number")
