@@ -1,7 +1,7 @@
 """FORCING_NML namelist implementation for WW3."""
 
 from typing import Optional
-from pydantic import Field
+from pydantic import Field, model_validator
 from .basemodel import NamelistBaseModel
 
 
@@ -56,6 +56,35 @@ class ForcingField(NamelistBaseModel):
         default=None, description="Data for assimilation (1-component)"
     )
 
+    @model_validator(mode="after")
+    def validate_only_one_field_true(self):
+        """Ensure only one FORCING%FIELD is set to True."""
+        field_attributes = [
+            self.ice_param1,
+            self.ice_param2,
+            self.ice_param3,
+            self.ice_param4,
+            self.ice_param5,
+            self.mud_density,
+            self.mud_thickness,
+            self.mud_viscosity,
+            self.water_levels,
+            self.currents,
+            self.winds,
+            self.wind_ast,
+            self.atm_momentum,
+            self.air_density,
+            self.ice_conc,
+            self.ice_berg,
+            self.data_assim,
+        ]
+        true_fields = [attr for attr in field_attributes if attr is True]
+
+        if len(true_fields) > 1:
+            raise ValueError("Only one FORCING%FIELD can be set to True")
+
+        return self
+
 
 class ForcingGrid(NamelistBaseModel):
     """FORCING_NML grid parameters for WW3."""
@@ -66,6 +95,17 @@ class ForcingGrid(NamelistBaseModel):
     latlon: Optional[bool] = Field(
         default=None, description="Define field on regular lat/lon or cartesian grid"
     )
+
+    @model_validator(mode="after")
+    def validate_only_one_grid_true(self):
+        """Ensure only one FORCING%grid is set to True."""
+        grid_attributes = [self.asis, self.latlon]
+        true_grids = [attr for attr in grid_attributes if attr is True]
+
+        if len(true_grids) > 1:
+            raise ValueError("Only one FORCING%grid can be set to True")
+
+        return self
 
 
 class Forcing(NamelistBaseModel):
@@ -89,3 +129,31 @@ class Forcing(NamelistBaseModel):
     tidal: Optional[str] = Field(
         default=None, description="Tidal constituents [FAST | VFAST | 'M2 S2 N2']"
     )
+
+    @model_validator(mode="after")
+    def validate_tidal_requirements(self):
+        """Ensure tidal is only available on grid%asis with FIELD%level or FIELD%current."""
+        if self.tidal is not None:
+            # Check if grid.asis is True (if grid is defined)
+            if self.grid is not None and self.grid.asis is not True:
+                raise ValueError(
+                    "Tidal constituents are only available with grid%asis set to True"
+                )
+
+            # Check if field.water_levels (level) or field.currents is True (if field is defined)
+            if self.field is not None:
+                level_or_current_set = (self.field.water_levels is True) or (
+                    self.field.currents is True
+                )
+                if not level_or_current_set:
+                    raise ValueError(
+                        "Tidal constituents are only available with FIELD%level or FIELD%current"
+                    )
+
+            # If field is None, it's an error because we need at least one of level or current
+            if self.field is None:
+                raise ValueError(
+                    "Tidal constituents require field to be defined with level or current"
+                )
+
+        return self

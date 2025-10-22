@@ -44,5 +44,5 @@ class File(NamelistBaseModel):
         if self.var3 is not None:
             lines.append(f"  FILE%VAR(3) = '{self.var3}'")
 
-        lines.append("&END")
+        lines.append("/")
         return "\n".join(lines)
