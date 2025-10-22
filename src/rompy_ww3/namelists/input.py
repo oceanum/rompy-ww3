@@ -61,6 +61,18 @@ class InputForcing(NamelistBaseModel):
             raise ValueError("Forcing flag must be 'F', 'T', 'H', or 'C'")
         return v
 
+    def render(self) -> str:
+        """Render the namelist with special handling for VAR arrays."""
+        lines = []
+        lines.append(f"&{self.get_namelist_name()}")
+
+        for field_name, value in self.model_dump().items():
+            if value is not None:
+                lines.append(f"INPUT%FORCING%{field_name.upper()} = '{value}'")
+
+        lines.append("/")
+        return "\n".join(lines)
+
 
 class InputAssim(NamelistBaseModel):
     """Data assimilation parameters for WW3."""
