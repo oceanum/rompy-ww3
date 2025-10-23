@@ -4,6 +4,26 @@ from typing import Optional
 from pydantic import Field, model_validator
 from .basemodel import NamelistBaseModel
 
+FIELD_VARIABLE_CHOICES = [
+    "ICE_THICKNESS",
+    "ICE_VISCOSITY",
+    "ICE_DENSITY",
+    "ICE_MODULUS",
+    "ICE_FLOE_DIAMETER",
+    "MUD_DENSITY",
+    "MUD_THICKNESS",
+    "MUD_VISCOSITY",
+    "WATER_LEVELS",
+    "CURRENTS",
+    "WINDS",
+    "WIND_AIR_SEA_TEMP_DIFF",
+    "ATMOSPHERIC_MOMENTUM",
+    "AIR_DENSITY",
+    "ICE_CONCENTRATION",
+    "ICEBERGS_SEA_ICE_CONC",
+    "DATA_ASSIMILATION",
+]
+
 
 class ForcingField(NamelistBaseModel):
     """FORCING_NML field parameters for WW3.
@@ -18,25 +38,7 @@ class ForcingField(NamelistBaseModel):
         default=None,
         description="WW3 variable name to set as active. When provided, the corresponding boolean field will be set to True. This field is excluded from rendering output.",
         exclude=True,  # Exclude this from serialization/rendering
-        choices=[
-            "ICE_THICKNESS",
-            "ICE_VISCOSITY",
-            "ICE_DENSITY",
-            "ICE_MODULUS",
-            "ICE_FLOE_DIAMETER",
-            "MUD_DENSITY",
-            "MUD_THICKNESS",
-            "MUD_VISCOSITY",
-            "WATER_LEVELS",
-            "CURRENTS",
-            "WINDS",
-            "WIND_AIR_SEA_TEMP_DIFF",
-            "ATMOSPHERIC_MOMENTUM",
-            "AIR_DENSITY",
-            "ICE_CONCENTRATION",
-            "ICEBERGS_SEA_ICE_CONC",
-            "DATA_ASSIMILATION",
-        ],
+        choices=[*FIELD_VARIABLE_CHOICES],
     )
 
     ice_param1: Optional[bool] = Field(

@@ -4,7 +4,9 @@ from typing import Optional, Union
 from pydantic import Field, AliasPath, model_validator
 from .basemodel import NamelistBaseModel
 from ..core.data import WW3DataBlob, WW3DataGrid
+from rompy.logging import get_logger
 
+logger = get_logger()
 # Aliases allow for interoperability with WW3DataGrid
 
 
@@ -47,6 +49,20 @@ class File(NamelistBaseModel):
                 self.longitude = self.filename.coords.x
             if self.latitude is None:
                 self.latitude = self.filename.coords.y
+        return self
+
+    @model_validator(mode="after")
+    def set_vars(self):
+        """Ensure variables are constent with WW3DataGrid"""
+        if isinstance(self.filename, WW3DataGrid):
+            if self.filename.variables:
+                if self.var1 or self.var1 or self.var3:
+                    logger.warning(
+                        "Variables set in WW3DataGrid and File. File takes preference"
+                    )
+                    self.filename.variables = [
+                        getattr(self, var) for var in ["var1", "var2", "var3"] if var
+                    ]
         return self
 
     def get_namelist_name(self) -> str:
