@@ -6,7 +6,38 @@ from .basemodel import NamelistBaseModel
 
 
 class ForcingField(NamelistBaseModel):
-    """FORCING_NML field parameters for WW3."""
+    """FORCING_NML field parameters for WW3.
+
+    This class supports two ways of initialization:
+    1. Boolean-based: Set one of the boolean fields to True (e.g., winds=True)
+    2. String-based: Set the variable field to the desired WW3 variable name (e.g., variable="WINDS")
+    """
+
+    # String field to allow initialization with a specific variable
+    variable: Optional[str] = Field(
+        default=None,
+        description="WW3 variable name to set as active. When provided, the corresponding boolean field will be set to True. This field is excluded from rendering output.",
+        exclude=True,  # Exclude this from serialization/rendering
+        choices=[
+            "ICE_THICKNESS",
+            "ICE_VISCOSITY",
+            "ICE_DENSITY",
+            "ICE_MODULUS",
+            "ICE_FLOE_DIAMETER",
+            "MUD_DENSITY",
+            "MUD_THICKNESS",
+            "MUD_VISCOSITY",
+            "WATER_LEVELS",
+            "CURRENTS",
+            "WINDS",
+            "WIND_AIR_SEA_TEMP_DIFF",
+            "ATMOSPHERIC_MOMENTUM",
+            "AIR_DENSITY",
+            "ICE_CONCENTRATION",
+            "ICEBERGS_SEA_ICE_CONC",
+            "DATA_ASSIMILATION",
+        ],
+    )
 
     ice_param1: Optional[bool] = Field(
         default=None, description="Ice thickness (1-component)"
@@ -56,6 +87,80 @@ class ForcingField(NamelistBaseModel):
         default=None, description="Data for assimilation (1-component)"
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def set_boolean_field_from_variable(cls, values):
+        """Set appropriate boolean field based on the variable string."""
+        if isinstance(values, dict):
+            variable = values.get("variable")
+            if variable is not None:
+                # Map the variable string to the corresponding field name (case-insensitive)
+                var_to_field_map = {
+                    # Full names
+                    "ICE_THICKNESS": "ice_param1",
+                    "ICE_VISCOSITY": "ice_param2",
+                    "ICE_DENSITY": "ice_param3",
+                    "ICE_MODULUS": "ice_param4",
+                    "ICE_FLOE_DIAMETER": "ice_param5",
+                    "MUD_DENSITY": "mud_density",
+                    "MUD_THICKNESS": "mud_thickness",
+                    "MUD_VISCOSITY": "mud_viscosity",
+                    "WATER_LEVELS": "water_levels",
+                    "CURRENTS": "currents",
+                    "WINDS": "winds",
+                    "WIND_AIR_SEA_TEMP_DIFF": "wind_ast",
+                    "ATMOSPHERIC_MOMENTUM": "atm_momentum",
+                    "AIR_DENSITY": "air_density",
+                    "ICE_CONCENTRATION": "ice_conc",
+                    "ICEBERGS_SEA_ICE_CONC": "ice_berg",
+                    "DATA_ASSIMILATION": "data_assim",
+                }
+
+                # Add alternative forms to the mapping (like WIND, wind, etc.)
+                var_to_field_map.update(
+                    {
+                        # Alternative forms for winds
+                        "WIND": "winds",
+                        "wind": "winds",
+                        # Alternative forms for currents
+                        "current": "currents",
+                        "CURRENT": "currents",
+                        # Alternative forms for water_levels
+                        "water_level": "water_levels",
+                        "WATER_LEVEL": "water_levels",
+                        "level": "water_levels",
+                        "LEVEL": "water_levels",
+                        # Additional alternative forms for other fields as needed...
+                    }
+                )
+
+                # Convert to uppercase to handle case-insensitive matching
+                variable_upper = variable.upper()
+
+                # Check if the uppercase version matches any of the original keys
+                if variable_upper in var_to_field_map:
+                    field_name = var_to_field_map[variable_upper]
+                    # Set the specified field to True and others that aren't already set to False
+                    for field_key in var_to_field_map.values():
+                        if field_key not in values or values[field_key] is None:
+                            values[field_key] = field_key == field_name
+                elif (
+                    variable in var_to_field_map
+                ):  # Check the original case for alternative forms
+                    field_name = var_to_field_map[variable]
+                    # Set the specified field to True and others that aren't already set to False
+                    for field_key in var_to_field_map.values():
+                        if field_key not in values or values[field_key] is None:
+                            values[field_key] = field_key == field_name
+                else:
+                    # If the variable is not found in the mapping, raise an error
+                    valid_vars = list(var_to_field_map.keys())
+                    raise ValueError(
+                        f"Invalid variable: {variable}. Valid options are: {valid_vars}"
+                    )
+
+        return values
+
     @model_validator(mode="after")
     def validate_only_one_field_true(self):
         """Ensure only one FORCING%FIELD is set to True."""
@@ -85,16 +190,91 @@ class ForcingField(NamelistBaseModel):
 
         return self
 
+    @property
+    def ww3_var_name(self) -> Optional[str]:
+        """Get the WW3 variable name corresponding to the field set to True."""
+        # If variable was explicitly set, return it
+        if self.variable is not None:
+            return self.variable
+
+        field_to_var_map = {
+            "ice_param1": "ICE_THICKNESS",
+            "ice_param2": "ICE_VISCOSITY",
+            "ice_param3": "ICE_DENSITY",
+            "ice_param4": "ICE_MODULUS",
+            "ice_param5": "ICE_FLOE_DIAMETER",
+            "mud_density": "MUD_DENSITY",
+            "mud_thickness": "MUD_THICKNESS",
+            "mud_viscosity": "MUD_VISCOSITY",
+            "water_levels": "WATER_LEVELS",
+            "currents": "CURRENTS",
+            "winds": "WINDS",
+            "wind_ast": "WIND_AIR_SEA_TEMP_DIFF",
+            "atm_momentum": "ATMOSPHERIC_MOMENTUM",
+            "air_density": "AIR_DENSITY",
+            "ice_conc": "ICE_CONCENTRATION",
+            "ice_berg": "ICEBERGS_SEA_ICE_CONC",
+            "data_assim": "DATA_ASSIMILATION",
+        }
+
+        for field_name, var_name in field_to_var_map.items():
+            if getattr(self, field_name) is True:
+                return var_name
+
+        return None
+
 
 class ForcingGrid(NamelistBaseModel):
-    """FORCING_NML grid parameters for WW3."""
+    """FORCING_NML grid parameters for WW3.
+
+    This class supports two ways of initialization:
+    1. Boolean-based: Set one of the boolean fields to True (e.g., asis=True)
+    2. String-based: Set the grid_type field to the desired grid type (e.g., grid_type="asis")
+    """
+
+    # String field to allow initialization with a specific grid type
+    grid_type: Optional[str] = Field(
+        default=None,
+        description="Grid type to set as active. When provided, the corresponding boolean field will be set to True. This field is excluded from rendering output.",
+        exclude=True,  # Exclude this from serialization/rendering
+    )
 
     asis: Optional[bool] = Field(
         default=None, description="Transfer field 'as is' on the model grid"
     )
     latlon: Optional[bool] = Field(
-        default=None, description="Define field on regular lat/lon or cartesian grid"
+        default=True, description="Define field on regular lat/lon or cartesian grid"
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def set_boolean_field_from_grid_type(cls, values):
+        """Set appropriate boolean field based on the grid_type string."""
+        if isinstance(values, dict):
+            grid_type = values.get("grid_type")
+            if grid_type is not None:
+                # Convert to lowercase for case-insensitive matching
+                grid_type_lower = grid_type.lower()
+
+                if grid_type_lower == "asis":
+                    # Set asis to True and latlon to False (if not already set)
+                    if "asis" not in values or values["asis"] is None:
+                        values["asis"] = True
+                    if "latlon" not in values or values["latlon"] is None:
+                        values["latlon"] = False
+                elif grid_type_lower == "latlon":
+                    # Set latlon to True and asis to False (if not already set)
+                    if "latlon" not in values or values["latlon"] is None:
+                        values["latlon"] = True
+                    if "asis" not in values or values["asis"] is None:
+                        values["asis"] = False
+                else:
+                    # If the grid_type is not valid, raise an error
+                    raise ValueError(
+                        f"Invalid grid_type: {grid_type}. Valid options are: asis, latlon"
+                    )
+
+        return values
 
     @model_validator(mode="after")
     def validate_only_one_grid_true(self):
@@ -106,6 +286,15 @@ class ForcingGrid(NamelistBaseModel):
             raise ValueError("Only one FORCING%grid can be set to True")
 
         return self
+
+    @property
+    def active_grid_type(self) -> Optional[str]:
+        """Get the active grid type."""
+        if self.asis is True:
+            return "asis"
+        elif self.latlon is True:
+            return "latlon"
+        return None
 
 
 class Forcing(NamelistBaseModel):
@@ -157,3 +346,10 @@ class Forcing(NamelistBaseModel):
                 )
 
         return self
+
+    @property
+    def ww3_var_name(self) -> Optional[str]:
+        """Get the WW3 variable name from the FORCING%FIELD."""
+        if self.field is not None:
+            return self.field.ww3_var_name
+        return None

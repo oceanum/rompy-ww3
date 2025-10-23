@@ -61,7 +61,7 @@ class InputForcing(NamelistBaseModel):
             raise ValueError("Forcing flag must be 'F', 'T', 'H', or 'C'")
         return v
 
-    def render(self) -> str:
+    def render(self, *args, **kwargs) -> str:
         """Render the namelist with special handling for VAR arrays."""
         lines = []
         lines.append(f"&{self.get_namelist_name()}")
