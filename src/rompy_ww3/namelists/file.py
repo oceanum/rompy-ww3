@@ -1,9 +1,11 @@
 """FILE_NML namelist implementation for WW3 preprocessing."""
 
 from typing import Optional, Union
-from pydantic import Field
+from pydantic import Field, AliasPath, model_validator
 from .basemodel import NamelistBaseModel
-from ..core.data import WW3DataBlob
+from ..core.data import WW3DataBlob, WW3DataGrid
+
+# Aliases allow for interoperability with WW3DataGrid
 
 
 class File(NamelistBaseModel):
@@ -12,24 +14,46 @@ class File(NamelistBaseModel):
     Defines the content of the input file for ww3_prnc.
     """
 
-    filename: Optional[Union[str, WW3DataBlob]] = Field(
+    filename: Optional[Union[str, WW3DataBlob, WW3DataGrid]] = Field(
         default=None, description="Input filename for preprocessing"
     )
+    longitude: Optional[str] = Field(
+        default="longitude", description="Longitude/x dimension name in the input file"
+    )
+    latitude: Optional[str] = Field(
+        default="latitude", description="Latitude/y dimension name in the input file"
+    )
     var1: Optional[str] = Field(
-        default=None, description="Variable name for first component"
+        default=None,
+        description="Variable name for first component",
+        validation_alias=AliasPath("variables", 0),
     )
     var2: Optional[str] = Field(
-        default=None, description="Variable name for second component"
+        default=None,
+        description="Variable name for second component",
+        validation_alias=AliasPath("variables", 1),
     )
     var3: Optional[str] = Field(
-        default=None, description="Variable name for third component"
+        default=None,
+        description="Variable name for third component",
+        validation_alias=AliasPath("variables", 2),
     )
+
+    @model_validator(mode="after")
+    def set_latlon(self):
+        """Ensure latitude and longitude are constent with WW3DataGrid cocods"""
+        if isinstance(self.filename, WW3DataGrid):
+            if self.longitude is None:
+                self.longitude = self.filename.coords.x
+            if self.latitude is None:
+                self.latitude = self.filename.coords.y
+        return self
 
     def get_namelist_name(self) -> str:
         """Return the specific namelist name for FILE_NML."""
         return "FILE_NML"
 
-    def render(self) -> str:
+    def render(self, *args, **kwargs) -> str:
         """Render the namelist with special handling for VAR arrays."""
         lines = []
         lines.append(f"&{self.get_namelist_name()}")
@@ -37,6 +61,8 @@ class File(NamelistBaseModel):
         # Add standard fields
         if self.filename is not None:
             lines.append(f"  FILE%FILENAME = '{self.filename}'")
+        lines.append(f"  FILE%LONGITUDE = '{self.longitude}'")
+        lines.append(f"  FILE%LATITUDE = '{self.latitude}'")
         if self.var1 is not None:
             lines.append(f"  FILE%VAR(1) = '{self.var1}'")
         if self.var2 is not None:
