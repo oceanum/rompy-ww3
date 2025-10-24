@@ -49,8 +49,8 @@ class NamelistBaseModel(BaseModel):
             return boolean_to_string(value)
         elif isinstance(value, str):
             # Don't quote Fortran booleans
-            if value in ["T", "F"]:
-                return value
+            # if value in ["T", "F"]:
+            #     return value
             return f"'{value}'"
         elif isinstance(value, list):
             return ", ".join([str(self.process_value(v)) for v in value])
@@ -124,6 +124,10 @@ class NamelistBaseModel(BaseModel):
         namelist_prefix = (
             namelist_name[:-4] if namelist_name.endswith("_NML") else namelist_name
         )
+
+        # Remove OUTPUT_ prefix. Special case in WW3 for some reason
+        if namelist_prefix.startswith("OUTPUT_"):
+            namelist_prefix = namelist_prefix[7:]
 
         # Process each field
         comma_fields = getattr(self, "_comma_fields", [])
