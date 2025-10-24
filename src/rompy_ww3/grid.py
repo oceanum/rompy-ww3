@@ -147,6 +147,14 @@ class BaseWW3Grid(BaseGrid, ABC):
         logger.info(f"Copied all grid files to {destdir}")
         return namelist_content
 
+    def get_grid_nml_content(self) -> str:
+        """Generate content for the main GRID namelist from this grid object."""
+        return self.grid_nml.render()
+
+    def get_grid_specific_nml_content(self) -> str:
+        """Generate content for the grid-specific namelist (rect_nml, curv_nml, etc.) from this grid object."""
+        return self.grid_specific_nml.render()
+
     def _add_optional_namelists(self, namelist_objects: dict) -> None:
         """Add optional namelist objects to the dictionary. Implemented by subclasses."""
         # This method will be overridden by subclasses that have optional files

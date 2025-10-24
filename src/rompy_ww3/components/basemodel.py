@@ -5,6 +5,8 @@ from pathlib import Path
 import logging
 from pydantic import BaseModel
 
+from ..settings import WW3_DIR
+
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +40,14 @@ class WW3ComponentBaseModel(BaseModel):
     @property
     def run_cmd(self) -> str:
         """Get the default run command for this component"""
-        return f"ww3_{self.__class__.__name__.lower()}"
+        name = self.__class__.__name__.lower()
+        # Construct the to run and print logs to stout as well as save to file
+        cmd = f"ww3_{name}"
+        if WW3_DIR:
+            return f"{WW3_DIR}/{cmd}"
+        else:
+            # assume binary is in PATH
+            return cmd
 
     def write_nml(self, destdir: Union[Path, str], *args, **kwargs) -> None:
         """Write the rendered component to a namelist file.
