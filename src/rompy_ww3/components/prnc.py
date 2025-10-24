@@ -14,3 +14,17 @@ class Prnc(WW3ComponentBaseModel):
     file: Optional[File] = Field(
         default=None, description="FILE_NML configuration for input file preprocessing"
     )
+
+    @property
+    def nml_filename(self) -> str:
+        """Get the default filename for this component"""
+        return f"ww3_prnc.{self.forcing.ww3_var_name}"
+
+    @property
+    def run_cmd(self) -> str:
+        """Get the default run command for this component"""
+        cmd = [
+            f"ln -sf {self.file.filename} ww3_prnc.nml \n",
+            f"ww3_{self.__class__.__name__.lower()}",
+        ]
+        return "".join(cmd)

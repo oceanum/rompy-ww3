@@ -1,4 +1,4 @@
-from rompy.core.data import DataBlob
+from rompy.core.data import DataBlob, DataGrid
 from pydantic import Field
 from typing import Literal
 
@@ -15,5 +15,21 @@ class WW3DataBlob(DataBlob):
         """Get the data blob.
 
         This method should be implemented to retrieve the data blob.
+        """
+        return super().get(*args, **kwargs).name
+
+
+class WW3DataGrid(DataGrid):
+    """A data grid for WW3 model data."""
+
+    model_type: Literal["data_grid", "data_link"] = Field(
+        default="data_grid",
+        description="Model type discriminator",
+    )
+
+    def get(self, *args, **kwargs):
+        """Get the data grid.
+
+        This method should be implemented to retrieve the data grid.
         """
         return super().get(*args, **kwargs).name
