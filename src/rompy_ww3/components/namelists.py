@@ -403,7 +403,6 @@ class Namelists(NamelistBaseModel):
         """Custom render  for namelists as a string."""
 
         content = []
-        __import__("ipdb").set_trace()
         # Get the model data
         model_data = self.model_dump()
         for key, value in model_data.items():
