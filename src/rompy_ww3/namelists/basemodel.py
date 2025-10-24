@@ -135,13 +135,19 @@ class NamelistBaseModel(BaseModel):
         for key, value in model_data.items():
             nml = getattr(self, key)
             if isinstance(nml, RompyBaseModel) and value is not None:
-                # Get the rendered output of the nested object
                 value = nml.get(*args, **kwargs)
+                # Get the rendered output of the nested object
             # Handle nested objects that are dictionaries
             if isinstance(value, dict):
                 # Handle nested objects like forcing, field, etc.
                 for sub_key, sub_value in value.items():
                     if sub_value is not None:
+                        sub_nml = getattr(nml, sub_key)
+                        if (
+                            isinstance(sub_nml, RompyBaseModel)
+                            and sub_value is not None
+                        ):
+                            sub_value = sub_nml.get(*args, **kwargs)
                         # Format the key as NAMELIST%PARENT%CHILD for nested objects
                         formatted_key = (
                             f"{namelist_prefix}%{key.upper()}%{sub_key.upper()}"

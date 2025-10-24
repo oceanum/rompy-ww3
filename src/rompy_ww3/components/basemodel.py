@@ -30,6 +30,16 @@ class WW3ComponentBaseModel(BaseModel):
                 content.append(nml.render(*args, **kwargs))
         return "\n".join(content)
 
+    @property
+    def nml_filename(self) -> str:
+        """Get the default filename for this component"""
+        return f"ww3_{self.__class__.__name__.lower()}.nml"
+
+    @property
+    def run_cmd(self) -> str:
+        """Get the default run command for this component"""
+        return f"ww3_{self.__class__.__name__.lower()}"
+
     def write_nml(self, destdir: Union[Path, str], *args, **kwargs) -> None:
         """Write the rendered component to a namelist file.
 
@@ -40,9 +50,7 @@ class WW3ComponentBaseModel(BaseModel):
         destdir.mkdir(parents=True, exist_ok=True)
 
         # Use lowercase class name for filename
-        filename = f"ww3_{self.__class__.__name__.lower()}.nml"
-        filepath = destdir / filename
-
+        filepath = destdir / self.nml_filename
         rendered = self.render(destdir=destdir, *args, **kwargs)
 
         if rendered is not None:

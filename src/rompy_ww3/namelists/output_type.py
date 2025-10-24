@@ -1,14 +1,16 @@
 """OUTPUT_TYPE_NML namelist implementation for WW3."""
 
-from typing import Optional
+from typing import Optional, Union
 from pydantic import Field
+
 from .basemodel import NamelistBaseModel
+from ..core.data import WW3DataBlob
 
 
 class OutputTypeField(NamelistBaseModel):
     """Field output parameters for WW3."""
 
-    list: Optional[str] = Field(
+    list: Optional[Union[str, WW3DataBlob]] = Field(
         default=None, description="List of fields to output (space-separated)"
     )
 
@@ -16,7 +18,9 @@ class OutputTypeField(NamelistBaseModel):
 class OutputTypePoint(NamelistBaseModel):
     """Point output parameters for WW3."""
 
-    file: Optional[str] = Field(default=None, description="Point output file")
+    file: Optional[Union[str, WW3DataBlob]] = Field(
+        default=None, description="Point output file"
+    )
     name: Optional[str] = Field(default=None, description="Point output name")
 
 
