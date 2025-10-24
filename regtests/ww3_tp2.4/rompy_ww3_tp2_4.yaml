@@ -1,0 +1,121 @@
+# Complete WW3 ModelRun configuration for ww3_tp2.4 regression test
+#
+# This YAML configuration defines a complete ModelRun that can be executed
+# directly with the rompy CLI for the WW3 tp2.4 regression test.
+
+# ModelRun parameters
+run_id: "ww3_tp2_4_regression"
+output_dir: "rompy_runs"
+
+# Time configuration
+period:
+    start: "2008-05-22T00:00:00"
+    duration: "3H" # 3 hours duration
+    interval: "1H" # 1 hour time interval
+
+# Model configuration (equivalent to NMLConfig)
+config:
+    model_type: nml
+    template: "/home/tdurrant/source/rompy/rompy-ww3/src/rompy_ww3/templates/base"
+
+    # Shell component for ww3_shel.nml (main model configuration)
+    shell_component:
+        domain:
+            start: "20080522 000000"
+            stop: "20080522 030000"
+            iostyp: 1 # Output server type from reference
+        input_nml: {}
+        output_type:
+            field:
+                list: "DPT HS FP DIR SPR" # Output fields from reference
+            point:
+                file:
+                    model_type: data_blob
+                    source: "regtests/ww3_tp2.4/input/points.list" # Point output file
+        output_date:
+            field:
+                start: "20080522 000000"
+                stride: "3600"
+                stop: "20080525 000000"
+            point:
+                start: "20080522 000000"
+                stride: "360"
+                stop: "20080523 000000"
+        homog_count:
+            n_wnd: 0 # No wind input for the tp2.4 test (no source terms)
+            n_lev: 0
+            n_cur: 0
+            n_ice: 0
+        homog_input: []
+
+    # Grid component for ww3_grid.nml (grid preprocessing configuration)
+    grid_component:
+        spectrum:
+            xfr: 1.1 # Frequency increment from reference
+            freq1: 0.03679 # First frequency (Hz) from reference for tp2.4
+            nk: 3 # Number of frequencies from reference for tp2.4
+            nth: 12 # Number of direction bins from reference for tp2.4
+            thoff: 0.0 # Relative offset of first direction
+        run:
+            fldry: false # Not a dry run
+            flcx: true # X-component of propagation from reference
+            flcy: true # Y-component of propagation from reference
+            flcth: true # Direction shift from reference
+            flck: false # Wavenumber shift from reference
+            flsou: false # No source terms for this test case (LN0 ST0 NL0 BT0 DB0 TR0 BS0 XX0)
+        timesteps:
+            dtmax: 3300.0 # Maximum CFL timestep (should be ~3 times dtxy)
+            dtxy: 1100.0 # Propagation timestep from reference
+            dtkth: 1650.0 # Refraction timestep (should be between dtmax/10 and dtmax/2)
+            dtmin: 10.0 # Minimum time step for source terms
+        grid_nml:
+            name: "2-D PROPAGATION TEST 2.4" # Grid name from reference
+            type: "RECT" # Rectilinear grid from reference
+            coord: "SPHE" # Spherical coordinates from reference
+            clos: "NONE" # No closure from reference
+            zlim: -0.1 # Minimum depth from reference
+            dmin: 7.50 # Minimum water depth from reference
+        rect_nml:
+            nx: 225 # Number of points along x-axis from reference
+            ny: 106 # Number of points along y-axis from reference
+            sx: 0.35457 # Grid increment along x-axis from reference
+            sy: 0.35457 # Grid increment along y-axis from reference
+            x0: 183.4 # Western boundary from reference
+            y0: 25.1 # Southern boundary from reference
+        depth:
+            filename:
+                model_type: data_blob
+                source: "regtests/ww3_tp2.4/input/depth.225x106.IDLA1.dat"
+            sf: -1.0 # Scale factor from reference
+            idf: 50 # IDF
+            idla: 1 # IDLA
+
+    # Parameters component for namelists.nml (model parameters configuration)
+    parameters_component:
+        pro2:
+            dtime: 64800.0 # From namelists_2-D.nml
+        pro3:
+            wdthcg: 1.5
+            wdthth: 1.5 # From namelists_2-D.nml
+        pro4:
+            rnfac: 0.0
+            rsfac: 0.0 # From namelists_2-D.nml
+
+    # Field output component for ww3_ounf.nml (field output post-processing)
+    field_output_component:
+        field:
+            timestart: "20080522 000000" # Start time from reference
+            timestride: "3600" # Time stride from reference (1 hour)
+            timecount: "999" # Number of time steps from reference
+            list: "DPT HS" # Output fields from reference: water depth and wave height
+            partition: "0 1 2" # Wave partitions from reference
+            type: 4 # Data type: REAL from reference
+            samefile: true # All variables in same file from reference
+        file:
+            prefix: "ww3."
+            netcdf: 3 # NetCDF version from reference
+            ix0: 1 # First X-axis index
+            ixn: 1000000000 # Last X-axis index (default large value)
+            iy0: 1 # First Y-axis index
+            iyn: 1000000000 # Last Y-axis index (default large value)
+
