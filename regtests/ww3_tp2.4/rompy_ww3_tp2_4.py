@@ -21,6 +21,7 @@ from rompy_ww3.components import (
     Shel,
     Grid,
     Namelists,
+    Ounf,
 )
 from rompy_ww3.components.namelists import PRO2, PRO3, PRO4
 
@@ -32,11 +33,13 @@ from rompy_ww3.namelists import (
     Timesteps,
     OutputType,
     HomogCount,
-    HomogInput,
+    Input,
 )
 from rompy_ww3.namelists.output_date import OutputDate
 from rompy_ww3.namelists.grid import Grid as GRID_NML, Rect
 from rompy_ww3.namelists.depth import Depth
+from rompy_ww3.namelists.field import Field
+from rompy_ww3.namelists.output_file import File as FileNml
 
 
 def create_ww3_tp2_4_components():
@@ -49,18 +52,11 @@ def create_ww3_tp2_4_components():
             stop="20080522 030000",
             iostyp=1,  # Output server type from reference
         ),
-        # input_nml=Input(
-        #     forcing={
-        #         "winds": "T",  # Enable wind forcing
-        #         "currents": "F",
-        #         "water_levels": "F",
-        #         "ice_conc": "F",
-        #     }
-        # ),
+        input_nml=Input(),
         output_type=OutputType(
             field={"list": "DPT HS FP DIR SPR"},  # Output fields from reference
             point={
-                "file": WW3DataBlob(source="input/points.list")
+                "file": WW3DataBlob(source="regtests/ww3_tp2.4/input/points.list")
             },  # Point output file
         ),
         output_date=OutputDate(
@@ -76,29 +72,21 @@ def create_ww3_tp2_4_components():
             },  # Point output every 6 min
         ),
         homog_count=HomogCount(
-            n_wnd=1,  # One wind input
+            n_wnd=0,  # No wind input for the tp2.4 test (no source terms)
             n_lev=0,
             n_cur=0,
             n_ice=0,
         ),
-        homog_input=[
-            HomogInput(
-                name="WND",
-                date="20080522 000000",
-                value1=10.0,  # Wind speed (m/s)
-                value2=90.0,  # Wind direction (degrees)
-                value3=0.0,  # Not used for winds
-            )
-        ],
+        homog_input=[],
     )
 
     # Grid component for ww3_grid.nml (grid preprocessing configuration)
     grid_component = Grid(
         spectrum=Spectrum(
             xfr=1.1,  # Frequency increment from reference
-            freq1=0.05,  # First frequency (Hz) from reference
-            nk=10,  # Number of frequencies from reference
-            nth=36,  # Number of direction bins from reference
+            freq1=0.03679,  # First frequency (Hz) from reference for tp2.4
+            nk=3,  # Number of frequencies from reference for tp2.4
+            nth=12,  # Number of direction bins from reference for tp2.4
             thoff=0.0,  # Relative offset of first direction
         ),
         run=Run(
@@ -107,13 +95,13 @@ def create_ww3_tp2_4_components():
             flcy=True,  # Y-component of propagation from reference
             flcth=True,  # Direction shift from reference
             flck=False,  # Wavenumber shift from reference
-            flsou=True,  # Source terms from reference
+            flsou=False,  # No source terms for this test case (LN0 ST0 NL0 BT0 DB0 TR0 BS0 XX0)
         ),
         timesteps=Timesteps(
             dtmax=3300.0,  # Maximum CFL timestep (should be ~3 times dtxy)
-            dtxy=1100.0,  # Propagation timestep
+            dtxy=1100.0,  # Propagation timestep from reference
             dtkth=1650.0,  # Refraction timestep (should be between dtmax/10 and dtmax/2)
-            dtmin=10.0,  # Minimum time step (use a more realistic value)
+            dtmin=10.0,  # Minimum time step for source terms
         ),
         grid_nml=GRID_NML(
             name="2-D PROPAGATION TEST 2.4",  # Grid name from reference
@@ -134,7 +122,7 @@ def create_ww3_tp2_4_components():
         depth=Depth(
             # filename="./../input/depth.225x106.IDLA1.dat",
             filename=WW3DataBlob(
-                source="input/depth.225x106.IDLA1.dat",
+                source="regtests/ww3_tp2.4/input/depth.225x106.IDLA1.dat",
             ),
             sf=-1.0,  # Scale factor from reference
             idf=50,  # IDF
@@ -144,15 +132,38 @@ def create_ww3_tp2_4_components():
 
     # Parameters component for namelists.nml (model parameters configuration)
     namelists_component = Namelists(
-        pro2=PRO2(dtime=64800.0),
-        pro3=PRO3(wdthcg=1.5, wdthth=1.5),
-        pro4=PRO4(rnfac=0.0, rsfac=0.0),
+        pro2=PRO2(dtime=64800.0),  # From namelists_2-D.nml
+        pro3=PRO3(wdthcg=1.5, wdthth=1.5),  # From namelists_2-D.nml
+        pro4=PRO4(rnfac=0.0, rsfac=0.0),  # From namelists_2-D.nml
+    )
+
+    # Field output component for ww3_ounf.nml (field output post-processing)
+    # This configuration handles the output of field data after model execution
+    field_output_component = Ounf(
+        field=Field(
+            timestart="20080522 000000",  # Start time from reference
+            timestride="3600",  # Time stride from reference (1 hour)
+            timecount="999",  # Number of time steps from reference
+            list="DPT HS",  # Output fields from reference: water depth and wave height
+            partition="0 1 2",  # Wave partitions from reference
+            type=4,  # Data type: REAL from reference
+            samefile=True,  # All variables in same file from reference
+        ),
+        file=FileNml(  # Using FileNml alias to avoid name conflicts
+            prefix="ww3.",
+            netcdf=3,  # NetCDF version from reference
+            ix0=1,  # First X-axis index
+            ixn=1000000000,  # Last X-axis index (default large value)
+            iy0=1,  # First Y-axis index
+            iyn=1000000000,  # Last Y-axis index (default large value)
+        ),
     )
 
     return {
         "shell_component": shell_component,
         "grid_component": grid_component,
         "parameters_component": namelists_component,
+        "field_output_component": field_output_component,  # Field output component for postprocessing
     }
 
 
@@ -208,9 +219,9 @@ def demonstrate_ww3config_approach():
 
     spectrum_nml = Spectrum(
         xfr=1.1,  # Frequency increment from reference
-        freq1=0.05,  # First frequency (Hz) from reference
-        nk=10,  # Number of frequencies from reference
-        nth=36,  # Number of direction bins from reference
+        freq1=0.03679,  # First frequency (Hz) from reference for tp2.4
+        nk=3,  # Number of frequencies from reference for tp2.4
+        nth=12,  # Number of direction bins from reference for tp2.4
         thoff=0.0,  # Relative offset of first direction
     )
 
@@ -220,14 +231,14 @@ def demonstrate_ww3config_approach():
         flcy=True,  # Y-component of propagation from reference
         flcth=True,  # Direction shift from reference
         flck=False,  # Wavenumber shift from reference
-        flsou=True,  # Source terms from reference
+        flsou=False,  # No source terms for this test case (LN0 ST0 NL0 BT0 DB0 TR0 BS0 XX0)
     )
 
     timesteps_nml = Timesteps(
         dtmax=3300.0,  # Maximum CFL timestep (should be ~3 times dtxy)
-        dtxy=1100.0,  # Propagation timestep
+        dtxy=1100.0,  # Propagation timestep from reference
         dtkth=1650.0,  # Refraction timestep (should be between dtmax/10 and dtmax/2)
-        dtmin=10.0,  # Minimum time step (use a more realistic value)
+        dtmin=10.0,  # Minimum time step for source terms
     )
 
     # Create components with the enhanced namelist objects
