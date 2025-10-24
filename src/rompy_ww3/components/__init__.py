@@ -11,7 +11,7 @@ from .trnc import Trnc
 from .ounf import Ounf
 from .ounp import Ounp
 from .uptstr import Uptstr
-from .parameters import Parameters
+from .namelists import Namelists
 
 __all__ = [
     "WW3ComponentBaseModel",
@@ -25,5 +25,5 @@ __all__ = [
     "Ounf",
     "Ounp",
     "Uptstr",
-    "Parameters",
+    "Namelists",
 ]

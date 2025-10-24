@@ -4,6 +4,7 @@ __author__ = """Rompy Developers"""
 __email__ = "developers@rompy.com"
 __version__ = "0.1.0"
 
-from .config import Config, WW3Config
+# Delay import to avoid circular dependency during package initialization
+from .config import NMLConfig, WW3ShelConfig
 
-__all__ = ["Config", "WW3Config"]
+__all__ = ["NMLConfig", "WW3ShelConfig"]

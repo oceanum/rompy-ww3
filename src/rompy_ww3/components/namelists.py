@@ -6,7 +6,7 @@ Each namelist corresponds to a specific aspect of the wave model physics.
 
 from typing import Optional, Literal
 from pydantic import Field
-from .basemodel import NamelistBaseModel
+from ..namelists.basemodel import NamelistBaseModel
 
 
 class MISC(NamelistBaseModel):
@@ -398,3 +398,24 @@ class Namelists(NamelistBaseModel):
         default=None,
         description="PRO4 namelist for fourth propagation scheme parameters",
     )
+
+    def render(self, *args, **kwargs) -> str:
+        """Custom render  for namelists as a string."""
+
+        content = []
+        __import__("ipdb").set_trace()
+        # Get the model data
+        model_data = self.model_dump()
+        for key, value in model_data.items():
+            if value is None:
+                continue
+            line = f"&{key.upper()}"
+            separator = " "
+            for sub_key, sub_value in value.items():
+                line += f"{separator}{sub_key.upper()} = {sub_value}"
+                separator = ", "
+            line += " /"
+            content.append(line)
+
+        content.append("END OF NAMELISTS")
+        return "\n".join(content)
