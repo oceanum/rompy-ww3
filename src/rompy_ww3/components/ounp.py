@@ -10,7 +10,7 @@ class Ounp(WW3ComponentBaseModel):
 
     point_output: Optional[PointOutput] = None
 
-    def render(self) -> str:
+    def render(self, destdir=None, *args, **kwargs) -> str:
         """Render the point output component as a combined namelist string."""
         ounp_content = []
         ounp_content.append("! WW3 point output configuration")
