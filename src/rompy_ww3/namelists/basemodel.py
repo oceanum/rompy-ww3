@@ -190,3 +190,151 @@ class NamelistBaseModel(BaseModel):
             f.write(self.render(*args, **kwargs))
 
         logger.info(f"Wrote namelist to {filepath}")
+
+    def set_default_dates(self, period) -> None:
+        """
+        Set default start and end dates for date fields in this namelist if they are None.
+
+        Args:
+            period: The time period to use for default dates
+        """
+        # Get attributes of Pydantic models
+        if hasattr(self, "model_fields"):
+            for field_name in self.model_fields:
+                # Check if this field is a date field
+                if self._is_date_field(field_name):
+                    current_value = getattr(self, field_name)
+                    if current_value is None:
+                        # Set default date value
+                        if (
+                            "start" in field_name.lower()
+                            or "timestart" in field_name.lower()
+                        ):
+                            setattr(
+                                self, field_name, period.start.strftime("%Y%m%d %H%M%S")
+                            )
+                        elif (
+                            "stop" in field_name.lower()
+                            or "timestop" in field_name.lower()
+                        ):
+                            setattr(
+                                self, field_name, period.end.strftime("%Y%m%d %H%M%S")
+                            )
+                else:
+                    # If not a date field, check if it's a nested object that might have date fields
+                    field_value = getattr(self, field_name)
+                    if hasattr(field_value, "__dict__") or hasattr(
+                        field_value, "__pydantic_fields__"
+                    ):
+                        if field_value is not None and not isinstance(
+                            field_value, (str, int, float, bool, list, dict)
+                        ):
+                            # If the nested object also has a set_default_dates method, call it
+                            if hasattr(field_value, "set_default_dates"):
+                                field_value.set_default_dates(period)
+                            # Otherwise, recursively process its fields
+                            else:
+                                self._set_nested_object_dates_recursive(
+                                    field_value, period
+                                )
+
+    def _set_nested_object_dates_recursive(self, obj, period):
+        """
+        Recursively find and set date fields in a nested object.
+
+        Args:
+            obj: The nested object to process
+            period: The time period to use for default dates
+        """
+        # Get attributes of Pydantic models
+        if hasattr(obj, "model_fields"):
+            for field_name in obj.model_fields:
+                # Check if this field is a date field
+                if self._is_date_field(field_name):
+                    current_value = getattr(obj, field_name)
+                    if current_value is None:
+                        # Set default date value
+                        if (
+                            "start" in field_name.lower()
+                            or "timestart" in field_name.lower()
+                        ):
+                            setattr(
+                                obj, field_name, period.start.strftime("%Y%m%d %H%M%S")
+                            )
+                        elif (
+                            "stop" in field_name.lower()
+                            or "timestop" in field_name.lower()
+                        ):
+                            setattr(
+                                obj, field_name, period.end.strftime("%Y%m%d %H%M%S")
+                            )
+                else:
+                    # If not a date field, check if it's a nested object that might have date fields
+                    field_value = getattr(obj, field_name)
+                    if hasattr(field_value, "__dict__") or hasattr(
+                        field_value, "__pydantic_fields__"
+                    ):
+                        if field_value is not None and not isinstance(
+                            field_value, (str, int, float, bool, list, dict)
+                        ):
+                            # Recursively process nested objects
+                            self._set_nested_object_dates_recursive(field_value, period)
+
+    def _is_date_field(self, field_name: str) -> bool:
+        """
+        Check if a field name indicates it's a date/time field.
+
+        Args:
+            field_name: Name of the field to check
+
+        Returns:
+            True if the field is likely a date field, False otherwise
+        """
+        field_name_lower = field_name.lower()
+
+        # Explicitly allow known date fields - these are the actual date/time values
+        if field_name_lower in [
+            "start",
+            "stop",
+            "timestart",
+            "timestop",
+            "time_start",
+            "time_stop",
+            "update_time",
+        ]:
+            return True
+
+        # Explicitly exclude known non-date fields that contain date-like substrings
+        # These are object containers that contain date fields, not date fields themselves
+        if field_name_lower in [
+            "timestride",
+            "timecount",
+            "timesplit",
+            "stride",
+            "count",
+            "restart",
+            "boundary",
+            "track",
+            "point",
+            "partition",
+            "coupling",
+            "output_date",
+            "date",
+        ]:
+            return False
+
+        # For all other cases, if it contains obvious date indicators and was not excluded
+        # This is a conservative approach: only identify actual date value fields, not containers
+        date_indicators = [
+            "start",
+            "stop",
+            "timestart",
+            "timestop",
+            "time_start",
+            "time_stop",
+        ]
+        for indicator in date_indicators:
+            if field_name_lower == indicator:  # Only exact matches, not partial
+                return True
+
+        return False

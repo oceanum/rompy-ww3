@@ -168,11 +168,63 @@ class NMLConfig(BaseWW3Config):
     def __call__(self, runtime) -> dict:
         """Callable where data and config are interfaced and CMD is rendered."""
 
+        # Set default dates from the runtime period if available
+        self._set_default_dates(runtime)
+
         # Generate WW3 control namelist files
         self.write_control_files(runtime.staging_dir)
 
         # Generate execution scripts based on what files and executables are needed
         self.generate_run_script(runtime.staging_dir)
+
+    def _set_default_dates(self, runtime):
+        """Set default start and end dates from the runtime period if not already set in components."""
+        # Get the period from runtime if available
+        period = getattr(runtime, "period", None)
+        if not period:
+            return  # No period to use for defaults
+
+        # Iterate through all attributes of this config instance
+        for attr_name in self.components:
+            component = getattr(self, attr_name)
+            if component is not None:
+                self._set_component_dates_recursive(component, period)
+
+    def _set_component_dates_recursive(self, obj, period):
+        """
+        Recursively find and set date fields in a component and its nested objects.
+
+        Args:
+            obj: The object to process
+            period: The time period to use for default dates
+        """
+        # If this is a namelist object, use its built-in date setting method
+        if hasattr(obj, "set_default_dates"):
+            obj.set_default_dates(period)
+        # For non-namelist objects, process their fields recursively
+        elif hasattr(obj, "__dict__") or hasattr(obj, "__pydantic_fields__"):
+            if hasattr(obj, "model_fields"):
+                # Process Pydantic model fields
+                for field_name in obj.model_fields:
+                    field_value = getattr(obj, field_name)
+                    # Recursively process nested objects
+                    if hasattr(field_value, "__dict__") or hasattr(
+                        field_value, "__pydantic_fields__"
+                    ):
+                        if field_value is not None and not isinstance(
+                            field_value, (str, int, float, bool, list, dict)
+                        ):
+                            self._set_component_dates_recursive(field_value, period)
+                    # Also process lists of objects
+                    elif isinstance(field_value, list):
+                        for item in field_value:
+                            if hasattr(item, "__dict__") or hasattr(
+                                item, "__pydantic_fields__"
+                            ):
+                                if item is not None and not isinstance(
+                                    item, (str, int, float, bool, dict)
+                                ):
+                                    self._set_component_dates_recursive(item, period)
 
     def get_template_context(self) -> Dict[str, Any]:
         """Generate template context for Jinja2 templates.
@@ -251,6 +303,10 @@ class WW3ShelConfig(BaseConfig):
 
     def __call__(self, runtime) -> dict:
         """Callable where data and config are interfaced and CMD is rendered."""
+
+        # Set default dates from the runtime period if available
+        self._set_default_dates(runtime)
+
         staging_dir = Path(runtime.staging_dir)
 
         # Prepare staging directories for WW3 run
