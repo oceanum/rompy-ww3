@@ -4,7 +4,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Literal, Optional, List, Dict, Any
-from pydantic import Field as PydanticField
+from pydantic import Field as PydanticField, model_validator
 
 from rompy.core.config import BaseConfig
 from rompy_ww3.data import AnyWW3Data
@@ -184,6 +184,31 @@ class NMLConfig(BaseWW3Config):
         default=None, description="Namelists component (namelists.nml) configuration"
     )
 
+    @model_validator(mode="after")
+    def sync_component_fields(self):
+        """
+        Synchronize field list between shell output_type and field output components.
+        If ww3_shel.output_type.field.list is set but ww3_ounf.field.list is not set,
+        then set ww3_ounf.field.list to the same value.
+        """
+        # Check if ww3_shel and its output_type exist and have field.list set
+        if (
+            self.ww3_shel
+            and self.ww3_shel.output_type
+            and self.ww3_shel.output_type.field
+        ):
+            shel_field_list = self.ww3_shel.output_type.field.list
+            # Check if ww3_ounf exists and its field.list is not set
+            if (
+                self.ww3_ounf
+                and self.ww3_ounf.field
+                and shel_field_list is not None
+                and self.ww3_ounf.field.list is None
+            ):
+                # Set the field list from shel to ounf
+                self.ww3_ounf.field.list = shel_field_list
+        return self
+
     def __call__(self, runtime) -> dict:
         """Callable where data and config are interfaced and CMD is rendered."""
 
@@ -322,6 +347,31 @@ class WW3ShelConfig(BaseConfig):
     namelists: Optional[Namelists] = PydanticField(
         default=None, description="Namelists component (namelists.nml) configuration"
     )
+
+    @model_validator(mode="after")
+    def sync_component_fields(self):
+        """
+        Synchronize field list between shell output_type and field output components.
+        If ww3_shel.output_type.field.list is set but ww3_ounf.field.list is not set,
+        then set ww3_ounf.field.list to the same value.
+        """
+        # Check if ww3_shel and its output_type exist and have field.list set
+        if (
+            self.ww3_shel
+            and self.ww3_shel.output_type
+            and self.ww3_shel.output_type.field
+        ):
+            shel_field_list = self.ww3_shel.output_type.field.list
+            # Check if ww3_ounf exists and its field.list is not set
+            if (
+                self.ww3_ounf
+                and self.ww3_ounf.field
+                and shel_field_list is not None
+                and self.ww3_ounf.field.list is None
+            ):
+                # Set the field list from shel to ounf
+                self.ww3_ounf.field.list = shel_field_list
+        return self
 
     def __call__(self, runtime) -> dict:
         """Callable where data and config are interfaced and CMD is rendered."""
