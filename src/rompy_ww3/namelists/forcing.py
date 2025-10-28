@@ -34,12 +34,12 @@ class ForcingField(NamelistBaseModel):
     """
 
     # String field to allow initialization with a specific variable
-    variable: Optional[str] = Field(
-        default=None,
-        description="WW3 variable name to set as active. When provided, the corresponding boolean field will be set to True. This field is excluded from rendering output.",
-        exclude=True,  # Exclude this from serialization/rendering
-        choices=[*FIELD_VARIABLE_CHOICES],
-    )
+    # variable: Optional[str] = Field(
+    #     default=None,
+    #     description="WW3 variable name to set as active. When provided, the corresponding boolean field will be set to True. This field is excluded from rendering output.",
+    #     exclude=True,  # Exclude this from serialization/rendering
+    #     choices=[*FIELD_VARIABLE_CHOICES],
+    # )
 
     ice_param1: Optional[bool] = Field(
         default=None, description="Ice thickness (1-component)"
@@ -196,8 +196,8 @@ class ForcingField(NamelistBaseModel):
     def ww3_var_name(self) -> Optional[str]:
         """Get the WW3 variable name corresponding to the field set to True."""
         # If variable was explicitly set, return it
-        if self.variable is not None:
-            return self.variable
+        # if self.variable is not None:
+        #     return self.variable
 
         field_to_var_map = {
             "ice_param1": "ICE_THICKNESS",
@@ -315,7 +315,7 @@ class Forcing(NamelistBaseModel):
         default=None, description="Forcing field parameters"
     )
     grid: Optional[ForcingGrid] = Field(
-        default=None, description="Forcing grid parameters"
+        default_factory=ForcingGrid, description="Forcing grid parameters"
     )
     tidal: Optional[str] = Field(
         default=None, description="Tidal constituents [FAST | VFAST | 'M2 S2 N2']"
