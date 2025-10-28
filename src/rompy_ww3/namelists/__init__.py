@@ -25,7 +25,6 @@ from .field import Field
 from .point import Point, PointFile
 from .restart import Restart, Update
 from .unformatted import UnformattedOutput
-from .pointoutput import PointOutput
 from .restartupdate import RestartUpdate
 from .depth import Depth
 from .mask import Mask
@@ -81,7 +80,6 @@ __all__ = [
     "Restart",
     "Update",
     "UnformattedOutput",
-    "PointOutput",
     "RestartUpdate",
     "Depth",
     "Mask",

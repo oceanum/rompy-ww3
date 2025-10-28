@@ -49,3 +49,7 @@ class PointFile(NamelistBaseModel):
         default=None, description="Prefix for output file name"
     )
     netcdf: Optional[int] = Field(default=None, description="Netcdf version [3|4]")
+
+    def get_namelist_name(self) -> str:
+        """Return the specific namelist name for FILE_NML."""
+        return "FILE_NML"

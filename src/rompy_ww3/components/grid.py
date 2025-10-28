@@ -1,6 +1,7 @@
 """Grid component for WW3 configuration."""
 
 from typing import Optional
+from pydantic import model_validator
 from ..namelists.spectrum import Spectrum
 from ..namelists.run import Run
 from ..namelists.timesteps import Timesteps
@@ -21,6 +22,10 @@ from .basemodel import WW3ComponentBaseModel
 
 from rompy.core.grid import BaseGrid
 import numpy as np
+from rompy.logging import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class Grid(WW3ComponentBaseModel, BaseGrid):
@@ -46,6 +51,40 @@ class Grid(WW3ComponentBaseModel, BaseGrid):
     smc: Optional[Smc] = None
     grid: Optional[Grid] = None
     rect: Optional[Rect] = None
+
+    @model_validator(mode="after")
+    def validate_grid_closure(self):
+        """
+        Validator to check for grid closure.
+        If grid.rect is not None and grid.rect.nx * grid.rect.sx = 360,
+        then grid.grid.clos (GRID_NML%clos) should be set to 'SMPL'.
+        """
+        if self.rect is not None:
+            # Check if the grid spans 360 degrees in longitude (x-direction)
+            # which indicates a closed/periodic grid in longitude
+            longitude_extent = self.rect.nx * self.rect.sx
+            if (
+                abs(longitude_extent - 360.0) < 1e-6
+            ):  # Account for floating point precision
+                # If grid closure is needed, ensure clos parameter is set to 'SMPL'
+                if self.grid is not None:
+                    if self.grid.clos != "SMPL":
+                        logger.warning(
+                            f"Grid spans 360 degrees longitude ({self.rect.nx} * {self.rect.sx} = {longitude_extent}), "
+                            f"but clos is set to '{self.grid.clos}'. Setting to 'SMPL' for proper closure."
+                        )
+                        self.grid.clos = "SMPL"
+                else:
+                    # If grid namelist doesn't exist, create it with clos = 'SMPL'
+                    logger.warning(
+                        f"Grid spans 360 degrees longitude ({self.rect.nx} * {self.rect.sx} = {longitude_extent}), "
+                        f"but no GRID_NML component exists. Creating GRID_NML with clos='SMPL' for proper closure."
+                    )
+                    from ..namelists.grid import Grid as GridNML
+
+                    self.grid = GridNML(clos="SMPL")
+
+        return self
 
     @property
     def x(self) -> np.ndarray:
