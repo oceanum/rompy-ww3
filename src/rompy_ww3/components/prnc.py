@@ -21,10 +21,5 @@ class Prnc(WW3ComponentBaseModel):
         return f"ww3_prnc.{self.forcing.ww3_var_name}"
 
     @property
-    def run_cmd(self) -> str:
-        """Get the default run command for this component"""
-        cmd = [
-            f"ln -sf {self.file.filename} ww3_prnc.nml \n",
-            f"ww3_{self.__class__.__name__.lower()}",
-        ]
-        return "".join(cmd)
+    def prepend_cmd(self) -> str:
+        return f"ln -sf {self.nml_filename} ww3_prnc.nml"

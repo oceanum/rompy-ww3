@@ -19,7 +19,11 @@ from ..namelists.grid import Grid, Rect
 from .basemodel import WW3ComponentBaseModel
 
 
-class Grid(WW3ComponentBaseModel):
+from rompy.core.grid import BaseGrid
+import numpy as np
+
+
+class Grid(WW3ComponentBaseModel, BaseGrid):
     """Component for ww3_grid.nml containing grid configuration."""
 
     spectrum: Optional[Spectrum] = None
@@ -40,5 +44,17 @@ class Grid(WW3ComponentBaseModel):
     curv: Optional[Curv] = None
     unst: Optional[Unst] = None
     smc: Optional[Smc] = None
-    grid_nml: Optional[Grid] = None
-    rect_nml: Optional[Rect] = None
+    grid: Optional[Grid] = None
+    rect: Optional[Rect] = None
+
+    @property
+    def x(self) -> np.ndarray:
+        return np.linspace(
+            self.rect.x0, self.rect.x0 + self.rect.sx * (self.rect.nx - 1), self.rect.nx
+        )
+
+    @property
+    def y(self) -> np.ndarray:
+        return np.linspace(
+            self.rect.y0, self.rect.y0 + self.rect.sy * (self.rect.ny - 1), self.rect.ny
+        )
