@@ -45,17 +45,17 @@ class BaseWW3Config(BaseConfig):
     def components(self) -> List[str]:
         """Return a list of component names for WW3 namelists."""
         return [
-            "grid_component",
-            "boundary_component",
+            "ww3_grid",
+            "ww3_bound",
             "boundary_update_component",
-            "parameters_component",
-            "field_preprocessor_component",
-            "shell_component",
+            "namelists",
+            "ww3_prnc",
+            "ww3_shel",
             "multi_component",
-            "track_component",
-            "field_output_component",
-            "point_output_component",
-            "restart_update_component",
+            "ww3_track",
+            "ww3_ounf",
+            "ww3_ounp",
+            "ww3_upstr",
         ]
 
     def write_control_files(self, runtime) -> None:
@@ -67,13 +67,13 @@ class BaseWW3Config(BaseConfig):
                     for idx, sub_component in enumerate(component):
                         sub_component.write_nml(
                             destdir=runtime.staging_dir,
-                            grid=self.grid_component,
+                            grid=self.ww3_grid,
                             time=runtime.period,
                         )
                 else:
                     component.write_nml(
                         destdir=runtime.staging_dir,
-                        grid=self.grid_component,
+                        grid=self.ww3_grid,
                         time=runtime.period,
                     )
 
@@ -85,20 +85,20 @@ class BaseWW3Config(BaseConfig):
         full = ["#!/bin/bash"]
 
         for component_name in self.components:
-            if component_name == "parameters_component":
+            if component_name == "namelists":
                 continue  # Namelists component does not have a run command
             component = getattr(self, component_name)
             if component is not None:
-                if component_name in ("multi_component", "shell_component"):
+                if component_name in ("multi_component", "ww3_shel"):
                     run.append(component.run_cmd)
                     full.append(component.run_cmd)
                 elif component_name in (
-                    "grid_component",
-                    "boundary_component",
+                    "ww3_grid",
+                    "ww3_bound",
                 ):
                     preprocess.append(component.run_cmd)
                     full.append(component.run_cmd)
-                elif component_name in ("field_preprocessor_component",):
+                elif component_name in ("ww3_prnc",):
                     if isinstance(component, list):
                         for sub_component in component:
                             preprocess.append(sub_component.run_cmd)
@@ -107,8 +107,8 @@ class BaseWW3Config(BaseConfig):
                         preprocess.append(component.run_cmd)
                         full.append(component.run_cmd)
                 elif component_name in (
-                    "field_output_component",
-                    "point_output_component",
+                    "ww3_ounf",
+                    "ww3_ounp",
                 ):
                     post.append(component.run_cmd)
                     full.append(component.run_cmd)
@@ -146,41 +146,41 @@ class NMLConfig(BaseWW3Config):
         return str(HERE / "templates" / "base" / "ww3_shel.nml")
 
     # WW3-specific component configurations
-    shell_component: Optional[Shel] = PydanticField(
+    ww3_shel: Optional[Shel] = PydanticField(
         default=None, description="Shell component (ww3_shel.nml) configuration"
     )
-    grid_component: Optional[Grid] = PydanticField(
+    ww3_grid: Optional[Grid] = PydanticField(
         default=None, description="Grid component (ww3_grid.nml) configuration"
     )
     multi_component: Optional[Multi] = PydanticField(
         default=None, description="Multi-grid component (ww3_multi.nml) configuration"
     )
-    boundary_component: Optional[Bound] = PydanticField(
+    ww3_bound: Optional[Bound] = PydanticField(
         default=None, description="Boundary component (ww3_bound.nml) configuration"
     )
     boundary_update_component: Optional[Bounc] = PydanticField(
         default=None,
         description="Boundary update component (ww3_bounc.nml) configuration",
     )
-    field_preprocessor_component: Optional[list[Prnc]] = PydanticField(
+    ww3_prnc: Optional[list[Prnc]] = PydanticField(
         default=None,
         description="Field preprocessor component (ww3_prnc.nml) configuration",
     )
-    track_component: Optional[Trnc] = PydanticField(
+    ww3_track: Optional[Trnc] = PydanticField(
         default=None, description="Track component (ww3_trnc.nml) configuration"
     )
-    field_output_component: Optional[Ounf] = PydanticField(
+    ww3_ounf: Optional[Ounf] = PydanticField(
         default=None,
         description="Field output component (ww3_ounf.nml) configuration",
     )
-    point_output_component: Optional[Ounp] = PydanticField(
+    ww3_ounp: Optional[Ounp] = PydanticField(
         default=None, description="Point output component (ww3_ounp.nml) configuration"
     )
-    restart_update_component: Optional[Uptstr] = PydanticField(
+    ww3_upstr: Optional[Uptstr] = PydanticField(
         default=None,
         description="Restart update component (ww3_uprstr.nml) configuration",
     )
-    parameters_component: Optional[Namelists] = PydanticField(
+    namelists: Optional[Namelists] = PydanticField(
         default=None, description="Namelists component (namelists.nml) configuration"
     )
 
@@ -288,38 +288,38 @@ class WW3ShelConfig(BaseConfig):
     )
 
     # Optional component configurations (for advanced users who need direct namelist control)
-    shell_component: Optional[Shel] = PydanticField(
+    ww3_shel: Optional[Shel] = PydanticField(
         default=None, description="Shell component (ww3_shel.nml) configuration"
     )
-    grid_component: Optional[Grid] = PydanticField(
+    ww3_grid: Optional[Grid] = PydanticField(
         default=None, description="Grid component (ww3_grid.nml) configuration"
     )
-    boundary_component: Optional[Bound] = PydanticField(
+    ww3_bound: Optional[Bound] = PydanticField(
         default=None, description="Boundary component (ww3_bound.nml) configuration"
     )
     boundary_update_component: Optional[Bounc] = PydanticField(
         default=None,
         description="Boundary update component (ww3_bounc.nml) configuration",
     )
-    field_preprocessor_component: Optional[Prnc] = PydanticField(
+    ww3_prnc: Optional[Prnc] = PydanticField(
         default=None,
         description="Field preprocessor component (ww3_prnc.nml) configuration",
     )
-    track_component: Optional[Trnc] = PydanticField(
+    ww3_track: Optional[Trnc] = PydanticField(
         default=None, description="Track component (ww3_trnc.nml) configuration"
     )
-    field_output_component: Optional[Ounf] = PydanticField(
+    ww3_ounf: Optional[Ounf] = PydanticField(
         default=None,
         description="Field output component (ww3_ounf.nml) configuration",
     )
-    point_output_component: Optional[Ounp] = PydanticField(
+    ww3_ounp: Optional[Ounp] = PydanticField(
         default=None, description="Point output component (ww3_ounp.nml) configuration"
     )
-    restart_update_component: Optional[Uptstr] = PydanticField(
+    ww3_upstr: Optional[Uptstr] = PydanticField(
         default=None,
         description="Restart update component (ww3_uprstr.nml) configuration",
     )
-    parameters_component: Optional[Namelists] = PydanticField(
+    namelists: Optional[Namelists] = PydanticField(
         default=None, description="Namelists component (namelists.nml) configuration"
     )
 
