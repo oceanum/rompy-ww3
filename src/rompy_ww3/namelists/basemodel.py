@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Union
 from pydantic import BaseModel, model_serializer, model_validator
-from rompy.model import RompyBaseModel
+
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +17,8 @@ def boolean_to_string(value: bool) -> str:
 
 def camel_to_snake(name: str) -> str:
     """Convert camelCase to snake_case."""
-    s1 = re.sub("(.)([A-Z][a-z]+)", r"\\1_\\2", name)
-    s2 = re.sub("([a-z0-9])([A-Z])", r"\\1_\\2", s1)
+    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    s2 = re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1)
     return s2.upper()
 
 
@@ -43,6 +43,16 @@ class NamelistBaseModel(BaseModel):
             return {k.lower(): v for k, v in values.items()}
         return values
 
+    def process_key(self, key: str) -> str:
+        if key == "var1":
+            return "VAR(1)"
+        elif key == "var2":
+            return "VAR(2)"
+        elif key == "var3":
+            return "VAR(3)"
+        else:
+            return key.upper()
+
     def process_value(self, value: Any) -> Any:
         """Process value for namelist formatting."""
         if isinstance(value, bool):
@@ -53,7 +63,22 @@ class NamelistBaseModel(BaseModel):
             #     return value
             return f"'{value}'"
         elif isinstance(value, list):
-            return ", ".join([str(self.process_value(v)) for v in value])
+            processed_items = []
+            for item in value:
+                if isinstance(item, dict) or hasattr(item, "model_dump"):
+                    # For complex objects in lists, convert to string representation
+                    if hasattr(item, "model_dump"):
+                        item_dict = item.model_dump()
+                        processed_items.append(str(item_dict))
+                    else:
+                        processed_items.append(str(item))
+                else:
+                    processed_items.append(str(self.process_value(item)))
+            return ", ".join(processed_items)
+        elif hasattr(value, "model_dump"):
+            # Convert BaseModel instances to dictionary and then to string
+            return str(value.model_dump())
+
         return value
 
     def get_namelist_name(self) -> str:
@@ -129,53 +154,72 @@ class NamelistBaseModel(BaseModel):
         if namelist_prefix.startswith("OUTPUT_"):
             namelist_prefix = namelist_prefix[7:]
 
-        # Process each field
-        comma_fields = getattr(self, "_comma_fields", [])
+        # Process each field recursively
+        self._render_recursive(
+            model_data, lines, namelist_prefix, self, *args, **kwargs
+        )
 
-        for key, value in model_data.items():
-            nml = getattr(self, key)
-            if isinstance(nml, RompyBaseModel) and value is not None:
-                value = nml.get(*args, **kwargs)
-                # Get the rendered output of the nested object
-            # Handle nested objects that are dictionaries
+        lines.append("/")
+        return "\n".join(lines)
+
+    def _render_recursive(
+        self, data, lines, prefix, parent_obj, path="", *args, **kwargs
+    ):
+        """Recursively render nested objects with proper formatting."""
+        comma_fields = getattr(parent_obj, "_comma_fields", [])
+
+        for key, value in data.items():
+            current_obj = getattr(parent_obj, key, None)
+
+            # Check if it's a nested RompyBaseModel instance
+            # Using string-based check to avoid circular imports during model loading
+            if hasattr(current_obj, "model_dump") and value is not None:
+                # Check if the object has a get() method
+                if hasattr(current_obj, "get") and callable(
+                    getattr(current_obj, "get")
+                ):
+                    logger.info(
+                        f"Calling get() method on object: {type(current_obj).__name__}"
+                    )
+                    value = current_obj.get(
+                        *args, **kwargs
+                    )  # Get the value by calling get() method
+                else:
+                    value = current_obj.model_dump()  # Get the nested model's data
+
+            # Build the current path for the namelist key
+            current_path = (
+                f"{path}%{self.process_key(key)}"
+                if path
+                else f"{prefix}%{self.process_key(key)}"
+            )
+
             if isinstance(value, dict):
-                # Handle nested objects like forcing, field, etc.
-                for sub_key, sub_value in value.items():
-                    if sub_value is not None:
-                        sub_nml = getattr(nml, sub_key)
-                        if (
-                            isinstance(sub_nml, RompyBaseModel)
-                            and sub_value is not None
-                        ):
-                            sub_value = sub_nml.get(*args, **kwargs)
-                        # Format the key as NAMELIST%PARENT%CHILD for nested objects
-                        formatted_key = (
-                            f"{namelist_prefix}%{key.upper()}%{sub_key.upper()}"
-                        )
-                        processed_value = self.process_value(sub_value)
-
-                        # Add trailing comma if needed
-                        if sub_key in comma_fields:
-                            line = f"  {formatted_key} = {processed_value},"
-                        else:
-                            line = f"  {formatted_key} = {processed_value}"
-
-                        lines.append(line)
+                # Recursively process nested dictionaries
+                self._render_recursive(
+                    value, lines, prefix, current_obj, current_path, *args, **kwargs
+                )
+            elif isinstance(value, list):
+                # Handle lists
+                processed_value = self.process_value(value)
+                line = f"  {current_path} = {processed_value}"
+                lines.append(line)
             else:
-                # Handle simple fields with namelist prefix
-                formatted_key = f"{namelist_prefix}%{key.upper()}"
+                if hasattr(value, "get") and callable(getattr(value, "get")):
+                    logger.info(
+                        f"Calling get() method on value: {type(value).__name__}"
+                    )
+                    value = value.get()
+                # Handle simple values
                 processed_value = self.process_value(value)
 
                 # Add trailing comma if needed
                 if key in comma_fields:
-                    line = f"  {formatted_key} = {processed_value},"
+                    line = f"  {current_path} = {processed_value},"
                 else:
-                    line = f"  {formatted_key} = {processed_value}"
+                    line = f"  {current_path} = {processed_value}"
 
                 lines.append(line)
-
-        lines.append("/")
-        return "\n".join(lines)
 
     def write_nml(self, destdir: Union[Path, str], *args, **kwargs) -> None:
         """Write namelist to file."""

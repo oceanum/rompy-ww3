@@ -4,6 +4,7 @@ from typing import Any, Union
 from pathlib import Path
 import logging
 from pydantic import BaseModel
+from ..namelists.basemodel import NamelistBaseModel
 
 from ..settings import WW3_DIR
 
@@ -23,13 +24,15 @@ class WW3ComponentBaseModel(BaseModel):
         for key, value in model_data.items():
             if value is None:
                 continue
-            if isinstance(value, list):
-                nmllist = getattr(self, key)
-                for item in nmllist:
-                    content.append(item.render(*args, **kwargs))
             else:
                 nml = getattr(self, key)
-                content.append(nml.render(*args, **kwargs))
+                if not isinstance(nml, NamelistBaseModel):
+                    continue
+                if isinstance(value, list):
+                    for item in nml:
+                        content.append(item.render(*args, **kwargs))
+                else:
+                    content.append(nml.render(*args, **kwargs))
         return "\n".join(content)
 
     @property
@@ -38,16 +41,25 @@ class WW3ComponentBaseModel(BaseModel):
         return f"ww3_{self.__class__.__name__.lower()}.nml"
 
     @property
+    def prepend_cmd(self) -> str:
+        """Get the string to prepend to the namelist file."""
+        return None
+
+    @property
     def run_cmd(self) -> str:
         """Get the default run command for this component"""
         name = self.__class__.__name__.lower()
         # Construct the to run and print logs to stout as well as save to file
+        cmdlist = []
+        if self.prepend_cmd:
+            cmdlist.append(self.prepend_cmd)
         cmd = f"ww3_{name}"
         if WW3_DIR:
-            return f"{WW3_DIR}/{cmd}"
+            cmdlist.append(f"{WW3_DIR}/{cmd}")
         else:
             # assume binary is in PATH
-            return cmd
+            cmdlist.append(cmd)
+        return "\n".join(cmdlist)
 
     def write_nml(self, destdir: Union[Path, str], *args, **kwargs) -> None:
         """Write the rendered component to a namelist file.
