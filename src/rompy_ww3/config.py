@@ -7,8 +7,6 @@ from typing import Literal, Optional, List, Dict, Any
 from pydantic import Field as PydanticField, model_validator
 
 from rompy.core.config import BaseConfig
-from rompy_ww3.data import AnyWW3Data
-from rompy_ww3.grid import AnyWw3Grid
 
 from .components import (
     Shel,
@@ -190,6 +188,8 @@ class NMLConfig(BaseWW3Config):
         Synchronize field list between shell output_type and field output components.
         If ww3_shel.output_type.field.list is set but ww3_ounf.field.list is not set,
         then set ww3_ounf.field.list to the same value.
+        Also synchronize forcing parameters: if ww3_prnc.forcing[n].field.winds='T',
+        then ww3_shel.input_nml.forcing.winds should also be 'T' and so on for all forcing types.
         """
         # Check if ww3_shel and its output_type exist and have field.list set
         if (
@@ -207,6 +207,72 @@ class NMLConfig(BaseWW3Config):
             ):
                 # Set the field list from shel to ounf
                 self.ww3_ounf.field.list = shel_field_list
+
+        # Define mapping between forcing field boolean attributes and input forcing string attributes
+        # Both share the same attribute names for the forcing types
+        forcing_mapping = [
+            "winds",
+            "currents",
+            "water_levels",
+            "atm_momentum",
+            "air_density",
+            "ice_conc",
+            "ice_param1",
+            "ice_param2",
+            "ice_param3",
+            "ice_param4",
+            "ice_param5",
+            "mud_density",
+            "mud_thickness",
+            "mud_viscosity",
+        ]
+
+        # Synchronize forcing parameters between ww3_prnc and ww3_shel.input_nml
+        # For each active forcing in ww3_prnc, set the corresponding input forcing flag to 'T'
+        # Make it cumulative across multiple PRNC components
+        if self.ww3_prnc and isinstance(self.ww3_prnc, list):
+            # Process all PRNC components to collect all active forcing types
+            active_forcings = {}
+
+            for prnc_component in self.ww3_prnc:
+                if (
+                    prnc_component
+                    and prnc_component.forcing
+                    and prnc_component.forcing.field
+                ):
+                    # Check each forcing type in the mapping
+                    for forcing_type in forcing_mapping:
+                        forcing_attr = getattr(
+                            prnc_component.forcing.field, forcing_type, None
+                        )
+                        if forcing_attr is True:  # If the forcing is active in prnc
+                            active_forcings[forcing_type] = "T"
+
+            # Apply all active forcings to the shel input
+            if active_forcings:  # If we found any active forcings
+                # Ensure ww3_shel exists
+                if self.ww3_shel:
+                    # Ensure input_nml exists
+                    if not self.ww3_shel.input_nml:
+                        from rompy_ww3.namelists.input import Input
+
+                        self.ww3_shel.input_nml = Input()
+
+                    # Ensure input_nml.forcing exists
+                    if not self.ww3_shel.input_nml.forcing:
+                        from rompy_ww3.namelists.input import InputForcing
+
+                        self.ww3_shel.input_nml.forcing = InputForcing()
+
+                    # Apply each active forcing if not already set
+                    for forcing_type, value in active_forcings.items():
+                        current_value = getattr(
+                            self.ww3_shel.input_nml.forcing, forcing_type
+                        )
+                        if current_value is None:
+                            setattr(
+                                self.ww3_shel.input_nml.forcing, forcing_type, value
+                            )
         return self
 
     def __call__(self, runtime) -> dict:
@@ -287,94 +353,3 @@ class NMLConfig(BaseWW3Config):
         context["namelists"] = self.render_namelists()
 
         return context
-
-
-class WW3ShelConfig(BaseConfig):
-    """WW3 high-level config class that works with grid/data objects.
-
-    This class accepts high-level objects (grid, data) and internally manages
-    the conversion to appropriate namelist objects for WW3.
-    """
-
-    model_type: Literal["ww3"] = PydanticField(
-        default="ww3",
-        description="Model type discriminator",
-    )
-    template: str = PydanticField(
-        default=str(HERE / "templates" / "base"),
-        description="The model config template directory",
-    )
-
-    grid: Optional[AnyWw3Grid] = PydanticField(
-        default=None, description="WW3 Grid object configuration"
-    )
-    data: Optional[List["AnyWW3Data"]] = PydanticField(
-        default=None, description="WW3 Data object for forcing data"
-    )
-
-    # Optional component configurations (for advanced users who need direct namelist control)
-    ww3_shel: Optional[Shel] = PydanticField(
-        default=None, description="Shell component (ww3_shel.nml) configuration"
-    )
-    ww3_grid: Optional[Grid] = PydanticField(
-        default=None, description="Grid component (ww3_grid.nml) configuration"
-    )
-    ww3_bound: Optional[Bound] = PydanticField(
-        default=None, description="Boundary component (ww3_bound.nml) configuration"
-    )
-    boundary_update_component: Optional[Bounc] = PydanticField(
-        default=None,
-        description="Boundary update component (ww3_bounc.nml) configuration",
-    )
-    ww3_prnc: Optional[Prnc] = PydanticField(
-        default=None,
-        description="Field preprocessor component (ww3_prnc.nml) configuration",
-    )
-    ww3_track: Optional[Trnc] = PydanticField(
-        default=None, description="Track component (ww3_trnc.nml) configuration"
-    )
-    ww3_ounf: Optional[Ounf] = PydanticField(
-        default=None,
-        description="Field output component (ww3_ounf.nml) configuration",
-    )
-    ww3_ounp: Optional[Ounp] = PydanticField(
-        default=None, description="Point output component (ww3_ounp.nml) configuration"
-    )
-    ww3_upstr: Optional[Uptstr] = PydanticField(
-        default=None,
-        description="Restart update component (ww3_uprstr.nml) configuration",
-    )
-    namelists: Optional[Namelists] = PydanticField(
-        default=None, description="Namelists component (namelists.nml) configuration"
-    )
-
-    @model_validator(mode="after")
-    def sync_component_fields(self):
-        """
-        Synchronize field list between shell output_type and field output components.
-        If ww3_shel.output_type.field.list is set but ww3_ounf.field.list is not set,
-        then set ww3_ounf.field.list to the same value.
-        """
-        # Check if ww3_shel and its output_type exist and have field.list set
-        if (
-            self.ww3_shel
-            and self.ww3_shel.output_type
-            and self.ww3_shel.output_type.field
-        ):
-            shel_field_list = self.ww3_shel.output_type.field.list
-            # Check if ww3_ounf exists and its field.list is not set
-            if (
-                self.ww3_ounf
-                and self.ww3_ounf.field
-                and shel_field_list is not None
-                and self.ww3_ounf.field.list is None
-            ):
-                # Set the field list from shel to ounf
-                self.ww3_ounf.field.list = shel_field_list
-        return self
-
-    def __call__(self, runtime) -> dict:
-        """Callable where data and config are interfaced and CMD is rendered."""
-
-        # Set default dates from the runtime period if available
-        self._set_default_dates(runtime)
