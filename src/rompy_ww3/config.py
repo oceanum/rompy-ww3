@@ -339,6 +339,51 @@ class NMLConfig(BaseWW3Config):
                                 ):
                                     self._set_component_dates_recursive(item, period)
 
+    def render_namelists(self) -> Dict[str, str]:
+        """Render all component namelists as a dictionary of strings.
+
+        Returns:
+            Dictionary containing rendered namelist content keyed by filename
+        """
+        namelists = {}
+
+        # Render each component's namelist if it exists
+        for component_name in self.components:
+            component = getattr(self, component_name, None)
+            if component is not None:
+                # Handle both single components and lists of components
+                if isinstance(component, list):
+                    for idx, sub_component in enumerate(component):
+                        if hasattr(sub_component, "render"):
+                            key = f"{component_name}_{idx}.nml"
+                            namelists[key] = sub_component.render()
+                        elif hasattr(
+                            sub_component, "get_template_context"
+                        ):  # If it's a custom component
+                            sub_context = sub_component.get_template_context()
+                            if "namelists" in sub_context:
+                                for sub_key, sub_content in sub_context[
+                                    "namelists"
+                                ].items():
+                                    namelists[f"{component_name}_{idx}_{sub_key}"] = (
+                                        sub_content
+                                    )
+                else:
+                    if hasattr(component, "render"):
+                        key = f"{component_name}.nml"
+                        namelists[key] = component.render()
+                    elif hasattr(
+                        component, "get_template_context"
+                    ):  # If it's a custom component
+                        sub_context = component.get_template_context()
+                        if "namelists" in sub_context:
+                            for sub_key, sub_content in sub_context[
+                                "namelists"
+                            ].items():
+                                namelists[f"{sub_key}"] = sub_content
+
+        return namelists
+
     def get_template_context(self) -> Dict[str, Any]:
         """Generate template context for Jinja2 templates.
 

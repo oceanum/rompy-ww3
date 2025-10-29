@@ -16,9 +16,7 @@ from rompy_ww3.namelists import (
     Point,
     Restart,
     Update,
-    PointOutput,
     RestartUpdate,
-    ModelParameters,
 )
 
 
@@ -125,7 +123,7 @@ def test_forcing_nml():
     forcing = Forcing(
         timestart="20230101 000000",
         timestop="20230107 000000",
-        field={"winds": True, "water_levels": True},
+        field={"winds": True},  # Only one field can be True
         grid={"latlon": True},
     )
 
@@ -137,7 +135,6 @@ def test_forcing_nml():
     assert "FORCING%TIMESTART" in rendered
     assert "FORCING%TIMESTOP" in rendered
     assert "FORCING%FIELD%WINDS" in rendered
-    assert "FORCING%FIELD%WATER_LEVELS" in rendered
     assert "FORCING%GRID%LATLON" in rendered
     assert "/" in rendered
 
@@ -270,23 +267,10 @@ def test_file_writing():
         # Update
         update = Update(restarttime="20230101 000000")
         update.write_nml(tmp_path)
-        # PointOutput
-        point_output = PointOutput(file="points.out", buffer=10)
-        point_output.write_nml(tmp_path)
-        assert (tmp_path / "pointoutput.nml").exists()
         # RestartUpdate
-        restart_update = RestartUpdate(restarttime="20230101 000000")
+        restart_update = RestartUpdate(update_time="20230101 000000")
         restart_update.write_nml(tmp_path)
         assert (tmp_path / "restartupdate.nml").exists()
-        # ModelParameters
-        parameters = ModelParameters(gravity=9.81, water_density=1025.0)
-        parameters.write_nml(tmp_path)
-        assert (tmp_path / "modelparameters.nml").exists()
-
-        # ModelParameters
-        parameters = ModelParameters(gravity=9.81, water_density=1025.0)
-        parameters.write_nml(tmp_path)
-        assert (tmp_path / "modelparameters.nml").exists()
 
 
 def test_all_namelist_names():
