@@ -294,14 +294,87 @@ class NMLConfig(BaseWW3Config):
         if not period:
             return  # No period to use for defaults
 
+        # Convert interval to seconds if it exists
+        interval_seconds = None
+        if hasattr(period, "interval") and period.interval:
+            interval_seconds = int(period.interval.total_seconds())
+
+        # Special handling for shell component: if output_type is active but output_date is not set,
+        # initialize output_date and its sub-components to ensure dates are set properly
+        if self.ww3_shel and self.ww3_shel.output_type:
+            from rompy_ww3.namelists.output_date import (
+                OutputDate,
+                OutputDateField,
+                OutputDatePoint,
+                OutputDateTrack,
+                OutputDateRestart,
+                OutputDatePartition,
+                OutputDateCoupling,
+            )
+
+            # Check if any output type is active (not None) and initialize corresponding output_date components
+            needs_output_date = (
+                self.ww3_shel.output_type.field
+                or self.ww3_shel.output_type.point
+                or self.ww3_shel.output_type.track
+                or self.ww3_shel.output_type.partition
+                or self.ww3_shel.output_type.coupling
+                or self.ww3_shel.output_type.restart
+            )
+
+            if needs_output_date:
+                # If output_date is None, create an empty one
+                if self.ww3_shel.output_date is None:
+                    self.ww3_shel.output_date = OutputDate()
+
+                # Initialize specific output_date components that correspond to active output_types
+                if (
+                    self.ww3_shel.output_type.field
+                    and self.ww3_shel.output_date.field is None
+                ):
+                    self.ww3_shel.output_date.field = OutputDateField()
+                if (
+                    self.ww3_shel.output_type.point
+                    and self.ww3_shel.output_date.point is None
+                ):
+                    self.ww3_shel.output_date.point = OutputDatePoint()
+                if (
+                    self.ww3_shel.output_type.track
+                    and self.ww3_shel.output_date.track is None
+                ):
+                    self.ww3_shel.output_date.track = OutputDateTrack()
+                if (
+                    self.ww3_shel.output_type.restart
+                    and self.ww3_shel.output_date.restart is None
+                ):
+                    self.ww3_shel.output_date.restart = OutputDateRestart()
+                if (
+                    self.ww3_shel.output_type.partition
+                    and self.ww3_shel.output_date.partition is None
+                ):
+                    self.ww3_shel.output_date.partition = OutputDatePartition()
+                if (
+                    self.ww3_shel.output_type.coupling
+                    and self.ww3_shel.output_date.coupling is None
+                ):
+                    self.ww3_shel.output_date.coupling = OutputDateCoupling()
+
         # Iterate through all attributes of this config instance
         for attr_name in self.components:
             component = getattr(self, attr_name)
             if component is not None:
                 self._set_component_dates_recursive(component, period)
+                # Also set stride if interval exists
+                if interval_seconds is not None:
+                    self._set_component_stride_recursive(component, interval_seconds)
             if isinstance(component, list):
                 for sub_component in component:
                     self._set_component_dates_recursive(sub_component, period)
+                    # Also set stride if interval exists
+                    if interval_seconds is not None:
+                        self._set_component_stride_recursive(
+                            sub_component, interval_seconds
+                        )
 
     def _set_component_dates_recursive(self, obj, period):
         """
@@ -338,6 +411,50 @@ class NMLConfig(BaseWW3Config):
                                     item, (str, int, float, bool, dict)
                                 ):
                                     self._set_component_dates_recursive(item, period)
+
+    def _set_component_stride_recursive(self, obj, interval_seconds):
+        """
+        Recursively find and set stride fields in a component and its nested objects.
+
+        Args:
+            obj: The object to process
+            interval_seconds: The time interval in seconds to use for default stride
+        """
+        # If this is a namelist object with stride attribute, set it if not already set
+        if hasattr(obj, "stride") and getattr(obj, "stride") is None:
+            obj.stride = str(interval_seconds)
+        # If this is a namelist object with timestride attribute, set it if not already set
+        if hasattr(obj, "timestride") and getattr(obj, "timestride") is None:
+            obj.timestride = str(interval_seconds)
+
+        # For non-namelist objects, process their fields recursively
+        elif hasattr(obj, "__dict__") or hasattr(obj, "__pydantic_fields__"):
+            if hasattr(obj, "model_fields"):
+                # Process Pydantic model fields
+                for field_name in obj.model_fields:
+                    field_value = getattr(obj, field_name)
+                    # Recursively process nested objects
+                    if hasattr(field_value, "__dict__") or hasattr(
+                        field_value, "__pydantic_fields__"
+                    ):
+                        if field_value is not None and not isinstance(
+                            field_value, (str, int, float, bool, list, dict)
+                        ):
+                            self._set_component_stride_recursive(
+                                field_value, interval_seconds
+                            )
+                    # Also process lists of objects
+                    elif isinstance(field_value, list):
+                        for item in field_value:
+                            if hasattr(item, "__dict__") or hasattr(
+                                item, "__pydantic_fields__"
+                            ):
+                                if item is not None and not isinstance(
+                                    item, (str, int, float, bool, dict)
+                                ):
+                                    self._set_component_stride_recursive(
+                                        item, interval_seconds
+                                    )
 
     def render_namelists(self) -> Dict[str, str]:
         """Render all component namelists as a dictionary of strings.
