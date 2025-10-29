@@ -33,6 +33,9 @@ class WW3ComponentBaseModel(BaseModel):
                         content.append(item.render(*args, **kwargs))
                 else:
                     content.append(nml.render(*args, **kwargs))
+        content.append(
+            ""
+        )  # Add final newline (fixes bug in prnc that rquires final newline)
         return "\n".join(content)
 
     @property
