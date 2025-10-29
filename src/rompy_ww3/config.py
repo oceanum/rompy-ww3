@@ -12,7 +12,6 @@ from .components import (
     Shel,
     Grid,
     Multi,
-    Bound,
     Bounc,
     Prnc,
     Trnc,
@@ -44,10 +43,9 @@ class BaseWW3Config(BaseConfig):
         """Return a list of component names for WW3 namelists."""
         return [
             "ww3_grid",
-            "ww3_bound",
-            "boundary_update_component",
             "namelists",
             "ww3_prnc",
+            "ww3_bounc",
             "ww3_shel",
             "multi_component",
             "ww3_track",
@@ -92,7 +90,7 @@ class BaseWW3Config(BaseConfig):
                     full.append(component.run_cmd)
                 elif component_name in (
                     "ww3_grid",
-                    "ww3_bound",
+                    "ww3_bounc",
                 ):
                     preprocess.append(component.run_cmd)
                     full.append(component.run_cmd)
@@ -153,12 +151,9 @@ class NMLConfig(BaseWW3Config):
     multi_component: Optional[Multi] = PydanticField(
         default=None, description="Multi-grid component (ww3_multi.nml) configuration"
     )
-    ww3_bound: Optional[Bound] = PydanticField(
-        default=None, description="Boundary component (ww3_bound.nml) configuration"
-    )
-    boundary_update_component: Optional[Bounc] = PydanticField(
+    ww3_bounc: Optional[Bounc] = PydanticField(
         default=None,
-        description="Boundary update component (ww3_bounc.nml) configuration",
+        description="Boundary component (ww3_bounc.nml) configuration",
     )
     ww3_prnc: Optional[list[Prnc]] = PydanticField(
         default=None,
