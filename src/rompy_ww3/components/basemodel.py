@@ -3,8 +3,8 @@
 from typing import Any, Union
 from pathlib import Path
 import logging
-from pydantic import BaseModel
 from ..namelists.basemodel import NamelistBaseModel
+from rompy.core.types import RompyBaseModel
 
 from ..settings import WW3_DIR
 
@@ -12,7 +12,7 @@ from ..settings import WW3_DIR
 logger = logging.getLogger(__name__)
 
 
-class WW3ComponentBaseModel(BaseModel):
+class WW3ComponentBaseModel(RompyBaseModel):
     """Base class for WW3 components with common rendering functionality."""
 
     def render(self, *args, **kwargs) -> str:

@@ -4,7 +4,8 @@ import logging
 import re
 from pathlib import Path
 from typing import Any, Dict, Union
-from pydantic import BaseModel, model_serializer, model_validator
+from pydantic import model_serializer, model_validator
+from rompy.core.types import RompyBaseModel
 
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ def camel_to_snake(name: str) -> str:
     return s2.upper()
 
 
-class NamelistBaseModel(BaseModel):
+class NamelistBaseModel(RompyBaseModel):
     """Base model for WW3 namelists with render capabilities."""
 
     @model_serializer
