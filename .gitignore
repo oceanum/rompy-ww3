@@ -101,6 +101,8 @@ ENV/
 # mkdocs documentation
 /site
 
+tests/data
+
 # mypy
 .mypy_cache/
 
@@ -112,7 +114,10 @@ ENV/
 .gemini/
 .winsurf/
 .jetbrains/
+.specify/
 
 # WW3 source code
-WW3-6.07.1
+# WW3-6.07.1
+regtests/**/rompy
+simulations/
 
