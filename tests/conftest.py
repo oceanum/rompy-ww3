@@ -18,7 +18,7 @@ import pytest
 import requests
 
 # Import test utilities for logging
-from test_utils.logging import configure_test_logging
+from .test_utils.logging import configure_test_logging
 
 
 DATA_REPO = "rom-py/rompy-test-data"
