@@ -88,12 +88,20 @@ class Grid(WW3ComponentBaseModel, BaseGrid):
 
     @property
     def x(self) -> np.ndarray:
-        return np.linspace(
-            self.rect.x0, self.rect.x0 + self.rect.sx * (self.rect.nx - 1), self.rect.nx
-        )
+        x, y = self.meshgrid
+        return x
 
     @property
     def y(self) -> np.ndarray:
-        return np.linspace(
+        x, y = self.meshgrid
+        return y
+
+    @property
+    def meshgrid(self) -> np.ndarray:
+        x = np.linspace(
+            self.rect.x0, self.rect.x0 + self.rect.sx * (self.rect.nx - 1), self.rect.nx
+        )
+        y = np.linspace(
             self.rect.y0, self.rect.y0 + self.rect.sy * (self.rect.ny - 1), self.rect.ny
         )
+        return np.meshgrid(x, y)
