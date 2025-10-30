@@ -16,13 +16,12 @@ period:
 # Model configuration (equivalent to NMLConfig)
 config:
     model_type: nml
-    template: "/home/tdurrant/source/rompy/rompy-ww3/src/rompy_ww3/templates/base"
 
     # Shell component for ww3_shel.nml (main model configuration)
     shell_component:
         domain:
-            start: "20080522 000000"
-            stop: "20080522 030000"
+            # start: "20080522 000000"
+            # stop: "20080522 030000"
             iostyp: 1 # Output server type from reference
         input_nml: {}
         output_type:
@@ -33,14 +32,14 @@ config:
                     model_type: data_blob
                     source: "regtests/ww3_tp2.4/input/points.list" # Point output file
         output_date:
-            field:
-                start: "20080522 000000"
-                stride: "3600"
-                stop: "20080525 000000"
-            point:
-                start: "20080522 000000"
-                stride: "360"
-                stop: "20080523 000000"
+            # field:
+            #     start: "20080522 000000"
+            #     stride: "3600"
+            #     stop: "20080525 000000"
+            # point:
+            #     start: "20080522 000000"
+            #     stride: "360"
+            #     stop: "20080523 000000"
         homog_count:
             n_wnd: 0 # No wind input for the tp2.4 test (no source terms)
             n_lev: 0
@@ -104,7 +103,7 @@ config:
     # Field output component for ww3_ounf.nml (field output post-processing)
     field_output_component:
         field:
-            timestart: "20080522 000000" # Start time from reference
+            # timestart: "20080522 000000" # Start time from reference
             timestride: "3600" # Time stride from reference (1 hour)
             timecount: "999" # Number of time steps from reference
             list: "DPT HS" # Output fields from reference: water depth and wave height

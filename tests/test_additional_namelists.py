@@ -11,6 +11,7 @@ from rompy_ww3.namelists import (
     Grid,
     Bound,
     Forcing,
+    ForcingField,
     Track,
     Field,
     Point,
@@ -85,7 +86,7 @@ def test_timesteps_nml():
 
 def test_grid_nml():
     """Test GRID_NML namelist."""
-    grid = Grid(name="Test Grid", type="RECT", coord="SPHE", nx=100, ny=50)
+    grid = Grid(name="Test Grid", type="RECT", coord="SPHE")
 
     rendered = grid.render()
     print("\nGRID_NML rendered:")
@@ -240,12 +241,13 @@ def test_file_writing():
         assert (tmp_path / "bound.nml").exists()
 
         # Forcing
-        forcing = Forcing(winds="T", currents="F", water_levels="F")
+        forcing_field = ForcingField(winds=True, currents=False, water_levels=False)
+        forcing = Forcing(field=forcing_field)
         forcing.write_nml(tmp_path)
         assert (tmp_path / "forcing.nml").exists()
 
         # Track
-        track = Track(format=True)
+        track = Track(timestart="20230101 000000", timestride="3600")
         track.write_nml(tmp_path)
         assert (tmp_path / "track.nml").exists()
 
@@ -255,7 +257,7 @@ def test_file_writing():
         assert (tmp_path / "field.nml").exists()
 
         # Point
-        point = Point(file="points.dat", buffer=10)
+        point = Point(buffer=10, list="all")
         point.write_nml(tmp_path)
         assert (tmp_path / "point.nml").exists()
 
@@ -265,7 +267,7 @@ def test_file_writing():
         assert (tmp_path / "restart.nml").exists()
 
         # Update
-        update = Update(restarttime="20230101 000000")
+        update = Update(prcntg=1.0, prcntg_cap=1.1)
         update.write_nml(tmp_path)
         # RestartUpdate
         restart_update = RestartUpdate(update_time="20230101 000000")

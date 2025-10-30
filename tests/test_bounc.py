@@ -19,18 +19,18 @@ def test_bound_nml():
 
 def test_bounc_component():
     """Test Bounc component with boundary configuration."""
-    bounc = Bounc(bound_nml=Bound(mode="READ", file="my_spec.list"))
+    bounc = Bounc(bound=Bound(mode="READ", file="my_spec.list"))
 
-    assert bounc.bound_nml is not None
-    assert bounc.bound_nml.mode == "READ"
-    assert bounc.bound_nml.file == "my_spec.list"
+    assert bounc.bound is not None
+    assert bounc.bound.mode == "READ"
+    assert bounc.bound.file == "my_spec.list"
 
 
 def test_bounc_render():
     """Test that Bounc component can render the namelist."""
-    bounc = Bounc(bound_nml=Bound(mode="WRITE", interp=2, verbose=1, file="spec.list"))
+    bounc = Bounc(bound=Bound(mode="WRITE", interp=2, verbose=1, file="spec.list"))
 
-    content = bounc.bound_nml.render()
+    content = bounc.bound.render()
     assert "&BOUND_NML" in content
     assert "BOUND%MODE = 'WRITE'" in content
     assert "/" in content

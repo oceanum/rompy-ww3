@@ -105,8 +105,6 @@ def test_config_stride_functionality():
     point_component = Point(
         timestride=None,  # Initially None
         list="all",
-        timeunit="S",
-        timeepoch="20230101.000000",
     )
 
     ounp_component = Ounp(point_nml=point_component)
@@ -158,8 +156,6 @@ def test_config_stride_preserves_existing_values():
     point_component_with_stride = Point(
         timestride=existing_stride,  # Initially set to specific value
         list="all",
-        timeunit="S",
-        timeepoch="20230101.000000",
     )
 
     ounp_component = Ounp(point_nml=point_component_with_stride)
