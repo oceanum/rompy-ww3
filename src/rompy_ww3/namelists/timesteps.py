@@ -33,14 +33,57 @@ from .basemodel import NamelistBaseModel
 class Timesteps(NamelistBaseModel):
     """TIMESTEPS_NML namelist for WW3.
 
-    Defines timestep parameterization.
+    The TIMESTEPS_NML namelist defines the timestep parameterization for WAVEWATCH III.
+    Proper timestep selection is critical for model stability and accuracy.
+    
+    The timesteps should be set up as multiples of each other for best results.
+    The time step relationships recommended by WW3 documentation are:
+    - DTXY is the maximum CFL time step for x-y propagation
+    - DTMAX is the maximum global time step (typically ≈ 3 × DTXY)
+    - DTKTH is the maximum CFL time step for k-theta propagation (typically DTMAX/2 to DTMAX/10)
+    - DTMIN is the minimum source term time step (typically between 5-60 seconds)
     """
 
-    dtmax: Optional[float] = Field(..., description="Maximum CFL timestep (seconds)")
-    dtxy: Optional[float] = Field(..., description="Propagation timestep (seconds)")
-    dtkth: Optional[float] = Field(..., description="Refraction timestep (seconds)")
+    dtmax: Optional[float] = Field(
+        ...,
+        description=(
+            "Maximum global time step (seconds). This is the largest time step allowed "
+            "in the model, typically about 3 times the DTXY step to satisfy CFL criteria. "
+            "The formula for the CFL time step depends on the lowest frequency (FREQ1) "
+            "and the lowest spatial grid resolution (DXY): Tcfl = DXY / (G / (FREQ1*4*Pi)) "
+            "where G=9.8m/s². DTMAX is typically around 3 × DTXY."
+        ),
+        gt=0  # Must be positive
+    )
+    dtxy: Optional[float] = Field(
+        ...,
+        description=(
+            "Maximum CFL time step for x-y propagation (seconds). This time step controls "
+            "the spatial advection of wave energy in geographical space. It should be set "
+            "based on the CFL condition and is typically about 90% of the theoretical CFL "
+            "limit: DTXY ≈ 0.9 * DXY / (G / (FREQ1*4*Pi)) where G=9.8m/s²."
+        ),
+        gt=0  # Must be positive
+    )
+    dtkth: Optional[float] = Field(
+        ...,
+        description=(
+            "Maximum CFL time step for k-theta propagation (seconds). This time step controls "
+            "the propagation of wave energy in spectral space (wavenumber and direction). "
+            "The value depends on current velocities: for no/light currents, DTKTH ≈ DTMAX/2, "
+            "while for strong currents, DTKTH ≈ DTMAX/10."
+        ),
+        gt=0  # Must be positive
+    )
     dtmin: Optional[float] = Field(
-        default=10, description="Minimum  time step (seconds)"
+        default=10,
+        description=(
+            "Minimum source term time step (seconds). This controls the time step for "
+            "source term calculations (wind input, nonlinear interactions, dissipation). "
+            "Typical values range between 5 and 60 seconds, with 10 seconds being common."
+        ),
+        ge=0.1,  # Reasonable minimum
+        le=3600  # Reasonable maximum (1 hour)
     )
 
     @model_validator(mode="after")

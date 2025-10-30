@@ -3,8 +3,9 @@
 import logging
 import re
 from pathlib import Path
-from typing import Any, Dict, Union
-from pydantic import model_serializer, model_validator
+from datetime import datetime
+from typing import Any, Dict, Union, Optional
+from pydantic import model_serializer, model_validator, field_validator
 from rompy.core.types import RompyBaseModel
 
 
@@ -16,6 +17,13 @@ def boolean_to_string(value: bool) -> str:
     return "T" if value else "F"
 
 
+def string_to_boolean(value: str) -> bool:
+    """Convert WW3-style string ('T'/'F') to boolean."""
+    if isinstance(value, str):
+        return value.upper() == 'T'
+    return bool(value)
+
+
 def camel_to_snake(name: str) -> str:
     """Convert camelCase to snake_case."""
     s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
@@ -23,8 +31,76 @@ def camel_to_snake(name: str) -> str:
     return s2.upper()
 
 
+def validate_date_format(date_str: str) -> str:
+    """Validate and convert date string to WW3 format (YYYYMMDD HHMMSS)."""
+    if not date_str:
+        return date_str
+        
+    # Check if it's already in the right format
+    if re.match(r'^\d{8}\s\d{6}$', date_str.strip()):
+        return date_str
+    
+    # Try to parse the date string
+    try:
+        # Attempt to parse different date formats
+        if len(date_str) == 15:  # 'YYYYMMDD HHMMSS' format
+            datetime.strptime(date_str, '%Y%m%d %H%M%S')
+            return date_str
+        elif len(date_str) == 17:  # 'YYYYMMDD HHMMSSSSS' format (with extra chars)
+            datetime.strptime(date_str[:15], '%Y%m%d %H%M%S')
+            return date_str[:15]
+        elif '-' in date_str and ':' in date_str:  # 'YYYY-MM-DD HH:MM:SS' format
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+            return date_obj.strftime('%Y%m%d %H%M%S')
+        else:
+            # Try parsing as basic date with time
+            possible_formats = [
+                '%Y/%m/%d %H:%M:%S',
+                '%Y-%m-%d %H:%M',
+                '%Y/%m/%d %H:%M',
+                '%Y-%m-%d',
+                '%Y/%m/%d',
+            ]
+            for fmt in possible_formats:
+                try:
+                    date_obj = datetime.strptime(date_str, fmt)
+                    return date_obj.strftime('%Y%m%d %H%M%S')
+                except ValueError:
+                    continue
+    except ValueError:
+        pass
+    
+    raise ValueError(f"Invalid date format: '{date_str}'. Expected format: 'YYYYMMDD HHMMSS'")
+
+
+def validate_ww3_boolean(value: str) -> str:
+    """Validate WW3 boolean value ('T' or 'F')."""
+    if not isinstance(value, str):
+        raise ValueError(f"Expected string, got {type(value)}")
+    
+    upper_value = value.upper()
+    if upper_value not in ['T', 'F']:
+        raise ValueError(f"Invalid WW3 boolean value: '{value}'. Must be 'T' or 'F'")
+    
+    return upper_value
+
+
+def validate_range(value: float, min_val: float, max_val: float, field_name: str) -> float:
+    """Validate that a value is within a specified range."""
+    if value < min_val or value > max_val:
+        raise ValueError(f"{field_name} value {value} is out of range [{min_val}, {max_val}]")
+    return value
+
+
+def validate_io_type(value: int) -> int:
+    """Validate IOSTYP value (0-3)."""
+    if value not in [0, 1, 2, 3]:
+        raise ValueError(f"IOSTYP value {value} is invalid. Must be 0, 1, 2, or 3")
+    return value
+
+
 class NamelistBaseModel(RompyBaseModel):
-    """Base model for WW3 namelists with render capabilities."""
+    """Base model for WW3 namelists with render capabilities and validation utilities."""
 
     @model_serializer
     def serialize_model(self) -> Dict[str, Any]:
