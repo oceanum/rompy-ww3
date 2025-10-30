@@ -1,0 +1,25 @@
+{
+    "active_agent": "qwen",
+    "configurations": {
+        "qwen": {
+            "context_file": "./.agents/qwen",
+            "target_link": "./qwen",
+            "description": "Qwen configuration"
+        },
+        "cursor": {
+            "context_file": "./.agents/cursor/context.md",
+            "target_link": "./cursor_context.md",
+            "description": "Cursor IDE context file"
+        },
+        "claude": {
+            "context_file": "./.agents/claude/context.md",
+            "target_link": "./claude_context.md",
+            "description": "Claude Desktop context file"
+        },
+        "copilot": {
+            "context_file": "./.agents/copilot/context.md",
+            "target_link": "./copilot_context.md",
+            "description": "GitHub Copilot Chat context file"
+        }
+    }
+}
