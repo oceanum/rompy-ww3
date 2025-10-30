@@ -55,15 +55,13 @@ from rompy_ww3.grid import RectGrid
 from rompy_ww3.namelists.grid import Grid as GRID_NML, Rect
 
 grid = RectGrid(
-    grid_type="base",
-    model_type="ww3_rect",
-    grid_nml=GRID_NML(      # Actual GRID_NML object
+    grid=GRID_NML(      # Actual GRID_NML object
         name="Clean Grid",
         type="RECT",
         coord="SPHE",
         # ... all GRID_NML parameters
     ),
-    rect_nml=Rect(          # Actual Rect object
+    rect=Rect(          # Actual Rect object
         nx=300,
         ny=150,
         sx=0.1,
@@ -83,8 +81,8 @@ Grid classes store and provide direct access to namelist objects:
 
 ```python
 # DIRECT ACCESS - No wrapper methods!
-content = grid.grid_nml.render()   # Direct call to render()
-content = grid.rect_nml.render()    # Direct call to render()
+content = grid.grid.render()   # Direct call to render()
+content = grid.rect.render()    # Direct call to render()
 ```
 
 ### 5. **Union Types for Flexibility**
@@ -92,12 +90,12 @@ content = grid.rect_nml.render()    # Direct call to render()
 The `AnyWw3Grid` union type allows Config to accept any grid type:
 
 ```python
-from rompy_ww3.config import Config
+from rompy_ww3.config import NMLConfig
 from rompy_ww3.grid import RectGrid, CurvGrid, UnstGrid, SmcGrid, AnyWw3Grid
 
 # Config accepts AnyWw3Grid union type
-config = Config(grid=RectGrid(...))   # Works with any grid type
-config = Config(grid=CurvGrid(...))   # Works with any grid type
+config = NMLConfig(ww3_grid=RectGrid(...))   # Works with any grid type
+config = NMLConfig(ww3_grid=CurvGrid(...))   # Works with any grid type
 ```
 
 ## Project Structure
@@ -105,7 +103,7 @@ config = Config(grid=CurvGrid(...))   # Works with any grid type
 - `src/rompy_ww3/`: Main source code directory.
   - `__init__.py`: Package initialization, defines version.
   - `cli.py`: Command-line interface using `typer`.
-  - `config.py`: WW3-specific configuration class (`Config`), inherits from `rompy.core.config.BaseConfig`.
+  - `config.py`: WW3-specific configuration class (`NMLConfig`), inherits from `rompy.core.config.BaseConfig`.
   - `grid.py`: WW3-specific grid classes (`RectGrid`, `CurvGrid`, `UnstGrid`, `SmcGrid`, `AnyWw3Grid`).
   - `data.py`: WW3-specific data handling class (`Data`), inherits from `rompy.core.data.DataGrid`.
   - `source.py`: WW3-specific data source definition (`Ww3Source`), inherits from `rompy.core.source.SourceBase`.
@@ -117,6 +115,36 @@ config = Config(grid=CurvGrid(...))   # Works with any grid type
 - `README.md`: Project introduction, features, and basic usage information.
 - `Makefile`: Defines common development tasks (linting, testing, building, documentation).
 - `requirements_dev.txt`: Development dependencies.
+
+## Actual Implementation Details
+
+### Config Architecture
+- Main config class is `NMLConfig` which creates an alias `Config = NMLConfig` for backward compatibility
+- Contains multiple component fields for different WW3 namelist files:
+  - `ww3_shel`: Shell component (ww3_shel.nml)
+  - `ww3_grid`: Grid component (ww3_grid.nml)
+  - `multi_component`: Multi-grid component (ww3_multi.nml)
+  - `ww3_bounc`: Boundary component (ww3_bounc.nml)
+  - `ww3_prnc`: Field preprocessor component (ww3_prnc.nml)
+  - `ww3_track`: Track component (ww3_trnc.nml)
+  - `ww3_ounf`: Field output component (ww3_ounf.nml)
+  - `ww3_ounp`: Point output component (ww3_ounp.nml)
+  - `ww3_upstr`: Restart update component (ww3_uprstr.nml)
+  - `namelists`: Namelists component (namelists.nml)
+- Implements template context generation and namelist rendering
+- Includes automatic synchronization between component parameters (e.g., forcing parameters between shell and preprocessor)
+
+### Namelist System
+- Extensive collection of WW3 namelist implementations in `src/rompy_ww3/namelists/`
+- Each namelist class inherits from `NamelistBaseModel`
+- Proper Fortran-style namelist formatting
+- Nested object support for complex WW3 configurations
+
+### Grid System
+- Specific grid classes for each WW3 grid type (RectGrid, CurvGrid, UnstGrid, SmcGrid)
+- Each grid class stores required and optional namelist objects
+- Direct access to namelist rendering methods
+- Grid-specific file handling (coordinate files, depth files, etc.)
 
 ## Building, Running, and Development
 
@@ -161,7 +189,7 @@ Versioning is managed by `tbump`.
 
 - **rompy**: The core framework. Source code is at <https://github.com/rom-py/rompy>. Can be accessed with the "rompy Docs" mcp tool"
 - **rompy-swan**: Plugin for the SWAN wave model. Source code is at <https://github.com/rom-py/rompy-swan>. Can be accessed with the "rompy-swan Docs" mcp tool.
-- **rompy-schism**: Plugin for the SCHISM ocean model. Source code is at <https://github.com/rom-py/rompy-schism>
+- **rompy-schism**: Plugin for the SCHISM ocean model. Source code is at <https://github.com/rom-py/rompy-schism"
 - WW3 model. Source code of the WAVEWATCH III model is at <https://github.com/NOAA-EMC/WW3/tree/develop>.  Can be accessed with the "WW3 Docs" mcp tool.
 
 ## Development Philosophy
