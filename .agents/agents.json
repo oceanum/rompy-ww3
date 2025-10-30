@@ -2,9 +2,9 @@
     "active_agent": "qwen",
     "configurations": {
         "qwen": {
-            "context_file": "./.agents/qwen",
-            "target_link": "./qwen",
-            "description": "Qwen configuration"
+            "context_file": "./.agents/qwen/QWEN.md",
+            "target_link": "./QWEN.md",
+            "description": "Qwen Code context file"
         },
         "cursor": {
             "context_file": "./.agents/cursor/context.md",

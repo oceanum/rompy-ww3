@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# post-checkout hook to update agent configuration
+# This hook is invoked when a git checkout is performed
+# It updates the symbolic links to point to the currently configured agent
+
+# Check if the agent linker script exists
+if [ -f ./.agents/agent-linker.sh ]; then
+    echo "Updating agent configuration..."
+    ./.agents/agent-linker.sh
+fi
+
+exit 0

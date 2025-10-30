@@ -1,0 +1,12 @@
+#!/bin/sh
+#
+# pre-commit hook to ensure agent configuration is current
+# This hook is invoked before each commit
+
+# Check if the agent linker script exists
+if [ -f ./.agents/agent-linker.sh ]; then
+    echo "Verifying agent configuration..."
+    ./.agents/agent-linker.sh
+fi
+
+exit 0
