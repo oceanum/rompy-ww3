@@ -1,6 +1,7 @@
 """Multi-component for WW3 multi-grid configuration."""
 
 from typing import Optional, List
+from pydantic import Field as PydanticField
 from ..namelists.domain import Domain
 from ..namelists.input import InputGrid, ModelGrid
 from ..namelists.output_type import OutputType
@@ -10,18 +11,123 @@ from .basemodel import WW3ComponentBaseModel
 
 
 class Multi(WW3ComponentBaseModel):
-    """Component for ww3_multi.nml containing multi-grid configuration."""
+    """Component for ww3_multi.nml containing multi-grid configuration.
 
-    domain: Optional[Domain] = None
-    input_grid: Optional[InputGrid] = None
-    model_grid: Optional[ModelGrid] = None
-    model_grids: Optional[List[ModelGrid]] = None
-    output_type: Optional[OutputType] = None
-    output_date: Optional[OutputDate] = None
-    homog_count: Optional[HomogCount] = None
+    The Multi component represents the multi-grid configuration for WW3.
+    It contains all the namelist objects needed for configuring the WW3 multi-grid
+    program (ww3_multi.nml).
+    
+    This component manages:
+    - DOMAIN_NML: Multi-grid model parameters including start/stop times and I/O settings
+    - INPUT_GRID_NML: Input grid specification for multi-grid models
+    - MODEL_GRID_NML: Model grid specification for multi-grid models
+    - OUTPUT_TYPE_NML: Output type configuration for multi-grid models
+    - OUTPUT_DATE_NML: Output date configuration for multi-grid models
+    - HOMOG_COUNT_NML: Homogeneous input count configuration for multi-grid models
+    
+    The Multi component is used for multi-grid WW3 runs and provides a clean interface
+    for configuring all aspects of the WW3 multi-grid program.
+    
+    Key Features:
+    - **Multi-Grid Support**: Configuration for multiple interconnected grids
+    - **Grid Communication**: Input/output grid specification and communication
+    - **Output Management**: Multi-grid output type and date configuration
+    - **Homogeneous Inputs**: Multi-grid homogeneous input count management
+    
+    Usage Examples:
+        ```python
+        from rompy_ww3.components import Multi
+        from rompy_ww3.namelists import Domain, InputGrid, ModelGrid
+        
+        # Create a multi-grid configuration
+        multi = Multi(
+            domain=Domain(
+                start="20230101 000000",
+                stop="20230107 000000",
+                iostyp=1
+            ),
+            input_grid=InputGrid(
+                name="coarse_grid",
+                forcing={"winds": "T"}
+            )
+        )
+        
+        # Render the namelist content
+        content = multi.render()
+        
+        # Write to a file
+        multi.write_nml("./namelists")
+        ```
+    """
+
+    domain: Optional[Domain] = PydanticField(
+        default=None,
+        description=(
+            "DOMAIN_NML configuration for multi-grid model parameters. "
+            "Includes start/stop times, I/O settings, and multi-grid specific parameters "
+            "such as number of input grids (nrinp) and number of model grids (nrgrd)."
+        )
+    )
+    input_grid: Optional[InputGrid] = PydanticField(
+        default=None,
+        description=(
+            "INPUT_GRID_NML configuration for input grid specification. "
+            "Defines the input grids for multi-grid models including grid names and forcing parameters."
+        )
+    )
+    model_grid: Optional[ModelGrid] = PydanticField(
+        default=None,
+        description=(
+            "MODEL_GRID_NML configuration for model grid specification. "
+            "Defines the model grids for multi-grid models including grid names and model parameters."
+        )
+    )
+    model_grids: Optional[List[ModelGrid]] = PydanticField(
+        default=None,
+        description=(
+            "List of MODEL_GRID_NML configurations for multiple model grids. "
+            "Each model grid includes grid names and model parameters for multi-grid runs."
+        )
+    )
+    output_type: Optional[OutputType] = PydanticField(
+        default=None,
+        description=(
+            "OUTPUT_TYPE_NML configuration for multi-grid output types. "
+            "Defines output types and parameters for multi-grid models including field lists and point outputs."
+        )
+    )
+    output_date: Optional[OutputDate] = PydanticField(
+        default=None,
+        description=(
+            "OUTPUT_DATE_NML configuration for multi-grid output dates. "
+            "Defines output timing parameters for multi-grid models including start, stride, and stop times."
+        )
+    )
+    homog_count: Optional[HomogCount] = PydanticField(
+        default=None,
+        description=(
+            "HOMOG_COUNT_NML configuration for multi-grid homogeneous input counts. "
+            "Defines the number of homogeneous inputs for multi-grid models."
+        )
+    )
 
     def render(self) -> str:
-        """Render the multi-grid component as a combined namelist string."""
+        """Render the multi-grid component as a combined namelist string.
+        
+        Generates the complete namelist content for the WW3 multi-grid configuration by
+        rendering all contained namelist objects in the proper order.
+        
+        The rendering order follows WW3 conventions:
+        1. DOMAIN_NML - Multi-grid model parameters
+        2. INPUT_GRID_NML - Input grid specification
+        3. MODEL_GRID_NML - Model grid specification
+        4. OUTPUT_TYPE_NML - Multi-grid output types
+        5. OUTPUT_DATE_NML - Multi-grid output dates
+        6. HOMOG_COUNT_NML - Multi-grid homogeneous input counts
+        
+        Returns:
+            str: The rendered multi-grid configuration as a combined namelist string
+        """
         multi_content = []
         multi_content.append("! WW3 multi-grid model configuration")
         multi_content.append("! Generated by rompy-ww3")
