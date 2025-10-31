@@ -4,80 +4,72 @@
 
 The rompy-ww3 package follows a clean, modular architecture designed to provide direct access to WAVEWATCH III (WW3) namelist functionality while maintaining type safety and ease of use.
 
-This architecture introduces dedicated **Component Models** for each major WW3 control file, building upon the existing clean architecture principles while providing enhanced modularity and flexibility for configuring WAVEWATCH III (WW3) model runs.
+This architecture introduces dedicated **Component Models** for each major WW3 control file, providing enhanced modularity and flexibility for configuring WAVEWATCH III (WW3) model runs.
 
 ## Key Principles
 
 ### 1. **Component Encapsulation**
 Each WW3 control file is represented by a dedicated component class that encapsulates all related namelist objects:
 
-- `ShellComponent` → `ww3_shel.nml` (Main model configuration)
-- `GridComponent` → `ww3_grid.nml` (Grid preprocessing configuration)
-- `MultiComponent` → `ww3_multi.nml` (Multi-grid model configuration)
-- `BoundaryComponent` → `ww3_bound.nml` (Boundary preprocessing configuration)
-- `BoundaryUpdateComponent` → `ww3_bounc.nml` (Boundary update configuration)
-- `ControlComponent` → `ww3_prnc.nml` (Print control configuration)
-- `TrackComponent` → `ww3_trnc.nml` (Track output configuration)
-- `UnformattedOutputComponent` → `ww3_ounf.nml` (Unformatted output configuration)
-- `PointOutputComponent` → `ww3_ounp.nml` (Point output configuration)
-- `RestartUpdateComponent` → `ww3_uprstr.nml` (Restart update configuration)
-- `ParametersComponent` → `namelists.nml` (Model parameters configuration)
+- `Shel` → `ww3_shel.nml` (Main model configuration)
+- `Grid` → `ww3_grid.nml` (Grid preprocessing configuration)
+- `Multi` → `ww3_multi.nml` (Multi-grid model configuration)
+- `Bound` → `ww3_bound.nml` (Boundary preprocessing configuration)
+- `Bounc` → `ww3_bounc.nml` (Boundary update configuration)
+- `Prnc` → `ww3_prnc.nml` (Field preprocessing configuration)
+- `Trnc` → `ww3_trnc.nml` (Track output configuration)
+- `Ounf` → `ww3_ounf.nml` (Field output configuration)
+- `Ounp` → `ww3_ounp.nml` (Point output configuration)
+- `Uptstr` → `ww3_upstr.nml` (Restart update configuration)
+- `Namelists` → `namelists.nml` (Physics parameters configuration)
 
 ### 2. **Unified Interface**
 All components inherit from a common base class `WW3ComponentBaseModel` that provides:
 
 - Consistent `render()` method for generating namelist content
-- Backward compatibility with existing `NamelistBaseModel` interface
 - Type safety and validation through Pydantic V2
+- Standard file writing and execution functionality
 
 ### 3. **Composability**
 Components can be composed together to create complete model configurations:
 
 ```python
 from rompy_ww3.components import (
-    ShellComponent, 
-    GridComponent, 
-    MultiComponent,
-    BoundaryComponent
+    Shel, 
+    Grid, 
+    Multi,
+    Bound
 )
 from rompy_ww3.namelists import (
     Domain, Input, OutputType, OutputDate,
-    Spectrum, Run, Timesteps, Bound
+    Spectrum, Run, Timesteps, Bound as BoundNML
 )
 
 # Create individual components
-shell = ShellComponent(
+shell = Shel(
     domain=Domain(start="20230101 000000", stop="20230107 000000"),
     input_nml=Input(forcing={"winds": "T", "water_levels": "T"}),
     output_type=OutputType(field={"list": "HSIGN TMM10 TM02 PDIR PENT"}),
     output_date=OutputDate(field_start="20230101 000000", field_stride="3600")
 )
 
-grid = GridComponent(
+grid = Grid(
     spectrum=Spectrum(xfr=1.1, freq1=0.04, nk=25, nth=24),
     run=Run(fldry=False, flcx=True, flcy=True),
     timesteps=Timesteps(dtmax=1800.0, dtxy=600.0, dtmin=10.0)
 )
 
-boundary = BoundaryComponent(
-    bound=Bound(mode="READ", file="boundary_spec.nc", interp=2)
+boundary = Bound(
+    bound=BoundNML(mode="READ", file="boundary_spec.nc", interp=2)
 )
 
 # Components work together through the Config class
 config = Config(
-    shell_component=shell,
-    grid_component=grid,
-    boundary_component=boundary
+    ww3_shel=shell,
+    ww3_grid=grid,
+    ww3_bound=boundary
 )
 ```
-
-### 4. **Backward Compatibility**
-The component-based architecture maintains full backward compatibility:
-
-- Existing namelist objects continue to work as before
-- Traditional Config usage patterns remain unchanged
-- Components can be mixed with traditional namelist objects
-- No breaking changes to existing APIs
 
 ## Component Structure
 
@@ -103,11 +95,11 @@ class MyComponent(WW3ComponentBaseModel):
 Each component defines fields for the namelist objects it manages:
 
 ```python
-class ShellComponent(WW3ComponentBaseModel):
+class Shel(WW3ComponentBaseModel):
     """Component for ww3_shel.nml containing shell configuration."""
     
     domain: Optional[Domain] = None
-    input_nml: Optional[InputForcing] = None
+    input_nml: Optional[Input] = None
     output_type: Optional[OutputType] = None
     output_date: Optional[OutputDate] = None
     homog_count: Optional[HomogCount] = None
@@ -127,13 +119,13 @@ def render(self) -> str:
 
     # Add DOMAIN_NML
     if self.domain:
-        rendered = self.domain.render().replace("\\n", "\n")
+        rendered = self.domain.render()
         shel_content.extend(rendered.split("\n"))
         shel_content.append("")
 
     # Add INPUT_NML
     if self.input_nml:
-        rendered = self.input_nml.render().replace("\\n", "\n")
+        rendered = self.input_nml.render()
         shel_content.extend(rendered.split("\n"))
         shel_content.append("")
 
@@ -146,16 +138,16 @@ def render(self) -> str:
 
 ### 1. Basic Component Usage
 ```python
-from rompy_ww3.components import ShellComponent, GridComponent
+from rompy_ww3.components import Shel, Grid
 from rompy_ww3.namelists import Domain, Input, Spectrum, Run, Timesteps
 
 # Create components with namelist objects
-shell = ShellComponent(
+shell = Shel(
     domain=Domain(start="20230101 000000", stop="20230107 000000"),
     input_nml=Input(forcing={"winds": "T"})
 )
 
-grid = GridComponent(
+grid = Grid(
     spectrum=Spectrum(xfr=1.1, freq1=0.04, nk=25, nth=24),
     run=Run(fldry=False, flcx=True, flcy=True),
     timesteps=Timesteps(dtmax=1800.0, dtxy=600.0, dtmin=10.0)
@@ -169,15 +161,15 @@ grid_content = grid.render()
 ### 2. Component-Based Configuration
 ```python
 from rompy_ww3.config import Config
-from rompy_ww3.components import ShellComponent, GridComponent
+from rompy_ww3.components import Shel, Grid
 
 # Create all required components
-shell = ShellComponent(
+shell = Shel(
     domain=Domain(start="20230101 000000", stop="20230107 000000"),
     input_nml=Input(forcing={"winds": "T"})
 )
 
-grid = GridComponent(
+grid = Grid(
     spectrum=Spectrum(xfr=1.1, freq1=0.04, nk=25, nth=24),
     run=Run(fldry=False, flcx=True, flcy=True),
     timesteps=Timesteps(dtmax=1800.0, dtxy=600.0, dtmin=10.0)
@@ -185,32 +177,12 @@ grid = GridComponent(
 
 # Pass components to Config
 config = Config(
-    shell_component=shell,
-    grid_component=grid
+    ww3_shel=shell,
+    ww3_grid=grid
 )
 
 # Generate all namelist files
 result = config(runtime=your_runtime_object)
-```
-
-### 3. Mixed Approach (Components + Traditional)
-```python
-from rompy_ww3.config import Config
-from rompy_ww3.components import ShellComponent
-
-# Mix components with traditional namelist objects
-shell = ShellComponent(
-    domain=Domain(start="20230101 000000", stop="20230107 000000"),
-    input_nml=Input(forcing={"winds": "T"})
-)
-
-# Traditional approach for other namelists
-config = Config(
-    shell_component=shell,  # Component-based
-    spectrum=Spectrum(...),  # Traditional namelist object
-    run=Run(...),           # Traditional namelist object
-    timesteps=Timesteps(...) # Traditional namelist object
-)
 ```
 
 ## Benefits
@@ -233,59 +205,12 @@ config = Config(
 ### 4. **Flexible Architecture**
 - Components can be used independently or together
 - Easy to extend with new component types
-- Backward compatibility maintained
+- Standardized interfaces across all components
 
 ### 5. **Simplified Configuration**
 - Reduced boilerplate code
 - Clear component responsibilities
 - Intuitive API design
-
-## Migration Guide
-
-### From Traditional Approach
-```python
-# OLD WAY - Direct namelist objects
-config = Config(
-    domain=Domain(start="20230101 000000", stop="20230107 000000"),
-    input_nml=Input(forcing={"winds": "T"}),
-    spectrum=Spectrum(xfr=1.1, freq1=0.04, nk=25, nth=24),
-    run=Run(fldry=False, flcx=True, flcy=True),
-    timesteps=Timesteps(dtmax=1800.0, dtxy=600.0, dtmin=10.0)
-)
-```
-
-### To Component-Based Approach
-```python
-# NEW WAY - Component-based approach
-shell = ShellComponent(
-    domain=Domain(start="20230101 000000", stop="20230107 000000"),
-    input_nml=Input(forcing={"winds": "T"})
-)
-
-grid = GridComponent(
-    spectrum=Spectrum(xfr=1.1, freq1=0.04, nk=25, nth=24),
-    run=Run(fldry=False, flcx=True, flcy=True),
-    timesteps=Timesteps(dtmax=1800.0, dtxy=600.0, dtmin=10.0)
-)
-
-config = Config(
-    shell_component=shell,
-    grid_component=grid
-)
-```
-
-### Gradual Migration
-The transition can be gradual - mix components with traditional namelist objects:
-
-```python
-# MIGRATION STEP - Mix approaches
-config = Config(
-    shell_component=ShellComponent(...),  # New component approach
-    spectrum=Spectrum(...),              # Traditional approach
-    run=Run(...),                        # Traditional approach
-    timesteps=Timesteps(...)             # Traditional approach
-)
-```
 
 ## Future Development
 
@@ -306,4 +231,4 @@ The component-based architecture provides a solid foundation for future enhancem
 - Advanced rendering strategies
 - Integration with external configuration systems
 
-The component-based architecture represents the next evolution of rompy-ww3, building upon the clean architecture principles while providing enhanced modularity and flexibility for configuring WW3 model runs.
+The component-based architecture provides enhanced modularity and flexibility for configuring WW3 model runs.

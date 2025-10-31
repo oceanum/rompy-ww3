@@ -1,6 +1,6 @@
 # Config API Reference
 
-::: rompy_ww3.config.Config
+::: rompy_ww3.config.NMLConfig
     handler: python
     options:
       show_root_heading: true
