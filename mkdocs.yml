@@ -18,6 +18,7 @@ nav:
           - Data: reference/data.md
           - Source: reference/source.md
           - Namelists: reference/namelists.md
+          - Components: reference/components.md
 
 theme:
     name: material

@@ -15,7 +15,9 @@ rompy-ww3 provides a clean, Pythonic interface for configuring and running WAVEW
 - **No Redundant Interfaces**: Eliminates wrapper methods that just return objects
 - **Type Safety**: Union types for flexible grid handling
 - **Modern Python**: Built with Pydantic V2 for validation and type hints
-- **Component-Based Architecture**: NEW - Dedicated component models for each WW3 control file
+- **Component-Based Architecture**: Dedicated component models for each WW3 control file
+- **Enhanced Validation**: Comprehensive validation for all WW3 namelist parameters
+- **Detailed Documentation**: Complete documentation for every WW3 parameter with usage examples
 
 ## Installation
 
@@ -25,7 +27,7 @@ pip install rompy-ww3
 
 ## Quick Start
 
-### Traditional Clean Architecture Approach
+### Grid Configuration
 ```python
 from rompy_ww3.config import Config
 from rompy_ww3.grid import RectGrid
@@ -53,7 +55,7 @@ rect_nml = Rect(
     sf0=2.0,
 )
 
-# Create grid with direct namelist objects - CLEAN ARCHITECTURE!
+# Create grid with direct namelist objects
 grid = RectGrid(
     grid_type="base",
     model_type="ww3_rect",
@@ -61,7 +63,7 @@ grid = RectGrid(
     rect_nml=rect_nml,  # Pass actual Rect object directly
 )
 
-# Create config with the new grid architecture
+# Create config with grid architecture
 config = Config(
     grid=grid,  # Accepts AnyWw3Grid union type (RectGrid, CurvGrid, etc.)
     timesteps=Timesteps(
@@ -80,28 +82,28 @@ grid_nml_content = config.grid.grid_nml.render()  # Direct call to render()
 rect_nml_content = config.grid.rect_nml.render()   # Direct call to render()
 ```
 
-### New Component-Based Architecture Approach (NEW)
+### Component-Based Architecture
 ```python
 from rompy_ww3.config import Config
-from rompy_ww3.components import ShellComponent, GridComponent
+from rompy_ww3.components import Shel, Grid
 from rompy_ww3.namelists import Domain, Input, Spectrum, Run, Timesteps
 
 # Create components with namelist objects
-shell = ShellComponent(
+shell = Shel(
     domain=Domain(start="20230101 000000", stop="20230107 000000"),
     input_nml=Input(forcing={"winds": "T", "water_levels": "T"})
 )
 
-grid = GridComponent(
+grid = Grid(
     spectrum=Spectrum(xfr=1.1, freq1=0.04, nk=25, nth=24),
     run=Run(fldry=False, flcx=True, flcy=True),
-    timesteps=Timesteps(dtmax=1800.0, dtxy=600.0, dtkth=30.0, dtmin=10.0)
+    timesteps=Timesteps(dtmax=1800.0, dtxy=600.0, dtmin=10.0)
 )
 
-# Create config with components - COMPONENT-BASED ARCHITECTURE!
+# Create config with components
 config = Config(
-    shell_component=shell,  # Dedicated component for ww3_shel.nml
-    grid_component=grid,    # Dedicated component for ww3_grid.nml
+    ww3_shel=shell,  # Dedicated component for ww3_shel.nml
+    ww3_grid=grid,   # Dedicated component for ww3_grid.nml
 )
 
 # Generate all namelist files directly
@@ -124,10 +126,10 @@ Each WW3 grid type now has its own dedicated class:
 Users pass actual WW3 namelist objects directly instead of individual parameters:
 
 ```python
-# CLEAN WAY (direct namelist objects):
+# Direct namelist objects:
 grid = RectGrid(
     grid_nml=GRID_NML(  # Actual GRID_NML object
-        name="Clean Grid",
+        name="Grid",
         type="RECT",
         coord="SPHE",
         # All GRID_NML parameters in one object
@@ -137,7 +139,7 @@ grid = RectGrid(
         ny=150,  # Part of Rect object
         # All Rect parameters in one object
     ),
-    # NO REDUNDANT INDIVIDUAL PARAMETERS!
+    # No redundant individual parameters!
 )
 ```
 
@@ -145,7 +147,7 @@ grid = RectGrid(
 Eliminates wrapper methods that just return objects:
 
 ```python
-# CLEAN WAY (direct object access):
+# Direct object access:
 grid = RectGrid(...)
 nml_content = grid.grid_nml.render()   # Direct call to render()
 ```
@@ -165,26 +167,29 @@ print(grid.depth.sf)
 # ... and all other parameters directly through objects
 ```
 
-### 5. **Component-Based Architecture (NEW)**
+### 5. **Component-Based Architecture**
 Dedicated component models for each WW3 control file:
 
-- `ShellComponent` → `ww3_shel.nml` (Main model configuration)
-- `GridComponent` → `ww3_grid.nml` (Grid preprocessing configuration)
-- `MultiComponent` → `ww3_multi.nml` (Multi-grid model configuration)
-- `BoundaryComponent` → `ww3_bound.nml` (Boundary preprocessing configuration)
-- `BoundaryUpdateComponent` → `ww3_bounc.nml` (Boundary update configuration)
-- `ControlComponent` → `ww3_prnc.nml` (Print control configuration)
-- `TrackComponent` → `ww3_trnc.nml` (Track output configuration)
-- `UnformattedOutputComponent` → `ww3_ounf.nml` (Unformatted output configuration)
-- `PointOutputComponent` → `ww3_ounp.nml` (Point output configuration)
-- `RestartUpdateComponent` → `ww3_uprstr.nml` (Restart update configuration)
-- `ParametersComponent` → `namelists.nml` (Model parameters configuration)
+- `Shel` → `ww3_shel.nml` (Main model configuration)
+- `Grid` → `ww3_grid.nml` (Grid preprocessing configuration)
+- `Multi` → `ww3_multi.nml` (Multi-grid model configuration)
+- `Bound` → `ww3_bound.nml` (Boundary preprocessing configuration)
+- `Bounc` → `ww3_bounc.nml` (Boundary update configuration)
+- `Prnc` → `ww3_prnc.nml` (Field preprocessing configuration)
+- `Trnc` → `ww3_trnc.nml` (Track output configuration)
+- `Ounf` → `ww3_ounf.nml` (Field output configuration)
+- `Ounp` → `ww3_ounp.nml` (Point output configuration)
+- `Uptstr` → `ww3_upstr.nml` (Restart update configuration)
+- `Namelists` → `namelists.nml` (Model parameters configuration)
 
-See [Component Architecture Documentation](component_architecture.md) for detailed information.
+See [Component Architecture Documentation](architecture.md) for detailed information.
 
 ## Documentation
 
 - [Installation](installation.md)
 - [Architecture](architecture.md)
+- [Namelist Documentation](namelists.md)
+- [Validation Features](validation.md)
 - [API Reference](reference/grid.md)
+- [API Reference - Components](reference/components.md)
 - [Contributing](contributing.md)
