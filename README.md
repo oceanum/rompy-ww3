@@ -1,52 +1,22 @@
-
-# Relocatable Ocean Modelling in PYthon (rompy)
+# rompy-ww3
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15093426.svg)](https://doi.org/10.5281/zenodo.15093426)
 [![GitHub Pages](https://github.com/rom-py/rompy-ww3/actions/workflows/sphinx_docs_to_gh_pages.yaml/badge.svg)](https://rom-py.github.io/rompy-ww3/)
-[![PyPI version](https://img.shields.io/pypi/v/rompy.svg)](https://pypi.org/project/rompy-ww3/)
+[![PyPI version](https://img.shields.io/pypi/v/rompy-ww3.svg)](https://pypi.org/project/rompy-ww3/)
 [![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/rom-py/rompy-ww3/python-publish.yml)](https://github.com/rom-py/rompy-ww3/actions)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/rompy)](https://pypistats.org/packages/rompy)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/rompy-ww3)](https://pypistats.org/packages/rompy-ww3)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rompy)](https://pypi.org/project/rompy/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rompy-ww3)](https://pypi.org/project/rompy-ww3/)
 
-# Introduction
+The `rompy-ww3` package provides a plugin for the [rompy](https://github.com/rom-py/rompy) framework to facilitate the setup, configuration, and execution of WAVEWATCH III (WW3) models. It leverages rompy's modular architecture to streamline the creation of WW3 model control files, input datasets, and boundary conditions using templated configurations and pydantic validation.
 
-Relocatable Ocean Modelling in PYthon (rompy) is a modular Python library that
-aims to streamline the setup, configuration, execution, and analysis of coastal
-ocean models. Rompy combines templated model configuration with powerful
-xarray-based data handling and pydantic validation, enabling users to
-efficiently generate model control files and input datasets for a variety of
-ocean and wave models. The architecture centers on high-level execution control
-(`ModelRun`) and flexible configuration objects, supporting both persistent
-scientific model state and runtime backend selection. Rompy provides unified
-interfaces for grids, data sources, boundary conditions, and spectra, with
-extensible plugin support for new models and execution environments.
-Comprehensive documentation, example Jupyter notebooks, and a robust
-logging/formatting framework make rompy accessible for both research and
-operational workflows. Current model support includes SWAN and SCHISM, with
-ongoing development for additional models and cloud/HPC backends.
+## Development Status
 
-Key Features:
+**⚠️ ACTIVE DEVELOPMENT - UNRELEASED**
 
-- Modular architecture with clear separation of configuration and execution logic
-- Templated, reproducible model configuration using pydantic and xarray
-- Unified interfaces for grids, data, boundaries, and spectra
-- Extensible plugin system for models, data sources, backends, and postprocessors
-- Robust logging and formatting for consistent output and diagnostics
-- Example notebooks and comprehensive documentation for rapid onboarding
-- Support for local, Docker, and HPC execution backends
+This WW3 plugin is currently under active development and has not yet been officially released. The architecture and API are being refined to provide the cleanest possible interface for WW3 model configuration.
 
-rompy is under active development—features, model support, and documentation are continually evolving. Contributions and feedback are welcome!
-
-# WAVEWATCH III (WW3) Plugin
-
-**⚠️ NOTE: This WW3 plugin is currently under active development and has not yet been officially released. The API and architecture are subject to change as we refine the  interface.**
-
-This package provides a plugin for the rompy framework to facilitate the setup,
-configuration, and execution of WAVEWATCH III (WW3) models. It leverages
-rompy's modular architecture to streamline the creation of WW3 model control
-files, input datasets, and boundary conditions using templated configurations
-and pydantic validation.
+**Backward compatibility is NOT guaranteed** during this development phase. Changes will strongly favor clean interfaces and architectural improvements over maintaining legacy compatibility.
 
 ## Features
 
@@ -60,12 +30,6 @@ This package provides:
 - Direct namelist object passing with full API access
 - No redundant interfaces or parameter reconstruction
 - Type-safe union types for flexible grid handling
-
-4. Full API Access - complete access to all WW3 namelist parameters through namelist objects
-
-## Implemented Namelist Components
-
-The rompy-ww3 plugin includes complete implementations for all major WW3 namelist components:
 
 ## Implemented Namelist Components
 
@@ -101,9 +65,24 @@ The rompy-ww3 plugin includes complete implementations for all major WW3 namelis
 - **Data**: WW3-specific data handling with forcing and assimilation support
 - **Source**: WW3-specific data sources with variable mapping
 - **Namelists**: Complete set of Pydantic models for WW3 namelists
-- **NamelistComposer**: System for composing and validating complete namelist configurations
 
-# Documentation
+## WW3 Executable Components
+
+The rompy-ww3 package includes a comprehensive set of components for each WW3 executable:
+
+- **Shell Component** (`Shel`): Handles the main WW3 shell program configuration (ww3_shel.nml)
+- **Grid Component** (`Grid`): Handles WW3 grid preprocessing configuration (ww3_grid.nml)
+- **Multi-Grid Component** (`Multi`): Handles multi-grid WW3 configuration (ww3_multi.nml)
+- **Boundary Conditions Component** (`Bounc`): Handles WW3 boundary condition generation (ww3_bounc.nml)
+- **Boundary Data Component** (`Bound`): Handles WW3 boundary data extraction (ww3_bound.nml)
+- **Preprocessor Component** (`Prnc`): Handles WW3 preprocessor configuration (ww3_prnc.nml)
+- **Track Component** (`Trnc`): Handles WW3 track processor configuration (ww3_trnc.nml)
+- **Output Fields Component** (`Ounf`): Handles WW3 field output configuration (ww3_ounf.nml)
+- **Output Points Component** (`Ounp`): Handles WW3 point output configuration (ww3_ounp.nml)
+- **Restart Update Component** (`Uptstr`): Handles WW3 restart update configuration (ww3_upstr.nml)
+- **Physics Parameters Component** (`Namelists`): Handles WW3 physics parameter configuration (namelists.nml)
+
+## Documentation
 
 See <https://rom-py.github.io/rompy-ww3/>
 
@@ -137,84 +116,34 @@ context = config.get_template_context()
 
 For more detailed examples, see the [examples directory](./examples).
 
-# Code Formatting and Pre-commit Hooks
+## Code Formatting and Pre-commit Hooks
 
 This repository enforces Python code formatting using [black](https://github.com/psf/black) via the pre-commit framework.
 
-To set up pre-commit hooks locally (required for all contributors)::
+To set up pre-commit hooks locally (required for all contributors):
 
-    pip install pre-commit
-    pre-commit install
+```bash
+pip install pre-commit
+pre-commit install
+```
 
-This will automatically check code formatting before each commit. To format your code manually, run::
+This will automatically check code formatting before each commit. To format your code manually, run:
 
-    pre-commit run --all-files
-
-All code must pass black formatting before it can be committed or merged.
-
-# Versioning and Release
-
-This project uses [tbump](https://github.com/dmerejkowsky/tbump) for version management.
-
-To bump the version, run::
-
-    tbump <new_version>
-
-This will update the version in `src/rompy/__init__.py`, commit the change, and optionally create a git tag.
-
-tbump is included in the development requirements (`requirements_dev.txt`).
-
-For more advanced configuration, see `tbump.toml` in the project root.
-
-# Relevant packages
-
-> - [rompy](https://github.com/rom-py/rompy)
-> - [rompy-swan](https://github.com/rom-py/rompy-swan)
-> - [rompy-schism](https://github.com/rom-py/rompy-schism)
-> - [rompy-notebooks](https://github.com/rom-py/rompy-notebooks)
-
-.. image:: <https://img.shields.io/pypi/v/rompy_ww3.svg>
-        :target: <https://pypi.python.org/pypi/rompy_ww3>
-
-.. image:: <https://img.shields.io/travis/rom-py/rompy_ww3.svg>
-        :target: <https://travis-ci.com/rom-py/rompy_ww3>
-
-.. image:: <https://readthedocs.org/projects/rompy-ww3/badge/?version=latest>
-        :target: <https://rompy-ww3.readthedocs.io/en/latest/?version=latest>
-        :alt: Documentation Status
-
-Rompy WW3 Config package.
-
-- Free software: Apache Software License 2.0
-- Documentation: <https://rompy-ww3.readthedocs.io>.
-
-Features
---------
-
-Code Formatting and Pre-commit Hooks
-------------------------------------
-
-This repository enforces Python code formatting using [black](https://github.com/psf/black) via the pre-commit framework.
-
-To set up pre-commit hooks locally (required for all contributors)::
-
-    pip install pre-commit
-    pre-commit install
-
-This will automatically check code formatting before each commit. To format your code manually, run::
-
-    pre-commit run --all-files
+```bash
+pre-commit run --all-files
+```
 
 All code must pass black formatting before it can be committed or merged.
 
-Versioning and Release
-----------------------
+## Versioning and Release
 
 This project uses [tbump](https://github.com/dmerejkowsky/tbump) for version management.
 
-To bump the version, run::
+To bump the version, run:
 
-    tbump <new_version>
+```bash
+tbump <new_version>
+```
 
 This will update the version in `src/rompy_ww3/__init__.py`, commit the change, and optionally create a git tag.
 
@@ -222,10 +151,9 @@ tbump is included in the development requirements (`requirements_dev.txt`).
 
 For more advanced configuration, see `tbump.toml` in the project root.
 
-## Development Status
+## Related Packages
 
-**⚠️ ACTIVE DEVELOPMENT - UNRELEASED**
-
-This WW3 plugin is currently under active development and has not yet been officially released. The architecture and API are being refined to provide the cleanest possible interface for WW3 model configuration.
-
-**Backward compatibility is NOT guaranteed** during this development phase. Changes will strongly favor clean interfaces and architectural improvements over maintaining legacy compatibility.
+- [rompy](https://github.com/rom-py/rompy)
+- [rompy-swan](https://github.com/rom-py/rompy-swan)
+- [rompy-schism](https://github.com/rom-py/rompy-schism)
+- [rompy-notebooks](https://github.com/rom-py/rompy-notebooks)
