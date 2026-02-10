@@ -6,12 +6,14 @@ This module contains the core classes for test execution:
 - TestCase: Test encapsulation
 - TestResult: Result representation
 - Validator: Output validation logic
+- ReportGenerator: Test result reporting
 """
 
 from .runner import TestRunner
 from .test import TestCase, ValidationResult
 from .result import TestResult, TestSuiteResult, TestStatus
 from .validator import Validator
+from .report import ReportGenerator
 
 __all__ = [
     "TestRunner",
@@ -21,4 +23,5 @@ __all__ = [
     "TestStatus",
     "Validator",
     "ValidationResult",
+    "ReportGenerator",
 ]

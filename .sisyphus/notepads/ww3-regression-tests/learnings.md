@@ -3520,3 +3520,209 @@ tp2.17 is the **LAST** test in Phase 2 (2-D propagation tests). All Phase 2 test
 - **Hash**: efc66b9
 - **Message**: "docs: update reference output documentation for all tp2.x tests"
 - **Files**: AVAILABLE_TESTS.md, CHECKSUMS.txt
+
+## Task 3.4: Reference Output Comparison Implementation
+
+### Date: 2026-02-11
+
+### Implementation Details
+
+**Validator Architecture:**
+- Created `ComparisonMode` enum with three modes:
+  - `EXACT`: Bit-for-bit comparison for binary outputs
+  - `RELATIVE`: |a-b|/|b| < tolerance (default: 1e-6)
+  - `ABSOLUTE`: |a-b| < tolerance
+- Field-specific tolerance overrides via dictionary (e.g., `{"HS": 0.01, "T01": 0.1}`)
+- Modular file comparison: NetCDF, binary (SHA256), text (line-by-line)
+
+**NetCDF Comparison Features:**
+- Uses `xarray` for NetCDF file reading
+- Variable-by-variable comparison with NaN masking
+- Shape validation before value comparison
+- Zero-division protection in relative tolerance mode
+- Detailed logging of mismatches
+
+**Integration with TestRunner:**
+- Added `reference_dir` parameter to TestRunner.__init__
+- Added `validator` parameter with default Validator instance
+- Added `validate` parameter to `run_test()` and `run_all()` methods
+- Validator executes only if:
+  1. `validate=True` is passed
+  2. `reference_dir` is set
+  3. Test execution succeeded (TestStatus.SUCCESS)
+  4. Reference directory for test exists
+
+**Report Generation:**
+- `generate_report()` method creates human-readable validation summary
+- Shows comparison mode, tolerances, file counts, and differences
+- Clear pass/fail indication with symbols (✓/✗)
+
+### Technical Decisions
+
+**Why xarray over netCDF4:**
+- xarray provides higher-level API with automatic dimension handling
+- Better integration with numpy for array operations
+- Already available in project dependencies
+
+**Why SHA256 for binary comparison:**
+- Industry standard hash function
+- Fast enough for regression test files (typically < 100MB)
+- Collision-resistant for practical purposes
+
+**Why separate ComparisonMode:**
+- Different WW3 fields have different physical meanings
+- Wave height (HS) needs absolute tolerance (cm precision)
+- Period (T01) may need relative tolerance (seconds)
+- Direction (DIR) needs special handling (angular wrapping)
+
+**Why field-specific tolerances:**
+- One-size-fits-all tolerance doesn't work for ocean models
+- Allows tuning per physical quantity
+- Enables gradual relaxation for difficult fields
+
+### Testing Considerations
+
+**What was NOT implemented (intentional):**
+- Angular wrapping for direction fields (DIR, DIR1, DIR2)
+  - Reason: Needs domain-specific logic (0°=360°)
+  - Should be added when tp2.x tests with directional output are validated
+- Time dimension handling
+  - Reason: Current tp1.x/tp2.x tests are primarily spatial
+  - Add when time-series validation is needed
+- Parallel file comparison
+  - Reason: Regression tests are not performance-critical
+  - Sequential comparison is simpler and easier to debug
+
+**Known Limitations:**
+- Reference files are optional (graceful degradation)
+- Missing reference files logged as warning, not error
+- No automatic reference file download (handled by separate task)
+
+### Usage Examples
+
+```python
+from regtests.runner import TestRunner, Validator, ComparisonMode
+from regtests.runner.backends import DockerBackend
+
+# Example 1: Default validation (relative tolerance 1e-6)
+backend = DockerBackend()
+runner = TestRunner(
+    backend=backend,
+    reference_dir=Path("reference_outputs")
+)
+results = runner.run_all(tests, validate=True)
+
+# Example 2: Custom tolerances per field
+validator = Validator(
+    tolerance=1e-6,
+    mode=ComparisonMode.RELATIVE,
+    field_tolerances={
+        "HS": 0.01,      # 1cm for wave height
+        "T01": 0.1,      # 0.1s for period
+    }
+)
+runner = TestRunner(
+    backend=backend,
+    reference_dir=Path("reference_outputs"),
+    validator=validator
+)
+
+# Example 3: Absolute tolerance mode
+validator = Validator(tolerance=0.01, mode=ComparisonMode.ABSOLUTE)
+runner = TestRunner(backend=backend, validator=validator)
+```
+
+### Files Modified
+- `regtests/runner/core/validator.py`: Implemented full comparison logic
+- `regtests/runner/core/runner.py`: Integrated validation into execution flow
+- `regtests/runner/__init__.py`: Exported Validator and ComparisonMode
+
+### Dependencies Used
+- `xarray`: NetCDF file reading and manipulation
+- `numpy`: Array comparison operations
+- `hashlib`: SHA256 for binary file comparison
+- All already available in project environment
+
+### Next Steps (Future Tasks)
+1. Add angular wrapping for directional fields (when needed)
+2. Implement time-series comparison (for temporal validation)
+3. Add visualization of differences (plotting diffs)
+4. Create validation reports in HTML format (optional)
+5. Add statistical metrics (RMSE, correlation, bias)
+
+### Commit
+```
+3cfbf14 Implement reference output comparison with NetCDF validation
+```
+
+
+## Task 3.5: Reporting and Aggregation (2026-02-11)
+
+### Implementation Summary
+Created comprehensive `regtests/runner/core/report.py` module with:
+- ReportGenerator class supporting multiple output formats
+- Text, JSON, and HTML report generation
+- Summary statistics and per-test details
+- Trend analysis for comparing test runs
+- File output and stdout printing
+
+### Key Features Implemented
+1. **Text Reports**: Human-readable with status symbols, color-coded sections
+2. **JSON Reports**: Machine-readable with full metadata and structured data
+3. **HTML Reports**: Interactive web reports with inline CSS, no external dependencies
+4. **Trend Analysis**: Comparison between current and previous test runs
+5. **Validation Integration**: Shows file comparison results and differences
+6. **Error Handling**: Truncates long error messages, shows first 5 differences
+
+### Technical Decisions
+- **No external dependencies**: Used only stdlib (json, datetime) as required
+- **Inline CSS for HTML**: Self-contained HTML reports, no external stylesheets
+- **Progressive enhancement**: Text → JSON → HTML, each format adds more detail
+- **Timestamps**: ISO format for JSON, human-readable for text/HTML
+- **File organization**: Parent directories created automatically
+
+### Report Formats
+```python
+# Text Report: 80-column human-readable
+generator = ReportGenerator()
+text = generator.generate_text_report(suite_result)
+
+# JSON Report: Machine-parseable
+json_data = generator.generate_json_report(suite_result, include_logs=False)
+
+# HTML Report: Web-viewable with styling
+html = generator.generate_html_report(suite_result, title="Custom Title")
+
+# Trend Analysis: Compare two runs
+trend = generator.compare_with_previous(current, previous)
+```
+
+### Testing Results
+- All report formats generate successfully
+- Summary statistics calculated correctly (pass/fail/error/skip counts)
+- Validation results properly included in reports
+- Error messages truncated appropriately
+- Trend analysis shows correct deltas and directional arrows
+- Files saved to disk without errors
+
+### Integration Points
+- Imports from `.result` module (TestSuiteResult, TestStatus)
+- Exported via `regtests.runner.core` package
+- No circular dependencies
+- Clean LSP diagnostics
+
+### HTML Report Features
+- Gradient header with timestamp
+- Grid layout for summary cards
+- Status-based color coding (green/red/orange/gray)
+- Expandable test details
+- Validation info display
+- Error message previews
+- Responsive design (min-width 200px cards)
+- No JavaScript required
+
+### Future Enhancements (not in scope)
+- Graphical charts for trends (would require external library)
+- Email report delivery (would require smtplib configuration)
+- Database storage (would require database connection)
+- Real-time streaming reports (would require websockets)
