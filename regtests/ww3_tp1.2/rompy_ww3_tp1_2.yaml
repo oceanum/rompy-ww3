@@ -1,0 +1,112 @@
+# Complete WW3 ModelRun configuration for ww3_tp1.2 regression test
+#
+# This YAML configuration defines a complete ModelRun for the WW3 tp1.2 regression test.
+# Test: 1-D propagation on spherical grid along meridian with no source terms (pure propagation).
+# Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/ww3_tp1.2
+
+# ModelRun parameters
+run_id: "ww3_tp1_2_regression"
+output_dir: "rompy_runs"
+
+# Time configuration (6 days total, matching official test)
+period:
+    start: "1968-06-01T00:00:00"
+    duration: "6D" # 6 days duration
+    interval: "12H" # 12 hour time interval
+
+# Model configuration (equivalent to NMLConfig)
+config:
+    model_type: nml
+
+    # Shell component for ww3_shel.nml (main model configuration)
+    shell_component:
+        domain:
+            # Start and stop from official ww3_shel.nml
+            # start: "19680601 000000"
+            # stop: "19680607 000000"
+            iostyp: 1 # Output server type (default)
+        input_nml: {}
+        output_type:
+            field:
+                list: "HS" # Output significant wave height only (from reference)
+        output_date:
+            # Field output every 12 hours (43200 seconds)
+            # field:
+            #     start: "19680601 000000"
+            #     stride: "43200"
+            #     stop: "19680607 000000"
+        homog_count:
+            n_wnd: 0 # No wind input for tp1.2 (no source terms)
+            n_lev: 0
+            n_cur: 0
+            n_ice: 0
+        homog_input: []
+
+    # Grid component for ww3_grid.nml (grid preprocessing configuration)
+    grid_component:
+        spectrum:
+            xfr: 1.1 # Frequency increment from reference
+            freq1: 0.03679 # First frequency (Hz) from reference
+            nk: 3 # Number of frequencies (3 for tp1.2)
+            nth: 4 # Number of direction bins (4 for 1-D test, from reference)
+            thoff: 0.0 # Relative offset of first direction
+        run:
+            fldry: false # Not a dry run
+            flcx: false # No X-component for meridional propagation
+            flcy: true # Y-component of propagation (only flcy=T in reference)
+            flcth: false # No direction shift for 1-D
+            flck: false # No wavenumber shift
+            flsou: false # No source terms for this test case (pure propagation)
+        timesteps:
+            dtmax: 10800.0 # Maximum CFL timestep (3 hours) - adjusted to satisfy dtmax ≈ 3×dtxy
+            dtxy: 3600.0 # Propagation timestep (1 hour)
+            dtkth: 5400.0 # Refraction timestep (1.5 hours) - between dtmax/10 and dtmax/2
+            dtmin: 10.0 # Minimum time step (10 seconds) - for source terms (none in this test)
+        grid_nml:
+            name: "1-D PROPAGATION MERIDIAN" # Grid name from reference
+            type: "RECT" # Rectilinear grid from reference
+            coord: "SPHE" # Spherical coordinates from reference
+            clos: "NONE" # None closure from reference
+            zlim: -5.0 # Minimum depth from reference
+            dmin: 5.75 # Minimum water depth from reference
+        rect_nml:
+            nx: 3 # Number of points along x-axis (longitude) from reference
+            ny: 123 # Number of points along y-axis (123 for meridional 1-D test) from reference
+            sx: 1.0 # Grid increment along x-axis (1 degree) from reference
+            sy: 1.0 # Grid increment along y-axis (1 degree) from reference
+            x0: -1.0 # Western boundary (degrees) from reference
+            y0: -61.0 # Southern boundary (degrees) from reference
+        depth:
+            filename:
+                model_type: data_blob
+                source: "regtests/ww3_tp1.2/input/1-D.depth"
+            sf: -2500.0 # Scale factor from reference
+            idf: 50 # IDF (default)
+            idla: 2 # IDLA from reference
+
+    # Parameters component for namelists.nml (model parameters configuration)
+    parameters_component:
+        pro3:
+            wdthcg: 0.0 # From namelists_1-D.nml
+            wdthth: 0.0 # From namelists_1-D.nml
+        pro4:
+            rnfac: 0.0 # From namelists_1-D.nml
+            rsfac: 0.0 # From namelists_1-D.nml
+
+    # Field output component for ww3_ounf.nml (field output post-processing)
+    field_output_component:
+        field:
+            # timestart: "19680601 000000" # Start time from reference
+            timestride: "43200" # Time stride (12 hours = 43200 seconds) from reference
+            timecount: "999" # Number of time steps
+            list: "HS" # Output significant wave height
+            partition: "0 1 2" # Wave partitions
+            type: 4 # Data type: REAL
+            samefile: true # All variables in same file
+        file:
+            prefix: "ww3."
+            netcdf: 3 # NetCDF version
+            ix0: 1 # First X-axis index
+            ixn: 1000000000 # Last X-axis index (default large value)
+            iy0: 1 # First Y-axis index
+            iyn: 1000000000 # Last Y-axis index (default large value)

@@ -121,3 +121,6 @@ tests/data
 regtests/**/rompy
 simulations/
 
+
+# WW3 regression test input data (auto-downloaded)
+regtests/ww3_*/input/
