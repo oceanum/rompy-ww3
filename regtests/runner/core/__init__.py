@@ -9,9 +9,9 @@ This module contains the core classes for test execution:
 """
 
 from .runner import TestRunner
-from .test import TestCase
+from .test import TestCase, ValidationResult
 from .result import TestResult, TestSuiteResult, TestStatus
-from .validator import Validator, ValidationResult
+from .validator import Validator
 
 __all__ = [
     "TestRunner",
