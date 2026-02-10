@@ -1,0 +1,116 @@
+# WW3 ModelRun configuration for ww3_tp1.9 regression test
+# Auto-generated from rompy_ww3_tp1_9.py
+
+run_id: ww3_tp1.9_regression
+output_dir: rompy_runs
+period:
+    start: '1968-06-06T00:00:00'
+    duration: 0H
+    interval: 1H
+config:
+    model_type: nml
+    shell_component:
+        domain:
+            stop: 19680606 000005
+            iostyp: 1
+        input_nml: {}
+        output_type:
+            field:
+                list: DPT HS T0M1
+            point:
+                file:
+                    model_type: data_blob
+                    id: data
+                    source: regtests/ww3_tp1.9/input/points.list
+                    link: false
+        output_date:
+            field:
+                start: 19680606 000000
+                stride: '5'
+                stop: 19680606 000200
+            point:
+                start: 19680606 000000
+                stride: '5'
+                stop: 19680606 000200
+        homog_count:
+            n_lev: 0
+            n_cur: 0
+            n_wnd: 0
+            n_ice: 0
+        homog_input: []
+    grid_component:
+        grid_type: base
+        spectrum:
+            xfr: 1.1
+            freq1: 0.1
+            nk: 35
+            nth: 180
+            thoff: 0.0
+        run:
+            fldry: false
+            flcx: true
+            flcy: false
+            flcth: false
+            flck: false
+            flsou: true
+        timesteps:
+            dtmax: 0.03
+            dtxy: 0.01
+            dtkth: 0.01
+            dtmin: 5.0
+        depth:
+            sf: -1.0
+            filename:
+                model_type: data_blob
+                id: data
+                source: regtests/ww3_tp1.9/input/NONLINEAR.depth
+                link: false
+            idf: 50
+            idla: 2
+        inbound_count:
+            n_point: 1
+        inbound_points:
+            points:
+            -   x_index: 2
+                y_index: 2
+                connect: false
+        grid:
+            name: NONLINEAR SHOALING X
+            nml: ../input/namelists_NONLINEAR.nml
+            type: RECT
+            coord: CART
+            clos: NONE
+            zlim: -0.08
+            dmin: 0.08
+        rect:
+            nx: 303
+            ny: 3
+            sx: 0.1
+            sy: 0.1
+            sf: 1.0
+            x0: -0.1
+            y0: -0.1
+            sf0: 1.0
+    parameters_component:
+        pro3:
+            wdthcg: 0.0
+            wdthth: 0.0
+        pro4:
+            rnfac: 0.0
+            rsfac: 0.0
+    field_output_component:
+        field:
+            timestart: 19680606 000000
+            timestride: '5'
+            timecount: '999'
+            list: DPT HS T0M1
+            partition: 0 1 2
+            samefile: true
+            type: 4
+        file:
+            prefix: ww3.
+            netcdf: 3
+            ix0: 1
+            ixn: 1000000000
+            iy0: 1
+            iyn: 1000000000

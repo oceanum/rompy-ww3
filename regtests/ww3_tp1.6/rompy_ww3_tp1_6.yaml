@@ -1,0 +1,117 @@
+# WW3 ModelRun configuration for ww3_tp1.6 regression test
+# Auto-generated from rompy_ww3_tp1_6.py
+
+run_id: ww3_tp1.6_regression
+output_dir: rompy_runs
+period:
+    start: '1968-06-06T00:00:00'
+    duration: 12H
+    interval: 1H
+config:
+    model_type: nml
+    shell_component:
+        domain:
+            iostyp: 1
+        input_nml:
+            forcing:
+                currents: T
+        output_type:
+            field:
+                list: DPT CUR HS
+            point:
+                file:
+                    model_type: data_blob
+                    id: data
+                    source: regtests/ww3_tp1.6/input/points.list
+                    link: false
+        output_date:
+            field:
+                start: 19680606 000000
+                stride: '900'
+                stop: 19680616 000000
+            point:
+                start: 19680606 000000
+                stride: '900'
+                stop: 19680616 000000
+        homog_count:
+            n_lev: 0
+            n_cur: 0
+            n_wnd: 0
+            n_ice: 0
+        homog_input: []
+    grid_component:
+        grid_type: base
+        spectrum:
+            xfr: 1.1
+            freq1: 0.18628
+            nk: 15
+            nth: 8
+            thoff: 0.0
+        run:
+            fldry: false
+            flcx: true
+            flcy: false
+            flcth: false
+            flck: true
+            flsou: false
+        timesteps:
+            dtmax: 1800.0
+            dtxy: 600.0
+            dtkth: 300.0
+            dtmin: 10.0
+        depth:
+            sf: -1000.0
+            filename:
+                model_type: data_blob
+                id: data
+                source: regtests/ww3_tp1.6/input/WAVE.depth
+                link: false
+            idf: 50
+            idla: 2
+        inbound_count:
+            n_point: 1
+        inbound_points:
+            points:
+            -   x_index: 2
+                y_index: 2
+                connect: false
+        grid:
+            name: WAVE BLOCKING TEST
+            nml: ../input/namelists_WAVE.nml
+            type: RECT
+            coord: CART
+            clos: NONE
+            zlim: -1.0
+            dmin: 1.0
+        rect:
+            nx: 22
+            ny: 3
+            sx: 3000.0
+            sy: 3000.0
+            sf: 1.0
+            x0: -3000.0
+            y0: -3000.0
+            sf0: 1.0
+    parameters_component:
+        pro3:
+            wdthcg: 0.0
+            wdthth: 0.0
+        pro4:
+            rnfac: 0.0
+            rsfac: 0.0
+    field_output_component:
+        field:
+            timestart: 19680606 000000
+            timestride: '900'
+            timecount: '999'
+            list: DPT CUR HS
+            partition: 0 1 2
+            samefile: true
+            type: 4
+        file:
+            prefix: ww3.
+            netcdf: 3
+            ix0: 1
+            ixn: 1000000000
+            iy0: 1
+            iyn: 1000000000
