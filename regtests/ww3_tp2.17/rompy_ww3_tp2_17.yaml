@@ -1,0 +1,116 @@
+# WW3 ModelRun configuration for ww3_tp2.17 regression test
+# Auto-generated from rompy_ww3_tp2_17.py
+
+run_id: ww3_tp2.17_regression
+output_dir: rompy_runs
+period:
+    start: '2010-01-01T00:00:00'
+    duration: 2D
+    interval: 1H
+config:
+    model_type: nml
+    shell_component:
+        domain:
+            start: 20100101 000000
+            stop: 20100103 000000
+            iostyp: 1
+        input_nml:
+            forcing:
+                winds: T
+        output_type:
+            field:
+                list: HS T02 T01 FP DIR SPR DP PHS PTP PDIR WND CUR
+            point:
+                file:
+                    model_type: data_blob
+                    id: data
+                    source: regtests/ww3_tp2.17/input/points.list
+                    link: false
+        output_date:
+            field:
+                start: 20100101 000000
+                stride: '3600'
+                stop: 20100103 000000
+            point:
+                start: 20100101 000000
+                stride: '1800'
+                stop: 20100103 000000
+        homog_count:
+            n_lev: 0
+            n_cur: 0
+            n_wnd: 1
+            n_ice: 0
+        homog_input:
+        -   name: WND
+            date: 20100101 000000
+            value1: 10.0
+            value2: 270.0
+            value3: 0.0
+    grid_component:
+        grid_type: base
+        spectrum:
+            xfr: 1.1
+            freq1: 0.04
+            nk: 25
+            nth: 24
+            thoff: 0.0
+        run:
+            flcx: true
+            flcy: true
+            flcth: true
+            flck: false
+            flsou: true
+        timesteps:
+            dtmax: 900.0
+            dtxy: 300.0
+            dtkth: 300.0
+            dtmin: 10.0
+        depth:
+            sf: -1.0
+            filename:
+                model_type: data_blob
+                id: data
+                source: regtests/ww3_tp2.17/input/depth.nested.IDLA1.dat
+                link: false
+            idla: 1
+        grid:
+            name: OUTPUT POST-PROCESSING TEST NESTED 200x200
+            type: RECT
+            coord: SPHE
+            clos: NONE
+            zlim: -0.1
+            dmin: 2.5
+        rect:
+            nx: 200
+            ny: 200
+            sx: 0.5
+            sy: 0.5
+            sf: 1.0
+            x0: -10.0
+            y0: 30.0
+            sf0: 1.0
+    parameters_component:
+        pro2:
+            dtime: 64800.0
+        pro3:
+            wdthcg: 1.5
+            wdthth: 1.5
+        pro4:
+            rnfac: 1.0
+            rsfac: 0.5
+    field_output_component:
+        field:
+            timestart: 20100101 000000
+            timestride: '3600'
+            timecount: '1000000000'
+            list: HS T02 T01 FP DIR SPR DP PHS PTP PDIR WND CUR
+            partition: 0 1 2 3
+            samefile: true
+            type: 4
+        file:
+            prefix: ww3.
+            netcdf: 4
+            ix0: 1
+            ixn: 1000000000
+            iy0: 1
+            iyn: 1000000000

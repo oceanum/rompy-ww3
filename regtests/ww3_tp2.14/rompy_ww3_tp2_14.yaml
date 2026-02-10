@@ -1,0 +1,86 @@
+# WW3 ModelRun configuration for ww3_tp2.14 regression test
+# Auto-generated from rompy_ww3_tp2_14.py
+
+run_id: ww3_tp2.14_regression
+output_dir: rompy_runs
+period:
+    start: '2008-05-22T00:00:00'
+    duration: 3H
+    interval: 1H
+config:
+    model_type: nml
+    shell_component:
+        domain:
+            start: 20080522 000000
+            stop: 20080522 030000
+            iostyp: 1
+        input_nml: {}
+        output_type:
+            field:
+                list: DPT HS FP DIR SPR
+            point:
+                file:
+                    model_type: data_blob
+                    id: data
+                    source: regtests/ww3_tp2.14/input/points.list
+                    link: false
+        output_date:
+            field:
+                start: 20080522 000000
+                stride: '3600'
+                stop: 20080525 000000
+            point:
+                start: 20080522 000000
+                stride: '360'
+                stop: 20080523 000000
+        homog_count:
+            n_lev: 0
+            n_cur: 0
+            n_wnd: 0
+            n_ice: 0
+    grid_component:
+        grid_type: base
+        spectrum:
+            xfr: 1.1
+            freq1: 0.03679
+            nk: 3
+            nth: 12
+            thoff: 0.0
+        run:
+            fldry: false
+            flcx: true
+            flcy: true
+            flcth: true
+            flck: false
+            flsou: false
+        timesteps:
+            dtmax: 3300.0
+            dtxy: 1100.0
+            dtkth: 1650.0
+            dtmin: 10.0
+        depth:
+            sf: -1.0
+            filename:
+                model_type: data_blob
+                id: data
+                source: regtests/ww3_tp2.14/input/depth.225x106.IDLA1.dat
+                link: false
+            idf: 50
+            idla: 1
+        grid:
+            name: 2-D PROPAGATION TEST 2.14 - BOUNDARY CONDITIONS
+            nml: ../input/namelists_2-D.nml
+            type: RECT
+            coord: SPHE
+            clos: NONE
+            zlim: -0.1
+            dmin: 7.5
+        rect:
+            nx: 225
+            ny: 106
+            sx: 0.35457
+            sy: 0.35457
+            sf: 1.0
+            x0: 183.4
+            y0: 25.1
+            sf0: 1.0

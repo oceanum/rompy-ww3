@@ -1,0 +1,141 @@
+# WW3 ModelRun configuration for ww3_tp2.11 regression test
+# Auto-generated from rompy_ww3_tp2_11.py
+
+run_id: ww3_tp2.11_regression
+output_dir: rompy_runs
+period:
+    start: '1968-06-06T00:00:00'
+    duration: 1D
+    interval: 1H
+config:
+    model_type: nml
+    shell_component:
+        domain:
+            start: 19680606 000000
+            stop: 19680607 000000
+            iostyp: 1
+        input_nml:
+            forcing:
+                winds: H
+        output_type:
+            field:
+                list: HS T01 FP DIR SPR WND
+        output_date:
+            field:
+                start: 19680606 000000
+                stride: '10800'
+                stop: 19680607 000000
+        homog_count:
+            n_lev: 0
+            n_cur: 0
+            n_wnd: 1
+            n_ice: 0
+        homog_input:
+        -   name: WND
+            date: 19680606 000000
+            value1: 20.0
+            value2: 270.0
+            value3: 0.0
+    grid_component:
+        grid_type: base
+        spectrum:
+            xfr: 1.1
+            freq1: 0.035
+            nk: 25
+            nth: 24
+            thoff: 0.0
+        run:
+            flcx: true
+            flcy: true
+            flcth: false
+            flck: false
+            flsou: true
+        timesteps:
+            dtmax: 900.0
+            dtxy: 300.0
+            dtkth: 450.0
+            dtmin: 10.0
+        depth:
+            sf: 0.001
+            filename:
+                model_type: data_blob
+                id: data
+                source: ../ww3_tp2.9/input/curv_2d.bot
+                link: false
+        mask:
+            filename:
+                model_type: data_blob
+                id: data
+                source: ../ww3_tp2.9/input/curv_2d.mask
+                link: false
+        obstacle:
+            sf: 0.01
+            filename:
+                model_type: data_blob
+                id: data
+                source: ../ww3_tp2.9/input/curv_2d.obs
+                link: false
+        curv:
+            nx: 121
+            ny: 121
+            xcoord:
+                sf: 0.0001
+                'off': 0.0
+                filename:
+                    model_type: data_blob
+                    id: data
+                    source: ../ww3_tp2.9/input/curv_2d.lon
+                    link: false
+                idf: 11
+                idla: 1
+                idfm: 1
+                format: (....)
+            ycoord:
+                sf: 0.0001
+                'off': 0.0
+                filename:
+                    model_type: data_blob
+                    id: data
+                    source: ../ww3_tp2.9/input/curv_2d.lat
+                    link: false
+                idf: 12
+                idla: 1
+                idfm: 1
+                format: (....)
+        grid:
+            name: Curvilinear grid with full physics (ST4)
+            nml: ../input/namelists_ST4.nml
+            type: CURV
+            coord: SPHE
+            clos: NONE
+            zlim: -0.1
+            dmin: 2.5
+    parameters_component:
+        sin4: {}
+        snl4: {}
+        sds4: {}
+        sbt: {}
+        pro2:
+            dtime: 0.0
+        pro3:
+            wdthcg: 0.0
+            wdthth: 0.0
+        pro4:
+            rnfac: 0.0
+            rsfac: 0.0
+    field_output_component:
+        field:
+            timestart: 19680606 000000
+            timestride: '10800'
+            timecount: '1000000000'
+            list: HS T01 FP DIR SPR WND
+            partition: 0 1 2
+            samefile: true
+            type: 4
+        file:
+            prefix: ww3.
+            netcdf: 3
+            ix0: 1
+            ixn: 1000000000
+            iy0: 1
+            iyn: 1000000000
