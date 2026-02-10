@@ -1,0 +1,119 @@
+# WW3 ModelRun configuration for ww3_tp2.6 regression test
+# Auto-generated from rompy_ww3_tp2_6.py
+
+run_id: ww3_tp2.6_regression
+output_dir: rompy_runs
+period:
+    start: '2010-08-01T00:00:00'
+    duration: 0H
+    interval: 1H
+config:
+    model_type: nml
+    shell_component:
+        domain:
+            start: 20100801 000000
+            stop: 20100801 001000
+            iostyp: 1
+        input_nml:
+            forcing:
+                winds: H
+        output_type:
+            field:
+                list: HS LM T02 T01 T0M1 UST CHA CGE DTD FC CFX CFD QP QKK
+            point:
+                file:
+                    model_type: data_blob
+                    id: data
+                    source: regtests/ww3_tp2.6/input/points.list
+                    link: false
+        output_date:
+            field:
+                start: 20071101 000000
+                stride: '10'
+                stop: 20121231 233000
+            point:
+                start: 20071101 000000
+                stride: '60'
+                stop: 20121231 233000
+        homog_count:
+            n_wnd: 1
+        homog_input:
+        -   name: WND
+            date: 20020905 000000
+            value1: 30.0
+            value2: 180.0
+            value3: 0.0
+    grid_component:
+        grid_type: base
+        spectrum:
+            xfr: 1.1
+            freq1: 0.05
+            nk: 36
+            nth: 36
+            thoff: 0.0
+        run:
+            fldry: false
+            flcx: true
+            flcy: true
+            flcth: false
+            flck: false
+            flsou: false
+        timesteps:
+            dtmax: 3.0
+            dtxy: 1.0
+            dtkth: 1.5
+            dtmin: 5.0
+        inbound_count:
+            n_point: 2
+        inbound_points:
+            points:
+            -   x_index: 66
+                y_index: 1
+                connect: false
+            -   x_index: 99
+                y_index: 1
+                connect: true
+        unst:
+            sf: -1.0
+            filename:
+                model_type: data_blob
+                id: data
+                source: regtests/ww3_tp2.6/input/limon_ll.msh
+                link: false
+            idf: 20
+            idla: 4
+            idfm: 1
+            format: (20f10.2)
+            ugobcfile: unset
+        grid:
+            name: LIMON
+            type: UNST
+            coord: SPHE
+            clos: NONE
+            zlim: -0.1
+            dmin: 0.1
+    parameters_component:
+        pro2:
+            dtime: 64800.0
+        pro3:
+            wdthcg: 1.5
+            wdthth: 1.5
+        pro4:
+            rnfac: 0.0
+            rsfac: 0.0
+    field_output_component:
+        field:
+            timestart: 20100801 000000
+            timestride: '10'
+            timecount: '999'
+            list: HS
+            partition: 0 1 2
+            samefile: true
+            type: 4
+        file:
+            prefix: ww3.
+            netcdf: 3
+            ix0: 1
+            ixn: 1000000000
+            iy0: 1
+            iyn: 1000000000
