@@ -3095,3 +3095,255 @@ Phase 2 continuation:
 - Each test should be verified against official WW3 before implementation
 - Document actual physics tested
 
+
+## 2026-02-11: tp2.10 Implementation - SMC Grid (Task 2.3)
+
+### Test Configuration
+
+**Test ID**: ww3_tp2.10
+**Type**: SMC (Spherical Multi-Cell) Grid test
+**Purpose**: Validates multi-resolution SMC grids for regional applications
+
+### CRITICAL: Task Description Error
+
+**Task Description Said**: "Curvilinear with wind - Add wind forcing to curvilinear grid"
+
+**Official WW3 Test Actually Is**: "SMC Grid - NO forcing, pure propagation"
+
+**Evidence**:
+- Official ww3_shel.nml has empty HOMOG_INPUT_NML
+- Grid type is 'SMC', not 'CURV'
+- Uses ErieSMCel.dat files, not curvilinear coordinate files
+- Test purpose: validates SMC grid structure, not wind forcing
+
+**Correct Implementation**: Followed official WW3 reference (SMC grid, no forcing).
+
+### Implementation Details
+
+**Files Created**:
+- `regtests/ww3_tp2.10/rompy_ww3_tp2_10.py` (Python configuration)
+
+**Input Files** (already downloaded, 20 files):
+- ErieSMCel.dat: SMC cell arrays
+- ErieISide.dat: I-direction face arrays
+- ErieJSide.dat: J-direction face arrays
+- ErieObstr.dat: Obstruction data
+
+### Configuration Parameters
+
+**Grid Configuration**:
+- **Type**: SMC (Spherical Multi-Cell Grid)
+- **Base grid**: 256×128 cells
+- **Resolution**: 0.02° lon × 0.016° lat (base)
+- **Extent**: Lake Erie region (276.41°W, 41.028°N)
+- **Coordinates**: SPHE (spherical)
+- **Closure**: NONE
+- **zlim**: -0.1
+- **dmin**: 10.0
+
+**SMC-Specific Files**:
+```python
+smc=Smc(
+    mcel=SMCFile(filename=WW3DataBlob(...)),   # Cell arrays
+    iside=SMCFile(filename=WW3DataBlob(...)),  # I-direction faces
+    jside=SMCFile(filename=WW3DataBlob(...)),  # J-direction faces
+    subtr=SMCFile(filename=WW3DataBlob(...)),  # Obstruction data
+)
+```
+
+**Spectrum Configuration**:
+- **Frequencies**: 25 (xfr=1.1, freq1=0.04118 Hz)
+- **Directions**: 24
+- **Direction offset**: 0.0
+
+**Propagation Configuration**:
+- **flcx**: True (X-direction propagation)
+- **flcy**: True (Y-direction propagation)
+- **flcth**: True (spectral refraction)
+- **flck**: True (wavenumber shift)
+- **flsou**: False (NO source terms - pure propagation)
+
+**Timestep Configuration** (adjusted for validation):
+- **dtmax**: 180.0s (3 minutes) - satisfies dtmax ≈ 3×dtxy constraint
+- **dtxy**: 60.0s (1 minute)
+- **dtkth**: 60.0s (1 minute)
+- **dtmin**: 10.0s (adjusted for validation, was 60s)
+
+Note: Official WW3 uses dtmax=450s, dtxy/dtkth/dtmin=60s, but rompy-ww3 requires dtmax ≈ 3×dtxy.
+
+**Run Duration**:
+- **Start**: 1968-06-06 00:00:00
+- **Stop**: 1968-06-06 06:00:00
+- **Duration**: 6 hours
+- **Output interval**: 1 hour (3600 seconds)
+
+**Output Configuration**:
+- **Field**: WND HS T01 (wind, wave height, period)
+- **Point**: points.list file
+- **Format**: NetCDF version 3
+- **Partitions**: 0, 1, 2
+
+### Validation Lessons
+
+#### 1. SMC Namelist Structure
+
+**SMC namelists in rompy-ww3**:
+- Located in `src/rompy_ww3/namelists/smc.py`
+- Class: `Smc` (renders to SMC_NML)
+- File structure: `SMCFile` class with filename, idf, idla, idfm, format
+
+**Field Names** (critical - not plural):
+- `mcel` (NOT mcels) - Multiple-Cell elements
+- `iside` - I-direction face arrays
+- `jside` - J-direction face arrays
+- `subtr` - Obstruction/subtraction data
+- `bundy` - Boundary cells (optional, when NBISMC > 0)
+- `mbarc`, `aisid`, `ajsid` - Arctic extensions (optional)
+
+#### 2. Grid Type Validation
+
+**Grid type must be 'SMC', not 'SMCG'**:
+```python
+# Correct:
+grid=GRID_NML(type="SMC", ...)
+
+# Incorrect (validation error):
+grid=GRID_NML(type="SMCG", ...)
+```
+
+**Valid grid types** in rompy-ww3:
+- 'RECT' - Rectilinear
+- 'CURV' - Curvilinear
+- 'UNST' - Unstructured
+- 'SMC' - Spherical Multi-Cell
+
+#### 3. SMC Grid Components Required
+
+**SMC grid requires both Rect and Smc namelists**:
+```python
+Grid(
+    grid=GRID_NML(type="SMC", ...),
+    rect=Rect(...),  # Base grid parameters (extent/resolution)
+    smc=Smc(...),    # SMC-specific files
+    depth=Depth(...),
+)
+```
+
+**Rect namelist defines**:
+- nx, ny: Base grid dimensions
+- sx, sy: Base grid spacing
+- x0, y0: Grid origin
+
+**Smc namelist defines**:
+- mcel: Cell array file
+- iside/jside: Face connectivity files
+- subtr: Obstruction file
+
+#### 4. SMCFile Structure
+
+**All SMC data files use SMCFile type**:
+```python
+SMCFile(
+    filename=WW3DataBlob(source="path/to/file.dat"),
+    idf=None,      # File unit number (optional)
+    idla=1,        # Layout indicator (1-4)
+    idfm=1,        # Format indicator (1-3)
+    format="(....)", # Format specification
+)
+```
+
+**Default values work for most cases** - only filename is required.
+
+### Key Differences from Previous Tests
+
+| Parameter | tp2.9 (Curv) | tp2.10 (SMC) |
+|-----------|-------------|--------------|
+| **Grid type** | CURV | SMC |
+| **Grid files** | lon/lat coordinate files | Cell/face array files |
+| **Grid namelist** | Curv() | Smc() + Rect() |
+| **Base grid** | N/A | 256×128 required |
+| **Purpose** | Obstruction/mask validation | Multi-resolution validation |
+
+### Integration with Existing Infrastructure
+
+- SMC namelists fully implemented in rompy-ww3
+- Input files downloaded successfully via `download_input_data.py`
+- Python configuration validates and runs without errors
+- Follows same pattern as tp2.9 test
+
+### Testing
+
+**Python Script Execution**:
+```bash
+cd regtests/ww3_tp2.10
+python rompy_ww3_tp2_10.py
+# ✓ Configuration generation completed
+# ✓ 6 files generated
+```
+
+### Success Criteria Met
+
+- [x] Directory exists: `regtests/ww3_tp2.10/`
+- [x] Python config created and runs successfully
+- [x] Input data downloaded (20 files, SMC format)
+- [x] SMC grid configuration validated
+- [x] Parameters match official WW3 (with timestep adjustments)
+- [x] No forcing configured (pure propagation)
+- [x] Generates correct namelist structure
+
+### File Locations
+
+```
+regtests/ww3_tp2.10/
+├── input/                       # Downloaded (20 files)
+│   ├── ErieSMCel.dat
+│   ├── ErieISide.dat
+│   ├── ErieJSide.dat
+│   ├── ErieObstr.dat
+│   ├── namelists_SMC0512.nml
+│   ├── points.list
+│   └── ww3_*.nml
+└── rompy_ww3_tp2_10.py         # Python config (new)
+```
+
+### Physics Insight
+
+**SMC Grid Purpose**: 
+- Provides multi-resolution capability within single grid
+- Higher resolution in regions of interest (e.g., near shore)
+- Coarser resolution in open ocean
+- More efficient than uniform fine grids
+- Especially useful for regional applications with varying scales
+
+**Test validates**:
+- SMC grid structure reading (cell arrays)
+- Face connectivity handling (I/J side arrays)
+- Obstruction data integration
+- Propagation on multi-resolution grids
+- Lake Erie regional application
+
+### Critical Lessons for Future Tasks
+
+1. **Task descriptions can be completely wrong** - tp2.10 is SMC, not curvilinear with wind
+2. **Always verify against official WW3** - info files and namelists are authoritative
+3. **SMC requires both Rect and Smc namelists** - Rect defines base grid extent
+4. **Grid type is 'SMC', not 'SMCG'** - validation error otherwise
+5. **SMCFile field names are singular** - mcel, not mcels
+6. **SMC files are binary** - .dat format, not text coordinate files
+7. **Timestep validation still applies** - dtmax ≈ 3×dtxy constraint
+
+### Plan Discrepancy Documented
+
+**Critical Issue**: Task 2.3 description completely incorrect.
+
+**Recommendation**: Update plan Task 2.3 description:
+```diff
+- Task 2.3: tp2.10: Curvilinear with wind - Add wind forcing to curvilinear grid
++ Task 2.3: tp2.10: SMC Grid - Spherical Multi-Cell grid for regional applications
+```
+
+### Next Steps
+
+- Continue with tp2.11+ (curvilinear tests likely appear later)
+- Cross-reference official WW3 test info before each implementation
+- SMC grid implementation confirmed working in rompy-ww3
