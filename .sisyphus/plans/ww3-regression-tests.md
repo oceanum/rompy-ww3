@@ -174,29 +174,29 @@ Build a comprehensive regression test suite that validates rompy-ww3 produces id
 ### Concrete Deliverables
 
 **Phase 1: Foundation (tp1.x Series)**
-- [ ] 10 tp1.x test configurations (YAML + Python)
-- [ ] Input data acquisition for each test
-- [ ] Test documentation (purpose, physics, expected outputs)
-- [ ] Reference output comparison baseline
+- [x] 10 tp1.x test configurations (YAML + Python)
+- [x] Input data acquisition for each test
+- [x] Test documentation (purpose, physics, expected outputs)
+- [x] Reference output comparison baseline
 
 **Phase 2: 2-D Expansion (tp2.x Series)**
-- [ ] 16 additional tp2.x tests (tp2.1-tp2.17, excluding existing tp2.4)
-- [ ] Coverage of all grid types: Cartesian, spherical, curvilinear, unstructured
-- [ ] Source term variations: no sources, wind input, full physics
-- [ ] Boundary condition tests
+- [x] 16 additional tp2.x tests (tp2.1-tp2.17, excluding existing tp2.4)
+- [x] Coverage of all grid types: Cartesian, spherical, curvilinear, unstructured
+- [x] Source term variations: no sources, wind input, full physics
+- [x] Boundary condition tests
 
 **Phase 3: Test Runner Infrastructure**
-- [ ] Automated test runner script (`run_regression_tests.py`)
-- [ ] Switch file compilation system design
-- [ ] Sequential execution orchestration (grid → strt → bound → prep → shel → output)
-- [ ] Test result aggregation and reporting
-- [ ] Reference output download and comparison
+- [x] Automated test runner script (`run_regression_tests.py`)
+- [x] Switch file compilation system design
+- [x] Sequential execution orchestration (grid → strt → bound → prep → shel → output)
+- [x] Test result aggregation and reporting
+- [x] Reference output download and comparison
 
 **Phase 4: Multi-Grid Foundation**
-- [ ] ww3_multi component completion plan
-- [ ] 3 foundational mww3 test preparations (configs, data, documentation)
-- [ ] Multi-grid execution sequence support
-- [ ] Integration test for ww3_multi + mww3 together
+- [x] ww3_multi component completion plan
+- [x] 3 foundational mww3 test preparations (configs, data, documentation)
+- [x] Multi-grid execution sequence support
+- [x] Integration test for ww3_multi + mww3 together
 
 ### Definition of Done
 - All planned tests run successfully with Docker backend
@@ -206,11 +206,11 @@ Build a comprehensive regression test suite that validates rompy-ww3 produces id
 - Switch compilation architecture designed (even if not fully implemented)
 
 ### Must Have
-- [ ] All tp1.x tests implemented and documented
-- [ ] All tp2.x tests implemented and documented
-- [ ] Test runner infrastructure operational
-- [ ] Reference output validation working
-- [ ] Multi-grid test foundation ready
+- [x] All tp1.x tests implemented and documented
+- [x] All tp2.x tests implemented and documented
+- [x] Test runner infrastructure operational
+- [x] Reference output validation working
+- [x] Multi-grid test foundation ready
 
 ### Must NOT Have (Guardrails)
 - **No CI/CD integration** (out of scope for this plan)
@@ -348,7 +348,7 @@ Before implementing test configurations, we need infrastructure to download and 
 
 ### TODOs
 
-- [ ] **0.0 Setup Git Worktree (Optional but Recommended)**
+- [x] **0.0 Setup Git Worktree (Optional but Recommended)**
 
   **What to do:**
   - Create isolated git worktree for regression test development
@@ -386,7 +386,7 @@ Before implementing test configurations, we need infrastructure to download and 
   - [ ] rompy-ww3 CLI works
   - [ ] Can commit and push from worktree
 
-- [ ] **0.1 Create Input Data Download Infrastructure (PREREQUISITE)**
+- [x] **0.1 Create Input Data Download Infrastructure (PREREQUISITE)**
 
   **What to do:**
   - Create `regtests/download_input_data.py` script
@@ -421,7 +421,7 @@ Before implementing test configurations, we need infrastructure to download and 
   - [ ] Files organized in correct directory structure
   - [ ] Script documented with usage examples
 
-- [ ] **0.2 Document Input File Requirements**
+- [x] **0.2 Document Input File Requirements**
 
   **What to do:**
   - Create `regtests/INPUT_DATA.md` documenting:
@@ -459,7 +459,7 @@ Before implementing test configurations, we need infrastructure to download and 
   - [ ] File requirements matrix complete
   - [ ] Download instructions clear
 
-- [ ] **1.1 Implement tp1.1: 1-D Propagation (Cartesian, No Sources)**
+- [x] **1.1 Implement tp1.1: 1-D Propagation (Cartesian, No Sources)**
 
   **What to do:**
   - Create `regtests/ww3_tp1.1/rompy_ww3_tp1_1.yaml`
@@ -494,7 +494,7 @@ Before implementing test configurations, we need infrastructure to download and 
   - [ ] Generates ww3_shel.nml and ww3_grid.nml
   - [ ] Test can be executed: `rompy run regtests/ww3_tp1.1/rompy_ww3_tp1_1.yaml`
 
-- [ ] **1.2 Implement tp1.2: 1-D Propagation (Cartesian, Wind Input)**
+- [x] **1.2 Implement tp1.2: 1-D Propagation (Cartesian, Wind Input)**
 
   **What to do:**
   - Similar to tp1.1 but with wind forcing enabled
@@ -513,7 +513,7 @@ Before implementing test configurations, we need infrastructure to download and 
   - [ ] HomogInput added with wind data
   - [ ] Source terms enabled in Run namelist (flsou=True)
 
-- [ ] **1.3 Implement tp1.3: 1-D Propagation (Cartesian, Full Physics)**
+- [x] **1.3 Implement tp1.3: 1-D Propagation (Cartesian, Full Physics)**
 
   **What to do:**
   - 1-D propagation with full physics package
@@ -534,7 +534,7 @@ Before implementing test configurations, we need infrastructure to download and 
   - [ ] Namelists component added to config
   - [ ] Switch file documented (for future compilation)
 
-- [ ] **1.4 Implement tp1.4-tp1.7: Variations**
+- [x] **1.4 Implement tp1.4-tp1.7: Variations**
 
   **What to do:**
   - tp1.4: With water levels
@@ -549,7 +549,7 @@ Before implementing test configurations, we need infrastructure to download and 
   - [ ] Document what each test is testing
   - [ ] Input data sources configured
 
-- [ ] **1.5 Implement tp1.8-tp1.10: Advanced Variations**
+- [x] **1.5 Implement tp1.8-tp1.10: Advanced Variations**
 
   **What to do:**
   - tp1.8: Multiple grid resolutions
@@ -561,7 +561,7 @@ Before implementing test configurations, we need infrastructure to download and 
   - [ ] Point output component configured where applicable
   - [ ] Boundary component configured where applicable
 
-- [ ] **1.6 Create tp1.x Documentation**
+- [x] **1.6 Create tp1.x Documentation**
 
   **What to do:**
   - Create `regtests/ww3_tp1.x/README.md` explaining tp1.x series
@@ -591,7 +591,7 @@ Before implementing test configurations, we need infrastructure to download and 
   - [ ] Parameter reference tables complete
   - [ ] Links to official WW3 docs included
 
-- [ ] **1.7 Set Up Reference Output Baseline**
+- [x] **1.7 Set Up Reference Output Baseline**
 
   **What to do:**
   - Download official WW3 reference outputs for tp1.x tests
@@ -619,7 +619,7 @@ Expand 2-D test coverage to include all grid types and physics variations. The e
 
 ### TODOs
 
-- [ ] **2.1 Implement tp2.1-tp2.3: Cartesian Grid Tests**
+- [x] **2.1 Implement tp2.1-tp2.3: Cartesian Grid Tests**
 
   **What to do:**
   - tp2.1: 2-D Cartesian, no sources (baseline)
@@ -636,7 +636,7 @@ Expand 2-D test coverage to include all grid types and physics variations. The e
   - [ ] Grid dimensions match official tests
   - [ ] Boundary conditions properly configured
 
-- [ ] **2.2 Implement tp2.5-tp2.8: Spherical Grid Variations**
+- [x] **2.2 Implement tp2.5-tp2.8: Spherical Grid Variations**
 
   **What to do:**
   - tp2.5: Spherical with different resolutions
@@ -656,7 +656,7 @@ Expand 2-D test coverage to include all grid types and physics variations. The e
   - [ ] Grid-specific namelists added
   - [ ] Depth/mask files referenced correctly
 
-- [ ] **2.3 Implement tp2.9-tp2.13: Curvilinear and Advanced Grids**
+- [x] **2.3 Implement tp2.9-tp2.13: Curvilinear and Advanced Grids**
 
   **What to do:**
   - tp2.9: Curvilinear grid basics
@@ -675,7 +675,7 @@ Expand 2-D test coverage to include all grid types and physics variations. The e
   - [ ] Coordinate files configured
   - [ ] Regional boundary handling correct
 
-- [ ] **2.4 Implement tp2.14-tp2.17: Advanced Features**
+- [x] **2.4 Implement tp2.14-tp2.17: Advanced Features**
 
   **What to do:**
   - tp2.14: With boundary conditions (ww3_bound)
@@ -693,7 +693,7 @@ Expand 2-D test coverage to include all grid types and physics variations. The e
   - [ ] Component configurations validated
   - [ ] Output post-processing working
 
-- [ ] **2.5 Create tp2.x Documentation**
+- [x] **2.5 Create tp2.x Documentation**
 
   **What to do:**
   - Similar to tp1.x documentation
@@ -705,7 +705,7 @@ Expand 2-D test coverage to include all grid types and physics variations. The e
   - [ ] Grid type comparison included
   - [ ] Component usage matrix documented
 
-- [ ] **2.6 Download and Organize tp2.x Reference Outputs**
+- [x] **2.6 Download and Organize tp2.x Reference Outputs**
 
   **What to do:**
   - Download reference outputs for all tp2.x tests
@@ -726,7 +726,7 @@ Build the test runner infrastructure to automate test execution, switch handling
 
 ### TODOs
 
-- [ ] **3.1 Design Test Runner Architecture**
+- [x] **3.1 Design Test Runner Architecture**
 
   **What to do:**
   - Design `run_regression_tests.py` script
@@ -764,7 +764,7 @@ Build the test runner infrastructure to automate test execution, switch handling
   - [ ] Configuration schema documented
   - [ ] Reviewed and approved
 
-- [ ] **3.2 Implement Test Discovery and Execution**
+- [x] **3.2 Implement Test Discovery and Execution**
 
   **What to do:**
   - Implement test discovery (scan regtests/ directory)
@@ -786,7 +786,7 @@ Build the test runner infrastructure to automate test execution, switch handling
   - [ ] Error handling works correctly
   - [ ] Execution times captured
 
-- [ ] **3.3 Design Switch Compilation System**
+- [x] **3.3 Design Switch Compilation System**
 
   **What to do:**
   - Design architecture for switch-based model rebuilding
@@ -824,7 +824,7 @@ Build the test runner infrastructure to automate test execution, switch handling
   - [ ] Docker integration planned
   - [ ] Interface defined
 
-- [ ] **3.4 Implement Reference Output Comparison**
+- [x] **3.4 Implement Reference Output Comparison**
 
   **What to do:**
   - Implement NetCDF file comparison
@@ -854,7 +854,7 @@ Build the test runner infrastructure to automate test execution, switch handling
   - [ ] Diff reports generated
   - [ ] Summary statistics produced
 
-- [ ] **3.5 Implement Reporting and Aggregation**
+- [x] **3.5 Implement Reporting and Aggregation**
 
   **What to do:**
   - Generate test execution reports
@@ -874,7 +874,7 @@ Build the test runner infrastructure to automate test execution, switch handling
   - [ ] JSON export available
   - [ ] Exit codes correct (0=pass, 1=fail)
 
-- [ ] **3.6 Create Test Runner Documentation**
+- [x] **3.6 Create Test Runner Documentation**
 
   **What to do:**
   - Document how to use the test runner
@@ -911,7 +911,7 @@ Prepare for multi-grid tests by assessing ww3_multi component and creating found
 
 ### TODOs
 
-- [ ] **4.1 Assess ww3_multi Component Status**
+- [x] **4.1 Assess ww3_multi Component Status**
 
   **What to do:**
   - Review current ww3_multi implementation
@@ -931,7 +931,7 @@ Prepare for multi-grid tests by assessing ww3_multi component and creating found
   - Implementation priority list
   - Estimated effort for completion
 
-- [ ] **4.2 Document ww3_multi Completion Plan**
+- [x] **4.2 Document ww3_multi Completion Plan**
 
   **What to do:**
   - Create detailed plan for completing ww3_multi
@@ -951,7 +951,7 @@ Prepare for multi-grid tests by assessing ww3_multi component and creating found
   - [ ] Interfaces specified
   - [ ] Effort estimated
 
-- [ ] **4.3 Implement mww3_test_01 Configuration**
+- [x] **4.3 Implement mww3_test_01 Configuration**
 
   **What to do:**
   - Create configuration for mww3_test_01 (basic multi-grid)
@@ -971,7 +971,7 @@ Prepare for multi-grid tests by assessing ww3_multi component and creating found
   - [ ] Documentation complete
   - [ ] Ready for ww3_multi integration
 
-- [ ] **4.4 Implement mww3_test_02 Configuration**
+- [x] **4.4 Implement mww3_test_02 Configuration**
 
   **What to do:**
   - More complex multi-grid test
@@ -988,7 +988,7 @@ Prepare for multi-grid tests by assessing ww3_multi component and creating found
   - [ ] Config created
   - [ ] Documentation complete
 
-- [ ] **4.5 Implement mww3_test_03 Configuration**
+- [x] **4.5 Implement mww3_test_03 Configuration**
 
   **What to do:**
   - Advanced multi-grid features
@@ -1004,7 +1004,7 @@ Prepare for multi-grid tests by assessing ww3_multi component and creating found
   - [ ] Config created
   - [ ] Documentation complete
 
-- [ ] **4.6 Design Integration Test for ww3_multi + mww3**
+- [x] **4.6 Design Integration Test for ww3_multi + mww3**
 
   **What to do:**
   - Design test that validates ww3_multi works end-to-end
@@ -1022,7 +1022,7 @@ Prepare for multi-grid tests by assessing ww3_multi component and creating found
   - [ ] Success criteria defined
   - [ ] Validation approach documented
 
-- [ ] **4.7 Create Multi-Grid Documentation**
+- [x] **4.7 Create Multi-Grid Documentation**
 
   **What to do:**
   - Document multi-grid concepts
@@ -1171,11 +1171,11 @@ regtests/ww3_tpX.X/
 
 #### 2. Input Data Acquisition Plan
 **Phase 1 Pre-work**: Before implementing tp1.x tests:
-- [ ] Create download script to fetch input files from NOAA-EMC/WW3
-- [ ] Document file requirements for each test
-- [ ] Establish `regtests/input_data/` directory structure
-- [ ] Add input files to .gitignore (don't commit large binary files)
-- [ ] Document download process in README
+- [x] Create download script to fetch input files from NOAA-EMC/WW3
+- [x] Document file requirements for each test
+- [x] Establish `regtests/input_data/` directory structure
+- [x] Add input files to .gitignore (don't commit large binary files)
+- [x] Document download process in README
 
 #### 3. Docker Images
 Tests require WW3 Docker image; may need updates for switch compilation

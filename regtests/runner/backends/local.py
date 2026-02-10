@@ -1,7 +1,7 @@
 import subprocess
 import time
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 import logging
 
 from .base import Backend
@@ -13,8 +13,15 @@ logger = logging.getLogger(__name__)
 
 
 class LocalBackend(Backend):
-    def __init__(self, ww3_dir: Path = None):
+    def __init__(
+        self, ww3_dir: Optional[Path] = None, backend_config: Optional[Path] = None
+    ):
         self.ww3_dir = ww3_dir
+        # Use absolute path to backend config to ensure it works from any working directory
+        self.backend_config = (
+            backend_config
+            or Path(__file__).parent.parent.parent / "backends" / "local_backend.yml"
+        )
 
     def execute(self, test: TestCase, workdir: Path) -> TestResult:
         logger.info(f"Executing {test.name} via local backend")
@@ -23,7 +30,13 @@ class LocalBackend(Backend):
 
         try:
             result = subprocess.run(
-                ["rompy", "run", str(test.config_path)],
+                [
+                    "rompy",
+                    "run",
+                    str(test.config_path),
+                    "--backend-config",
+                    str(self.backend_config),
+                ],
                 cwd=workdir,
                 capture_output=True,
                 text=True,
