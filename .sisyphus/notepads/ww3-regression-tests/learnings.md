@@ -3347,3 +3347,176 @@ regtests/ww3_tp2.10/
 - Continue with tp2.11+ (curvilinear tests likely appear later)
 - Cross-reference official WW3 test info before each implementation
 - SMC grid implementation confirmed working in rompy-ww3
+
+## tp2.14 Implementation (2026-02-11)
+
+### Bound Component Usage
+- **First test using Bound component** for boundary condition preprocessing
+- Bound component requires BoundNML namelist with:
+  - `mode`: "READ" or "WRITE" for boundary data direction
+  - `interp`: 1 (nearest) or 2 (linear) interpolation method
+  - `verbose`: 0-2 verbosity level
+  - `file`: path to boundary data file (string or WW3Boundary object)
+
+### WW3 Boundary Data
+- Boundary files typically named `spec.nc` (netCDF format)
+- Contains 2D wave spectra (frequency × direction) at boundary points
+- Used for regional model runs with open boundaries
+- Processed by ww3_bound executable before main model run
+
+### Import Pattern
+- Bound component: `from rompy_ww3.components import Bound`
+- BoundNML namelist: `from rompy_ww3.namelists.bound import Bound as BoundNML`
+- Rect namelist: `from rompy_ww3.namelists import Rect` (not separate module)
+
+### Configuration Structure
+```python
+bound_component = Bound(
+    bound=BoundNML(
+        mode="READ",
+        interp=2,  # Linear interpolation
+        verbose=1,
+        file="path/to/spec.nc"  # String path works
+    )
+)
+
+config = NMLConfig(
+    shell_component=...,
+    grid_component=...,
+    bound_component=bound_component  # Added to config
+)
+```
+
+### Execution Sequence
+1. ww3_bound: Preprocess boundary data (spec.nc → nest.ww3)
+2. ww3_grid: Generate grid files
+3. ww3_shel: Run model with boundary forcing
+4. ww3_ounf: Extract outputs
+
+rompy orchestrates this sequence automatically.
+
+### Test Characteristics
+- **Grid**: Same as tp2.4 (225x106 spherical)
+- **Closure**: NONE (regional with open boundaries)
+- **Forcing**: Boundary conditions only (no wind/sources)
+- **Purpose**: Validate boundary data integration workflow
+
+
+## tp2.17: Output Post-Processing Test
+
+**Implementation Date**: 2026-02-11
+
+### Key Learnings
+
+1. **Output Components**: Successfully demonstrated both Ounf (field) and Ounp (point) output post-processing components
+2. **Configuration Pattern**: Both components configure separate WW3 executables (ww3_ounf, ww3_ounp)
+3. **Multiple Output Types**: Ounp supports type=2 (mean parameters) for station time series
+4. **NetCDF4 Format**: Modern output format with compression and CF compliance
+5. **Point Lists**: Simple text format (lon, lat, 'name') for point output locations
+
+### Test Configuration
+
+- **Grid**: 200×200 nested domain, 0.5-degree spacing
+- **Physics**: Wind forcing (10 m/s westerly) + source terms enabled
+- **Duration**: 48 hours
+- **Field Output**: 1-hour intervals, 12+ wave parameters, all partitions
+- **Point Output**: 30-minute intervals, mean parameters (type 2)
+- **Components**: Shell + Grid + Namelists + Ounf + Ounp
+
+### Technical Details
+
+**Ounf Component**:
+- Field output via ww3_ounf.nml
+- NetCDF4 format for modern compatibility
+- Comprehensive wave parameters (HS, T02, T01, FP, DIR, SPR, DP, PHS, PTP, PDIR, WND, CUR)
+- Partition output (0=total, 1=wind sea, 2=primary swell, 3=secondary swell)
+
+**Ounp Component**:
+- Point output via ww3_ounp.nml
+- Type 2 = mean parameters (bulk statistics)
+- All points in single file
+- Buffer size controls memory usage
+- Standard dimension ordering
+
+### Pattern Established
+
+```python
+# Ounf component
+field_output_component = Ounf(
+    field=Field(timestart="...", timestride="3600", ...),
+    file=FileNml(prefix="ww3.", netcdf=4)
+)
+
+# Ounp component
+point_output_component = Ounp(
+    point_nml=Point(timestart="...", timestride="1800", type=2, ...),
+    file_nml=PointFile(prefix="ww3_points.", netcdf=4),
+    param_nml=Param(output=2)  # Matches type=2
+)
+
+# NMLConfig
+config = NMLConfig(
+    shell_component=...,
+    grid_component=...,
+    parameters_component=...,
+    field_output_component=field_output_component,
+    point_output_component=point_output_component
+)
+```
+
+### Validation Status
+
+- ✓ Configuration creates successfully
+- ✓ All 5 components configured
+- ✓ Ounf and Ounp namelists generated
+- ✓ Points list file created
+- ✓ Documentation complete
+
+### This Completes Phase 2!
+
+tp2.17 is the **LAST** test in Phase 2 (2-D propagation tests). All Phase 2 tests now implemented:
+- tp2.1 through tp2.17 ✓
+
+## Task 2.6: tp2.x Reference Output Documentation
+
+**Date**: 2026-02-11
+
+### What Was Done
+- Updated AVAILABLE_TESTS.md with descriptive entries for all 17 tp2.x tests
+- Enhanced CHECKSUMS.txt with structured sections for tp1.x, tp2.x, and multi-grid tests
+- Documented test purposes based on existing README.md files for tp2.11-17
+
+### Test Descriptions Added
+1. **tp2.1**: 2-D propagation test
+2. **tp2.2**: Periodic boundary conditions
+3. **tp2.3**: Curvilinear grid propagation
+4. **tp2.4**: Eastern Pacific spherical grid
+5. **tp2.5**: 2-D propagation variant
+6. **tp2.6**: Full physics test
+7. **tp2.7**: Unstructured grid test
+8. **tp2.8**: SMC grid test
+9. **tp2.9**: Curvilinear quarter annulus
+10. **tp2.10**: SMC multi-resolution grid
+11. **tp2.11**: Curvilinear + ST4 physics
+12. **tp2.12**: Global 30-min grid (SMPL closure)
+13. **tp2.13**: Regional curvilinear (NONE closure)
+14. **tp2.14**: Boundary conditions test
+15. **tp2.15**: Space-time extremes (STE) parameters
+16. **tp2.16**: Data assimilation test
+17. **tp2.17**: Output post-processing (Ounf/Ounp)
+
+### Key Insights
+- Tests tp2.11-17 have comprehensive README.md documentation
+- Tests tp2.1-10 have implementation but minimal documentation
+- tp2.4 example shows Eastern Pacific regional domain
+- Test descriptions align with WW3 test suite purposes
+
+### Documentation Structure
+- AVAILABLE_TESTS.md maintains consistent table format
+- CHECKSUMS.txt now organized by test phase with clear section headers
+- Placeholder structure ready for actual checksum generation
+
+### Commit
+- **Hash**: efc66b9
+- **Message**: "docs: update reference output documentation for all tp2.x tests"
+- **Files**: AVAILABLE_TESTS.md, CHECKSUMS.txt
