@@ -6,6 +6,7 @@ import logging
 
 from .test import TestCase
 from .result import TestResult, TestSuiteResult, TestStatus
+from .validator import Validator
 from ..backends.base import Backend
 
 
@@ -33,16 +34,26 @@ class TestRunner:
         >>> print(f"Passed: {results.passed}/{results.total_tests}")
     """
 
-    def __init__(self, backend: Backend, output_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        backend: Backend,
+        output_dir: Optional[Path] = None,
+        reference_dir: Optional[Path] = None,
+        validator: Optional[Validator] = None,
+    ):
         """Initialize test runner with execution backend.
 
         Args:
             backend: Backend instance for test execution (local/Docker)
             output_dir: Optional directory for test outputs (default: ./test_outputs)
+            reference_dir: Optional directory containing reference outputs for validation
+            validator: Optional Validator instance (created if not provided)
         """
         self.backend = backend
         self.output_dir = output_dir or Path("./test_outputs")
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.reference_dir = reference_dir
+        self.validator = validator or Validator()
 
     def discover_tests(self, path: Path, pattern: str = "ww3_tp*") -> List[TestCase]:
         """Discover test cases in directory matching pattern.
@@ -86,30 +97,29 @@ class TestRunner:
         logger.info(f"Discovered {len(test_cases)} tests")
         return test_cases
 
-    def run_test(self, test: TestCase) -> TestResult:
+    def run_test(self, test: TestCase, validate: bool = False) -> TestResult:
         """Execute a single test case and return result.
 
         Validates the test configuration, executes it via the backend,
-        and collects the results.
+        and collects the results. Optionally validates against reference outputs.
 
         Args:
             test: TestCase to execute
+            validate: If True and reference_dir is set, validate outputs
 
         Returns:
             TestResult with execution outcome
 
         Example:
-            >>> result = runner.run_test(test_case)
+            >>> result = runner.run_test(test_case, validate=True)
             >>> if result.status == TestStatus.SUCCESS:
             ...     print(f"Test passed in {result.execution_time:.2f}s")
         """
         logger.info(f"Running test: {test.name}")
 
-        # Create test-specific output directory
         test_output_dir = self.output_dir / test.name
         test_output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Validate test before execution
         validation = test.validate()
         if not validation.is_valid:
             logger.error(f"Test validation failed: {validation.message}")
@@ -119,9 +129,31 @@ class TestRunner:
                 error_message=f"Validation failed: {validation.message}",
             )
 
-        # Execute via backend
         try:
             result = self.backend.execute(test, workdir=test_output_dir)
+
+            if validate and self.reference_dir and result.status == TestStatus.SUCCESS:
+                logger.info(f"Validating outputs for test: {test.name}")
+                test_reference_dir = self.reference_dir / test.name
+
+                if test_reference_dir.exists():
+                    validation_report = self.validator.validate(
+                        output_dir=test_output_dir,
+                        reference_dir=test_reference_dir,
+                    )
+                    result.validation_results = validation_report
+
+                    if not validation_report.is_valid():
+                        result.status = TestStatus.FAILURE
+                        logger.warning(
+                            f"Test {test.name} validation failed: "
+                            f"{validation_report.files_matched}/{validation_report.files_compared} files matched"
+                        )
+                    else:
+                        logger.info(f"Test {test.name} validation passed")
+                else:
+                    logger.warning(f"No reference directory found for {test.name}")
+
             logger.info(f"Test {test.name} completed: {result.status}")
             return result
         except Exception as e:
@@ -132,20 +164,21 @@ class TestRunner:
                 error_message=str(e),
             )
 
-    def run_all(self, tests: List[TestCase]) -> TestSuiteResult:
+    def run_all(self, tests: List[TestCase], validate: bool = False) -> TestSuiteResult:
         """Execute multiple test cases and aggregate results.
 
         Runs all tests sequentially and aggregates the results into a
-        TestSuiteResult for reporting.
+        TestSuiteResult for reporting. Optionally validates against references.
 
         Args:
             tests: List of TestCase objects to execute
+            validate: If True and reference_dir is set, validate outputs
 
         Returns:
             TestSuiteResult with aggregated outcomes
 
         Example:
-            >>> results = runner.run_all(tests)
+            >>> results = runner.run_all(tests, validate=True)
             >>> print(f"Passed: {results.passed}/{results.total_tests}")
             >>> print(f"Failed: {results.failed}")
         """
@@ -153,10 +186,9 @@ class TestRunner:
 
         results = []
         for test in tests:
-            result = self.run_test(test)
+            result = self.run_test(test, validate=validate)
             results.append(result)
 
-        # Aggregate results
         suite_result = TestSuiteResult.from_results(results)
         logger.info(f"Test suite completed: {suite_result.summary()}")
 

@@ -9,21 +9,28 @@ The test runner architecture consists of:
 - **TestCase**: Encapsulates individual test configuration and metadata
 - **Backend**: Abstract interface for execution environments (local/Docker)
 - **TestResult**: Encapsulates execution results and validation outcomes
+- **Validator**: Validates test outputs against reference data
 
 Usage:
-    from regtests.runner import TestRunner
+    from regtests.runner import TestRunner, Validator, ComparisonMode
     from regtests.runner.backends import DockerBackend
 
     backend = DockerBackend(image="rompy/ww3:latest")
-    runner = TestRunner(backend=backend)
+    validator = Validator(tolerance=1e-6, mode=ComparisonMode.RELATIVE)
+    runner = TestRunner(
+        backend=backend,
+        reference_dir=Path("reference_outputs"),
+        validator=validator,
+    )
 
     tests = runner.discover_tests("regtests/", pattern="ww3_tp1.*")
-    results = runner.run_all(tests)
+    results = runner.run_all(tests, validate=True)
 """
 
 from .core.runner import TestRunner
 from .core.test import TestCase
 from .core.result import TestResult, TestSuiteResult, TestStatus
+from .core.validator import Validator, ComparisonMode
 from .backends.base import Backend
 
 __all__ = [
@@ -33,4 +40,6 @@ __all__ = [
     "TestSuiteResult",
     "TestStatus",
     "Backend",
+    "Validator",
+    "ComparisonMode",
 ]
