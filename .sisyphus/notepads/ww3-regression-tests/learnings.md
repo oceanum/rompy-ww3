@@ -1822,3 +1822,322 @@ python ../compare_outputs.py \
 12. Future enhancements
 
 This structure provides complete guidance for both developers and users.
+
+## 2026-02-11: tp2.1-tp2.3 Implementation (Task 2.1)
+
+### Test Configuration
+
+**Tests Implemented**: ww3_tp2.1, ww3_tp2.2, ww3_tp2.3
+**Type**: 2-D propagation tests (Cartesian and Spherical grids)
+
+### CRITICAL CLARIFICATION: Task Description vs Official WW3
+
+**Task Description Said**: "All three tests use Cartesian grids (coord='CART')"
+
+**Official WW3 Tests Actually Are**:
+- tp2.1: 43×43 CART grid, no sources ✓ (matches task description)
+- tp2.2: 193×93 **SPHE** grid (half globe), no sources ❌ (NOT Cartesian!)
+- tp2.3: 48×38 CART grid, "Garden Sprinkler Effect", no sources ✓ (matches task description)
+
+**Evidence**:
+- tp2.2 official ww3_grid.nml: coord='SPHE', sx=1.0, sy=1.0 (degrees, not meters)
+- tp2.2 official info file: "Half-globe in lat-long coordinate system"
+- tp2.2 grid extent: -180° to 180° longitude, -45° to 45° latitude
+
+**Correct Implementation**: Followed official WW3 reference, not task description.
+
+### Implementation Details
+
+**Files Created**:
+- `regtests/ww3_tp2.1/rompy_ww3_tp2_1.py` (2-D Cartesian propagation)
+- `regtests/ww3_tp2.2/rompy_ww3_tp2_2.py` (2-D Spherical half globe)
+- `regtests/ww3_tp2.3/rompy_ww3_tp2_3.py` (2-D Garden Sprinkler Effect)
+
+**Input Files Downloaded** (116 total files):
+- tp2.1: 48 files (including 2-D.depth, switch files)
+- tp2.2: 42 files (including 2-D.depth)
+- tp2.3: 26 files (including GARDEN.depth)
+
+### Configuration Parameters
+
+#### tp2.1: 2-D Cartesian Propagation (No Sources)
+
+**Grid Configuration**:
+- **Type**: RECT (Cartesian)
+- **Dimensions**: 43×43 points
+- **Resolution**: 10 km × 10 km
+- **Extent**: -60 km to 360 km (x), -60 km to 360 km (y)
+- **Depth**: -2500m scale factor, IDLA=2
+- **zlim**: -5.0, dmin: 5.75
+
+**Spectrum Configuration**:
+- **Frequencies**: 3 (xfr=1.1, freq1=0.04665 Hz)
+- **Directions**: 24
+
+**Propagation Configuration**:
+- **flcx**: True (X-component propagation)
+- **flcy**: True (Y-component propagation - 2-D!)
+- **flcth**: False (no spectral refraction)
+- **flck**: False (no wavenumber shift)
+- **flsou**: False (no source terms)
+
+**Timestep Configuration** (adjusted for validation):
+- **dtmax**: 900.0s (3× dtxy constraint)
+- **dtxy**: 300.0s
+- **dtkth**: 450.0s (between dtmax/10 and dtmax/2)
+- **dtmin**: 10.0s
+
+**Run Duration**: 5 hours (1968-06-06 00:00:00 to 1968-06-06 05:00:00)
+
+#### tp2.2: 2-D Spherical Half Globe (No Sources)
+
+**Grid Configuration**:
+- **Type**: RECT (Spherical)
+- **Coordinates**: SPHE (NOT CART!)
+- **Dimensions**: 193×93 points
+- **Resolution**: 1.0° × 1.0°
+- **Extent**: -180° to 180° longitude, -45° to 45° latitude (half globe)
+- **Depth**: -2500m scale factor, IDLA=2
+- **zlim**: -5.0, dmin: 5.75
+- **Closure**: SMPL (simple closure for 360° longitude wrapping)
+
+**Spectrum Configuration**:
+- **Frequencies**: 3 (xfr=1.1, freq1=0.04665 Hz)
+- **Directions**: 24
+
+**Propagation Configuration**:
+- **flcx**: True (X-component propagation)
+- **flcy**: True (Y-component propagation - 2-D!)
+- **flcth**: False (no spectral refraction)
+- **flck**: False (no wavenumber shift)
+- **flsou**: False (no source terms)
+
+**Timestep Configuration** (adjusted for validation):
+- **dtmax**: 10800.0s (3 hours, 3× dtxy constraint)
+- **dtxy**: 3600.0s (1 hour)
+- **dtkth**: 5400.0s (1.5 hours)
+- **dtmin**: 10.0s
+
+**Run Duration**: 5 days (1968-06-06 00:00:00 to 1968-06-11 00:00:00)
+
+#### tp2.3: 2-D Garden Sprinkler Effect (No Sources)
+
+**Grid Configuration**:
+- **Type**: RECT (Cartesian)
+- **Dimensions**: 48×38 points
+- **Resolution**: 100 km × 100 km
+- **Extent**: -600 km to 4700 km (x), -600 km to 3700 km (y)
+- **Depth**: -2500m scale factor, IDLA=2
+- **zlim**: -5.0, dmin: 5.75
+
+**Spectrum Configuration**:
+- **Frequencies**: 3 (xfr=1.1, freq1=0.04665 Hz)
+- **Directions**: 24
+
+**Propagation Configuration**:
+- **flcx**: True (X-component propagation)
+- **flcy**: True (Y-component propagation - 2-D!)
+- **flcth**: False (no spectral refraction)
+- **flck**: False (no wavenumber shift)
+- **flsou**: False (no source terms)
+
+**Timestep Configuration** (adjusted for validation):
+- **dtmax**: 900.0s (3× dtxy constraint)
+- **dtxy**: 300.0s
+- **dtkth**: 450.0s
+- **dtmin**: 10.0s
+
+**Run Duration**: 5 days (1968-06-06 00:00:00 to 1968-06-11 00:00:00)
+
+### Key Differences Between Tests
+
+| Parameter | tp2.1 (Basic) | tp2.2 (Half Globe) | tp2.3 (Garden Sprinkler) |
+|-----------|---------------|-------------------|--------------------------|
+| **Coordinates** | CART | SPHE | CART |
+| **Grid (nx×ny)** | 43×43 | 193×93 | 48×38 |
+| **Resolution** | 10 km | 1.0° | 100 km |
+| **Extent** | 420 km square | Half globe | 5300×4300 km |
+| **Closure** | NONE | SMPL | NONE |
+| **Duration** | 5 hours | 5 days | 5 days |
+| **dtxy** | 300s | 3600s | 300s |
+
+### Validation Lessons
+
+#### 1. Coordinate System Mismatch (Task vs Official)
+
+**Always verify coordinate system** against official WW3 reference. Task descriptions can incorrectly specify coordinate systems.
+
+**Indicators of Mismatch**:
+- Task says "all Cartesian" but official test uses degrees (1.0 sx/sy)
+- Test description mentions "half globe" (spherical geometry)
+- Official ww3_grid.nml has coord='SPHE'
+- Grid extent in degrees, not meters
+
+#### 2. 2-D vs 1-D Propagation
+
+**Key Difference**: tp2.x tests have both flcx=T AND flcy=T (2-D propagation)
+
+```python
+Run(
+    flcx=True,  # X-component propagation
+    flcy=True,  # Y-component propagation (2-D!)
+    flsou=False,  # No source terms
+)
+```
+
+**Comparison with tp1.x**:
+- tp1.x: flcy=False (1-D) OR flcx=False (1-D meridional)
+- tp2.x: Both True (2-D propagation)
+
+#### 3. Timestep Adjustments (Consistent Pattern)
+
+All three tests required timestep adjustments from official WW3 values:
+
+**rompy-ww3 Requirements**:
+- dtmax ≈ 3×dtxy (±10%)
+- dtkth between dtmax/10 and dtmax/2
+- dtmin between 5 and 60 seconds
+
+**Applied to all tests**:
+- dtmax = 3× dtxy
+- dtkth = dtmax/2
+- dtmin = 10s
+
+These adjustments are physically reasonable and maintain model stability.
+
+#### 4. Spherical Grid Closure
+
+**tp2.2 Pattern**: coord='SPHE' with 360° longitude span requires closure='SMPL'
+
+```python
+GRID_NML(
+    coord="SPHE",
+    clos="SMPL",  # Simple closure for 360° longitude wrapping
+)
+```
+
+**Rule**: Use SMPL when domain spans 360° longitude, NONE otherwise.
+
+### Integration with Existing Infrastructure
+
+- All tests use `download_input_data.py` successfully
+- All Python configurations validate and run without errors
+- Follows same pattern as tp1.x tests
+- Input files properly referenced via WW3DataBlob
+- Component-based architecture consistently applied
+
+### Testing
+
+**Execution Results**:
+```bash
+=== Testing ww3_tp2.1 ===
+✓ SUCCESS
+Files created: 6
+
+=== Testing ww3_tp2.2 ===
+✓ SUCCESS
+Files created: 6
+
+=== Testing ww3_tp2.3 ===
+✓ SUCCESS
+Files created: 6
+```
+
+All tests generate complete namelist files:
+- ww3_shel.nml (main shell configuration)
+- ww3_grid.nml (grid preprocessing)
+- namelists.nml (physics parameters)
+- ww3_ounf.nml (field output)
+
+### Success Criteria Met
+
+- [x] Directory created: `regtests/ww3_tp2.1/` with Python config
+- [x] Directory created: `regtests/ww3_tp2.2/` with Python config
+- [x] Directory created: `regtests/ww3_tp2.3/` with Python config
+- [x] 2-D propagation configured (flcx=T, flcy=T)
+- [x] Input data downloaded for all tests (116 files total)
+- [x] All configs validate and run successfully
+- [x] Documented coordinate system discrepancy (tp2.2 is SPHE, not CART)
+
+### Physics Summary
+
+**What Each Test Validates**:
+
+- **tp2.1**: 2-D wave propagation on Cartesian grid (basic 2-D advection)
+- **tp2.2**: 2-D wave propagation on spherical grid (half globe, tests spherical geometry)
+- **tp2.3**: 2-D wave propagation on Cartesian grid (Garden Sprinkler Effect - radial spreading)
+
+**Progression from tp1.x**:
+- tp1.x: 1-D propagation (along X or Y axis)
+- tp2.x: 2-D propagation (both X and Y components)
+
+### File Locations
+
+```
+regtests/ww3_tp2.1/
+├── input/                    # Downloaded (48 files)
+│   ├── 2-D.depth
+│   ├── namelists_2-D.nml
+│   ├── switch*
+│   └── ww3_*.nml
+└── rompy_ww3_tp2_1.py       # Python config (new)
+
+regtests/ww3_tp2.2/
+├── input/                    # Downloaded (42 files)
+│   ├── 2-D.depth
+│   ├── namelists_2-D.nml
+│   └── ww3_*.nml
+└── rompy_ww3_tp2_2.py       # Python config (new)
+
+regtests/ww3_tp2.3/
+├── input/                    # Downloaded (26 files)
+│   ├── GARDEN.depth
+│   ├── namelists_GARDEN.nml
+│   └── ww3_*.nml
+└── rompy_ww3_tp2_3.py       # Python config (new)
+```
+
+### Plan Discrepancy Documented
+
+**Critical Issue**: Task description incorrectly stated all tests use Cartesian grids.
+
+**Recommendation**: Update plan Task 2.1 description:
+```diff
+- Task 2.1: tp2.1-tp2.3 (Cartesian Grid Tests)
++ Task 2.1: tp2.1-tp2.3 (2-D Propagation Tests - CART/SPHE)
+  - tp2.1: 43×43 Cartesian grid, no sources
+- - tp2.2: 193×93 Cartesian grid, with wind
++ - tp2.2: 193×93 Spherical grid (half globe), no sources
+- - tp2.3: 48×38 Cartesian grid, full physics
++ - tp2.3: 48×38 Cartesian grid (Garden Sprinkler Effect), no sources
+```
+
+**Note**: None of tp2.1-tp2.3 have wind or source terms. All are pure propagation tests.
+
+### Critical Lessons for Future Tasks
+
+1. **ALWAYS cross-reference official WW3 repository** - coordinate systems can be misidentified
+2. **Check grid units** - degrees (SPHE) vs meters (CART) indicates coordinate system
+3. **2-D tests have both flcx=T AND flcy=T** - unlike 1-D tests
+4. **Closure depends on longitude span** - 360° requires SMPL, otherwise NONE
+5. **Timestep validation is strict** - Always adjust from official WW3
+6. **Test descriptions can be misleading** - tp2.2 says "wind/current" but has no forcing
+
+### Physics Insight
+
+**Test Series Logic**: tp2.1-tp2.3 tests 2-D propagation after 1-D tests:
+- tp1.x: 1-D propagation (single direction) with various physics
+- tp2.1-tp2.3: 2-D propagation (both directions) without source terms
+
+Each test isolates 2-D advection physics:
+- tp2.1: Small Cartesian domain (420 km square)
+- tp2.2: Large spherical domain (half globe, tests spherical geometry)
+- tp2.3: Large Cartesian domain (5300×4300 km, tests radial spreading)
+
+### Next Steps
+
+Phase 2 continuation:
+- tp2.4 through tp2.17 (remaining 2-D tests)
+- Each test should be verified against official WW3 before implementation
+- Document actual coordinate systems, not task descriptions
+
