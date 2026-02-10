@@ -35,23 +35,23 @@ This file tracks which regression tests have reference outputs available for com
 
 | Test | Status | Files | Size | Checksum | Notes |
 |------|--------|-------|------|----------|-------|
-| tp2.1 | ⏳ | 0 | 0 MB | ❌ | 2-D propagation |
-| tp2.2 | ⏳ | 0 | 0 MB | ❌ | Periodic boundary |
-| tp2.3 | ⏳ | 0 | 0 MB | ❌ | Curvilinear grid |
-| tp2.4 | ⏳ | 0 | 0 MB | ❌ | Great Lakes |
-| tp2.5 | ⏳ | 0 | 0 MB | ❌ | TBD |
-| tp2.6 | ⏳ | 0 | 0 MB | ❌ | TBD |
-| tp2.7 | ⏳ | 0 | 0 MB | ❌ | TBD |
-| tp2.8 | ⏳ | 0 | 0 MB | ❌ | TBD |
-| tp2.9 | ⏳ | 0 | 0 MB | ❌ | TBD |
-| tp2.10 | ⏳ | 0 | 0 MB | ❌ | TBD |
-| tp2.11 | ⏳ | 0 | 0 MB | ❌ | TBD |
-| tp2.12 | ⏳ | 0 | 0 MB | ❌ | TBD |
-| tp2.13 | ⏳ | 0 | 0 MB | ❌ | TBD |
-| tp2.14 | ⏳ | 0 | 0 MB | ❌ | TBD |
-| tp2.15 | ⏳ | 0 | 0 MB | ❌ | TBD |
-| tp2.16 | ⏳ | 0 | 0 MB | ❌ | TBD |
-| tp2.17 | ⏳ | 0 | 0 MB | ❌ | TBD |
+| tp2.1 | ⏳ | 0 | 0 MB | ❌ | 2-D propagation test |
+| tp2.2 | ⏳ | 0 | 0 MB | ❌ | Periodic boundary conditions |
+| tp2.3 | ⏳ | 0 | 0 MB | ❌ | Curvilinear grid propagation |
+| tp2.4 | ⏳ | 0 | 0 MB | ❌ | Eastern Pacific spherical grid |
+| tp2.5 | ⏳ | 0 | 0 MB | ❌ | 2-D propagation variant |
+| tp2.6 | ⏳ | 0 | 0 MB | ❌ | Full physics test |
+| tp2.7 | ⏳ | 0 | 0 MB | ❌ | Unstructured grid test |
+| tp2.8 | ⏳ | 0 | 0 MB | ❌ | SMC grid test |
+| tp2.9 | ⏳ | 0 | 0 MB | ❌ | Curvilinear quarter annulus |
+| tp2.10 | ⏳ | 0 | 0 MB | ❌ | SMC multi-resolution grid |
+| tp2.11 | ⏳ | 0 | 0 MB | ❌ | Curvilinear + ST4 physics |
+| tp2.12 | ⏳ | 0 | 0 MB | ❌ | Global 30-min grid (SMPL) |
+| tp2.13 | ⏳ | 0 | 0 MB | ❌ | Regional curvilinear (NONE) |
+| tp2.14 | ⏳ | 0 | 0 MB | ❌ | Boundary conditions test |
+| tp2.15 | ⏳ | 0 | 0 MB | ❌ | Space-time extremes (STE) |
+| tp2.16 | ⏳ | 0 | 0 MB | ❌ | Data assimilation test |
+| tp2.17 | ⏳ | 0 | 0 MB | ❌ | Output post-processing |
 
 **Phase 2 Summary**: 0/17 tests with reference outputs
 
