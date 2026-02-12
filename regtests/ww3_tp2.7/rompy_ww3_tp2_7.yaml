@@ -9,7 +9,7 @@ period:
     interval: 1H
 config:
     model_type: nml
-    shell_component:
+    ww3_shel:
         domain:
             start: 20030101 000000
             stop: 20030101 120000
@@ -43,7 +43,7 @@ config:
             value1: 8.0
             value2: 270.0
             value3: 0.0
-    grid_component:
+    ww3_grid:
         grid_type: base
         spectrum:
             xfr: 1.1
@@ -143,7 +143,7 @@ config:
             clos: NONE
             zlim: -0.1
             dmin: 0.3
-    parameters_component:
+    namelists:
         pro2:
             dtime: 64800.0
         pro3:
@@ -152,7 +152,7 @@ config:
         pro4:
             rnfac: 0.0
             rsfac: 0.0
-    field_output_component:
+    ww3_ounf:
         field:
             timestart: 20030101 000000
             timestride: '3600'

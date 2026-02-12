@@ -4,7 +4,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Literal, Optional, List, Dict, Any
-from pydantic import Field as PydanticField, model_validator
+from pydantic import Field as PydanticField, model_validator, ConfigDict
 
 from rompy.core.config import BaseConfig
 
@@ -130,6 +130,8 @@ class NMLConfig(BaseWW3Config):
     """WW3 namelist-based config class.
     This class provides direct control over WW3 namelists via component objects.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     model_type: Literal["nml"] = PydanticField(
         default="nml",
