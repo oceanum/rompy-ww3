@@ -1,0 +1,77 @@
+# WW3 mww3_test_02 Multi-Grid Regression Test Configuration
+#
+# Test: Multi-grid configuration with 3 model grids with varying resolution
+# Purpose: Validate multi-grid nesting with 3-level grid hierarchy
+# Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/mww3_test_02
+
+run_id: "ww3_mww3_test_02_regression"
+output_dir: "rompy_runs"
+
+period:
+    start: "2020-01-01T00:00:00"
+    duration: "1D"
+    interval: "30m"
+
+config:
+    model_type: nml
+
+    multi_component:
+        domain:
+            start: "20200101 000000"
+            stop: "20200102 000000"
+            iostyp: 1
+            nrinp: 1
+            nrgrd: 3
+
+        model_grids:
+            - name: "coarse"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "T"
+                  ice_conc: "no"
+                  air_density: "no"
+                  atm_momentum: "no"
+              resource:
+                  rank_id: 1
+                  group_id: 1
+                  comm_frac_start: 0.00
+                  comm_frac_end: 0.33
+
+            - name: "medium"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "T"
+                  ice_conc: "no"
+                  air_density: "no"
+                  atm_momentum: "no"
+              resource:
+                  rank_id: 2
+                  group_id: 1
+                  comm_frac_start: 0.33
+                  comm_frac_end: 0.67
+
+            - name: "fine"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "T"
+                  ice_conc: "no"
+                  air_density: "no"
+                  atm_momentum: "no"
+              resource:
+                  rank_id: 3
+                  group_id: 1
+                  comm_frac_start: 0.67
+                  comm_frac_end: 1.00
+
+        output_type:
+            field:
+                list: "HS FP DP DIR SPR WND CUR"
+
+        output_date:
+            field:
+                start: "20200101 000000"
+                stride: "1800"
+                stop: "20200102 000000"

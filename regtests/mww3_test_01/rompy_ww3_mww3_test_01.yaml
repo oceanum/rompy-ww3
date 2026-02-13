@@ -1,0 +1,69 @@
+# WW3 mww3_test_01 Multi-Grid Regression Test Configuration
+#
+# Test: Basic multi-grid configuration with 2 model grids
+# Purpose: Validate multi-grid coupling and boundary exchange
+# Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/mww3_test_01
+
+# ModelRun parameters
+run_id: "ww3_mww3_test_01_regression"
+output_dir: "rompy_runs"
+
+# Time configuration
+period:
+    start: "2020-01-01T00:00:00"
+    duration: "1D"
+    interval: "1H"
+
+# Model configuration (NMLConfig with Multi component)
+config:
+    model_type: nml
+
+    # Multi-grid component for ww3_multi.nml
+    multi_component:
+        domain:
+            start: "20200101 000000"
+            stop: "20200102 000000"
+            iostyp: 1
+            nrinp: 1
+            nrgrd: 2
+
+        # Model grid 1 - Coarse grid (outer domain)
+        model_grids:
+            - name: "coarse"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "T"
+                  ice_conc: "no"
+                  air_density: "no"
+                  atm_momentum: "no"
+              resource:
+                  rank_id: 1
+                  group_id: 1
+                  comm_frac_start: 0.00
+                  comm_frac_end: 0.50
+
+            # Model grid 2 - Fine grid (nested domain)
+            - name: "fine"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "T"
+                  ice_conc: "no"
+                  air_density: "no"
+                  atm_momentum: "no"
+              resource:
+                  rank_id: 2
+                  group_id: 1
+                  comm_frac_start: 0.50
+                  comm_frac_end: 1.00
+
+        output_type:
+            field:
+                list: "HS FP DP DIR"
+
+        output_date:
+            field:
+                start: "20200101 000000"
+                stride: "3600"
+                stop: "20200102 000000"

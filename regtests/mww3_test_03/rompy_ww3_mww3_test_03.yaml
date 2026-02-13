@@ -1,0 +1,78 @@
+# WW3 mww3_test_03 Multi-Grid Regression Test Configuration
+#
+# Test: Advanced multi-grid configuration with 3 grids and extended features
+# Purpose: Validate advanced multi-grid capabilities including differential forcing,
+#          non-uniform resource allocation, and comprehensive output configurations
+# Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/mww3_test_03
+
+run_id: "ww3_mww3_test_03_regression"
+output_dir: "rompy_runs"
+
+period:
+    start: "2020-01-01T00:00:00"
+    duration: "36H"
+    interval: "15m"
+
+config:
+    model_type: nml
+
+    multi_component:
+        domain:
+            start: "20200101 000000"
+            stop: "20200102 120000"
+            iostyp: 1
+            nrinp: 1
+            nrgrd: 3
+
+        model_grids:
+            - name: "coarse"
+              forcing:
+                  water_levels: "no"
+                  currents: "T"
+                  winds: "T"
+                  ice_conc: "no"
+                  air_density: "no"
+                  atm_momentum: "no"
+              resource:
+                  rank_id: 1
+                  group_id: 1
+                  comm_frac_start: 0.00
+                  comm_frac_end: 0.30
+
+            - name: "medium"
+              forcing:
+                  water_levels: "no"
+                  currents: "T"
+                  winds: "T"
+                  ice_conc: "no"
+                  air_density: "no"
+                  atm_momentum: "no"
+              resource:
+                  rank_id: 2
+                  group_id: 1
+                  comm_frac_start: 0.30
+                  comm_frac_end: 0.65
+
+            - name: "fine"
+              forcing:
+                  water_levels: "T"
+                  currents: "T"
+                  winds: "T"
+                  ice_conc: "no"
+                  air_density: "no"
+                  atm_momentum: "no"
+              resource:
+                  rank_id: 3
+                  group_id: 1
+                  comm_frac_start: 0.65
+                  comm_frac_end: 1.00
+
+        output_type:
+            field:
+                list: "HS FP DP DIR SPR WND CUR WCC WCF WCH WCM T02 T01 T0M1 FP0 THP0 THS EF TH1M TH2M"
+
+        output_date:
+            field:
+                start: "20200101 000000"
+                stride: "900"
+                stop: "20200102 120000"

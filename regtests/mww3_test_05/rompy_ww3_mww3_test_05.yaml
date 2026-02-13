@@ -1,0 +1,80 @@
+# WW3 mww3_test_05 Multi-Grid Regression Test Configuration
+#
+# Test: Telescoping nests over hurricane with continuous moving grid
+# Purpose: Validate multi-grid hurricane modeling with moving grids
+# Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/mww3_test_05
+
+run_id: "ww3_mww3_test_05_regression"
+output_dir: "rompy_runs"
+
+period:
+    start: "2020-01-01T00:00:00"
+    duration: "24H"
+    interval: "1H"
+
+config:
+    model_type: nml
+
+    multi_component:
+        domain:
+            start: "20200101 000000"
+            stop: "20200102 000000"
+            iostyp: 1
+            nrinp: 1
+            nrgrd: 3
+
+        model_grids:
+            # Outer grid - coarse resolution (50km)
+            - name: "grd1"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "T"
+                  ice_conc: "no"
+                  air_density: "no"
+                  atm_momentum: "no"
+              resource:
+                  rank_id: 1
+                  group_id: 1
+                  comm_frac_start: 0.00
+                  comm_frac_end: 0.30
+
+            # Middle grid - medium resolution (15km)
+            - name: "grd2"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "T"
+                  ice_conc: "no"
+                  air_density: "no"
+                  atm_momentum: "no"
+              resource:
+                  rank_id: 2
+                  group_id: 1
+                  comm_frac_start: 0.30
+                  comm_frac_end: 0.65
+
+            # Inner grid - high resolution (5km)
+            - name: "grd3"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "T"
+                  ice_conc: "no"
+                  air_density: "no"
+                  atm_momentum: "no"
+              resource:
+                  rank_id: 3
+                  group_id: 1
+                  comm_frac_start: 0.65
+                  comm_frac_end: 1.00
+
+        output_type:
+            field:
+                list: "HS FP DP DIR SPR WND CUR"
+
+        output_date:
+            field:
+                start: "20200101 000000"
+                stride: "3600"
+                stop: "20200102 000000"

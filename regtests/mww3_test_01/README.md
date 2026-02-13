@@ -66,8 +66,9 @@ Both grids use:
 Output fields: HS FP DP DIR
 Output frequency: Every 3600 seconds (hourly)
 
-## Files Generated
+## Files
 
+- `rompy_ww3_mww3_test_01.yaml`: YAML configuration for ModelRun (recommended)
 - `rompy_ww3_mww3_test_01.py`: Python configuration script
 - `ww3_multi.nml`: Multi-grid namelist configuration (generated)
 
@@ -86,6 +87,19 @@ python regtests/download_input_data.py --test mww3_test_01
 ```
 
 ## Running the Test
+
+### Using YAML Configuration (Recommended)
+
+The YAML configuration can be used with rompy's ModelRun for backend execution:
+
+```bash
+# Using local backend
+cd regtests/mww3_test_01
+rompy run rompy_ww3_mww3_test_01.yaml --backend-config ../backends/local_backend.yml
+
+# Using Docker backend
+rompy run rompy_ww3_mww3_test_01.yaml --backend-config ../backends/docker_backend.yml
+```
 
 ### Using Python Script
 

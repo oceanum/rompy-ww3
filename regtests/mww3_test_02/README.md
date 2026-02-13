@@ -81,8 +81,9 @@ Output frequency: Every 1800 seconds (30 minutes)
 | Resource split | 50/50 | 33/33/34 |
 | Complexity | Basic nesting | Advanced 3-level nesting |
 
-## Files Generated
+## Files
 
+- `rompy_ww3_mww3_test_02.yaml`: YAML configuration for ModelRun (recommended)
 - `rompy_ww3_mww3_test_02.py`: Python configuration script
 - `ww3_multi.nml`: Multi-grid namelist configuration (generated)
 
@@ -101,6 +102,19 @@ python regtests/download_input_data.py --test mww3_test_02
 ```
 
 ## Running the Test
+
+### Using YAML Configuration (Recommended)
+
+The YAML configuration can be used with rompy's ModelRun for backend execution:
+
+```bash
+# Using local backend
+cd regtests/mww3_test_02
+rompy run rompy_ww3_mww3_test_02.yaml --backend-config ../backends/local_backend.yml
+
+# Using Docker backend
+rompy run rompy_ww3_mww3_test_02.yaml --backend-config ../backends/docker_backend.yml
+```
 
 ### Using Python Script
 

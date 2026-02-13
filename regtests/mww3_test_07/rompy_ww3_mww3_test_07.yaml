@@ -1,0 +1,65 @@
+# WW3 mww3_test_07 Multi-Grid Regression Test Configuration
+#
+# Test: Rectangular grid with triangular mesh (unstructured)
+# Purpose: Validate multi-grid with unstructured grids containing islands
+# Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/mww3_test_07
+
+run_id: "ww3_mww3_test_07_regression"
+output_dir: "rompy_runs"
+
+period:
+    start: "2020-01-01T00:00:00"
+    duration: "6H"
+    interval: "30m"
+
+config:
+    model_type: nml
+
+    multi_component:
+        domain:
+            start: "20200101 000000"
+            stop: "20200101 060000"
+            iostyp: 1
+            nrinp: 1
+            nrgrd: 2
+
+        model_grids:
+            # Parent grid - rectangular without island
+            - name: "parent"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "no"
+                  ice_conc: "no"
+                  air_density: "no"
+                  atm_momentum: "no"
+              resource:
+                  rank_id: 1
+                  group_id: 1
+                  comm_frac_start: 0.00
+                  comm_frac_end: 0.50
+
+            # Refug grid - unstructured with island
+            - name: "refug"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "no"
+                  ice_conc: "no"
+                  air_density: "no"
+                  atm_momentum: "no"
+              resource:
+                  rank_id: 2
+                  group_id: 1
+                  comm_frac_start: 0.50
+                  comm_frac_end: 1.00
+
+        output_type:
+            field:
+                list: "HS FP DP DIR DPT"
+
+        output_date:
+            field:
+                start: "20200101 000000"
+                stride: "1800"
+                stop: "20200101 060000"

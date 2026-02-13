@@ -102,8 +102,9 @@ I/O type: 1 (unified point output)
 | Resource split | 50/50 | 33/33/34 | **30/35/35** |
 | Simulation duration | 1 day | 1 day | **1.5 days** |
 
-## Files Generated
+## Files
 
+- `rompy_ww3_mww3_test_03.yaml`: YAML configuration for ModelRun (recommended)
 - `rompy_ww3_mww3_test_03.py`: Python configuration script
 - `ww3_multi.nml`: Advanced multi-grid namelist configuration (generated)
 
@@ -125,6 +126,19 @@ python regtests/download_input_data.py --test mww3_test_03
 ```
 
 ## Running the Test
+
+### Using YAML Configuration (Recommended)
+
+The YAML configuration can be used with rompy's ModelRun for backend execution:
+
+```bash
+# Using local backend
+cd regtests/mww3_test_03
+rompy run rompy_ww3_mww3_test_03.yaml --backend-config ../backends/local_backend.yml
+
+# Using Docker backend
+rompy run rompy_ww3_mww3_test_03.yaml --backend-config ../backends/docker_backend.yml
+```
 
 ### Using Python Script
 
