@@ -1,8 +1,11 @@
-# WW3 mww3_test_07 Multi-Grid Regression Test Configuration
+# WW3 mww3_test_07 Single-Grid Regression Test Configuration
 #
 # Test: Rectangular grid with triangular mesh (unstructured)
-# Purpose: Validate multi-grid with unstructured grids containing islands
+# Purpose: Test unstructured grid with island embedded in coarse regular grid
 # Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/mww3_test_07
+#
+# NOTE: This is a SINGLE-GRID test with UNST (unstructured/triangular) grid.
+# The refug.msh contains an island; the island shadow is seen on results.
 
 run_id: "ww3_mww3_test_07_regression"
 output_dir: "rompy_runs"
@@ -15,51 +18,69 @@ period:
 config:
     model_type: nml
 
-    multi_component:
+    # Shell component for ww3_shel.nml
+    ww3_shel:
         domain:
             start: "20200101 000000"
             stop: "20200101 060000"
             iostyp: 1
-            nrinp: 1
-            nrgrd: 2
-
-        model_grids:
-            # Parent grid - rectangular without island
-            - name: "parent"
-              forcing:
-                  water_levels: "no"
-                  currents: "no"
-                  winds: "no"
-                  ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
-              resource:
-                  rank_id: 1
-                  group_id: 1
-                  comm_frac_start: 0.00
-                  comm_frac_end: 0.50
-
-            # Refug grid - unstructured with island
-            - name: "refug"
-              forcing:
-                  water_levels: "no"
-                  currents: "no"
-                  winds: "no"
-                  ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
-              resource:
-                  rank_id: 2
-                  group_id: 1
-                  comm_frac_start: 0.50
-                  comm_frac_end: 1.00
-
+        input_nml:
+            forcing:
+                winds: "F"
+                water_levels: "F"
+                currents: "F"
+                ice_conc: "F"
         output_type:
             field:
                 list: "HS FP DP DIR DPT"
-
         output_date:
             field:
                 start: "20200101 000000"
                 stride: "1800"
                 stop: "20200101 060000"
+        homog_count:
+            n_wnd: 0
+            n_lev: 0
+            n_cur: 0
+            n_ice: 0
+
+    # Grid component for ww3_grid.nml - UNST grid with island
+    ww3_grid:
+        spectrum:
+            xfr: 1.1
+            freq1: 0.04177
+            nk: 25
+            nth: 24
+        run:
+            flcx: "T"
+            flcy: "T"
+            flcth: "T"
+            flsou: "F"
+        timesteps:
+            dtmax: 600.0
+            dtxy: 200.0
+            dtkth: 300.0
+            dtmin: 20.0
+        grid:
+            name: "Refug unstructured grid with island"
+            type: "UNST"
+            coord: "CART"
+            clos: "NONE"
+            zlim: -0.1
+            dmin: 0.25
+        unst:
+            filename:
+                model_type: data_blob
+                source: "regtests/mww3_test_07/input/refug.msh"
+        depth:
+            sf: -1.0
+            filename:
+                model_type: data_blob
+                source: "regtests/mww3_test_07/input/refug.depth"
+            idla: 3
+
+    # Parameters component for namelists.nml
+    namelists:
+        # Physics parameters for depth breaking only (DB1)
+        sdm:
+            sdbco: 0.1
