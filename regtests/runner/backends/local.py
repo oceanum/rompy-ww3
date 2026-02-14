@@ -29,15 +29,18 @@ class LocalBackend(Backend):
         start_time = time.time()
 
         try:
+            # Get the regtests directory (parent of test directory)
+            regtests_dir = test.config_path.parent.parent
+
             result = subprocess.run(
                 [
                     "rompy",
                     "run",
-                    str(test.config_path),
+                    str(test.config_path.absolute()),
                     "--backend-config",
-                    str(self.backend_config),
+                    str(self.backend_config.absolute()),
                 ],
-                cwd=workdir,
+                cwd=regtests_dir,
                 capture_output=True,
                 text=True,
                 timeout=3600,

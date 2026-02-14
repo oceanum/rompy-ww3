@@ -53,6 +53,12 @@ Examples:
 
   # Enable verbose logging
   python run_regression_tests.py --test tp2.4 --verbose
+
+  # Check what inputs would be downloaded (dry run)
+  python run_regression_tests.py --test tp2.4 --dry-run
+
+  # Run without downloading inputs (use existing files only)
+  python run_regression_tests.py --test tp2.4 --no-download-inputs
         """,
     )
 
@@ -93,6 +99,25 @@ Examples:
         type=Path,
         default=Path("./test_outputs"),
         help="Output directory for test results (default: ./test_outputs)",
+    )
+
+    # Input handling
+    parser.add_argument(
+        "--download-inputs",
+        action="store_true",
+        default=True,
+        help="Automatically download missing input files (default: True)",
+    )
+    parser.add_argument(
+        "--no-download-inputs",
+        action="store_false",
+        dest="download_inputs",
+        help="Skip downloading input files",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be downloaded without downloading",
     )
 
     # Logging
@@ -159,10 +184,27 @@ Examples:
 
     logger.info(f"Found {len(tests)} test(s)")
 
+    # Handle dry-run for input downloading
+    if args.dry_run:
+        from runner import InputFileManager
+
+        input_manager = InputFileManager()
+        print("\n" + "=" * 70)
+        print("DRY RUN - Input Files to Download")
+        print("=" * 70)
+        for test in tests:
+            missing = input_manager.get_missing_inputs(test)
+            if missing:
+                print(f"\n{test.name}:")
+                for path in missing:
+                    print(f"  - {path.name}")
+        print("=" * 70)
+        return 0
+
     # Run tests
     if len(tests) == 1:
         # Run single test
-        result = runner.run_test(tests[0])
+        result = runner.run_test(tests[0], download_inputs=args.download_inputs)
 
         # Print result
         print("\n" + "=" * 70)
@@ -177,7 +219,7 @@ Examples:
         return 0 if result.status == TestStatus.SUCCESS else 1
     else:
         # Run multiple tests
-        suite_result = runner.run_all(tests)
+        suite_result = runner.run_all(tests, download_inputs=args.download_inputs)
 
         # Print summary
         print("\n" + "=" * 70)
@@ -193,7 +235,7 @@ Examples:
                 print(f"    Error: {result.error_message}")
         print("=" * 70)
 
-        return 0 if suite_result.all_passed else 1
+        return 0 if suite_result.is_success() else 1
 
 
 if __name__ == "__main__":
