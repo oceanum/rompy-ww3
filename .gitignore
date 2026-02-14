@@ -124,6 +124,7 @@ simulations/
 
 # WW3 regression test input data (auto-downloaded)
 regtests/ww3_*/input/
+regtests/mww3_*/input/
 
 # WW3 reference outputs (large binary files, generated locally or downloaded)
 regtests/reference_outputs/ww3_*/
