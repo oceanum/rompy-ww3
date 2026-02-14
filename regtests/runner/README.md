@@ -149,6 +149,28 @@ python -m regtests.runner --test ww3_tp2.4 --backend docker --image rompy/ww3:la
 python -m regtests.runner --test ww3_tp2.4 --backend local --ww3-dir /path/to/ww3
 ```
 
+### Input File Management
+
+Many WW3 regression tests require external input files such as depth data, boundary conditions, and point lists. These files are stored in the NOAA-EMC/WW3 repository and are automatically downloaded by the test runner when needed.
+
+The test runner will automatically detect required input files from test configurations and download them from the NOAA WW3 repository before executing tests. This eliminates the need to manually manage input files or commit them to your repository.
+
+```bash
+# Run test with automatic input downloading (default)
+python -m regtests.runner --test ww3_tp2.4
+
+# Check what inputs would be downloaded without downloading
+python -m regtests.runner --test ww3_tp2.4 --dry-run
+
+# Run without downloading inputs (use only existing files)
+python -m regtests.runner --test ww3_tp2.4 --no-download-inputs
+
+# Download inputs for all tests in a series
+python -m regtests.runner --series tp2.x --dry-run
+```
+
+Input files are downloaded from `https://raw.githubusercontent.com/NOAA-EMC/WW3/develop/regtests` and cached locally in the test directories. Once downloaded, files are reused for subsequent test runs.
+
 ### Complete CLI Options
 
 The following table summarizes all available command-line options with their descriptions and default values. These options provide fine-grained control over every aspect of test execution and reporting.
@@ -167,6 +189,9 @@ The following table summarizes all available command-line options with their des
 | `--ww3-dir` | Path to local WW3 installation | None |
 | `--report` | Report format (text, json, html) | "text" |
 | `--output-file` | File path for report output | None |
+| `--download-inputs` | Automatically download missing input files | True |
+| `--no-download-inputs` | Skip downloading input files | False |
+| `--dry-run` | Show what would be downloaded without downloading | False |
 | `--verbose` | Enable verbose logging | False |
 | `--quiet` | Suppress non-essential output | False |
 
@@ -264,6 +289,63 @@ The validate_test method checks whether a test configuration is valid without ac
 test = TestCase(config_path=Path("regtests/ww3_tp2.4/rompy_ww3_tp2_4.yaml"))
 is_valid = runner.validate_test(test)
 print(f"Test configuration valid: {is_valid}")
+```
+
+### InputFileManager Class
+
+The InputFileManager class handles automatic discovery and downloading of input files required by WW3 regression tests. It parses test configurations to identify required input files and downloads them from the NOAA WW3 repository.
+
+#### Automatic Input Management
+
+By default, the TestRunner automatically manages input files through its internal InputFileManager instance. However, you can also use the InputFileManager directly for custom workflows.
+
+```python
+from pathlib import Path
+from regtests.runner import InputFileManager, TestCase
+
+# Initialize the input manager
+manager = InputFileManager()
+
+# Create a test case
+test = TestCase(config_path=Path("regtests/ww3_tp2.4/rompy_ww3_tp2_4.yaml"))
+
+# Check which inputs are missing
+missing = manager.get_missing_inputs(test)
+print(f"Missing inputs: {[p.name for p in missing]}")
+
+# Download missing inputs
+results = manager.download_inputs(test)
+print(f"Downloaded: {len(results['downloaded'])}")
+print(f"Failed: {len(results['failed'])}")
+
+# Ensure all inputs are available (downloads if needed)
+if manager.ensure_inputs(test):
+    print("All inputs ready")
+else:
+    print("Failed to obtain some inputs")
+```
+
+#### Dry Run Mode
+
+You can use dry-run mode to check what would be downloaded without actually downloading:
+
+```python
+# Check what would be downloaded
+results = manager.download_inputs(test, dry_run=True)
+print(f"Would download: {len(results['skipped'])} files")
+for path_str in results['skipped']:
+    print(f"  - {Path(path_str).name}")
+```
+
+#### Custom Source Repository
+
+By default, input files are downloaded from the NOAA WW3 repository. You can specify a different base URL if needed:
+
+```python
+# Use a custom repository
+manager = InputFileManager(
+    base_url="https://raw.githubusercontent.com/myfork/WW3/develop/regtests"
+)
 ```
 
 ### Backend Classes
@@ -799,6 +881,7 @@ Integrate test runner results with CI/CD systems using JSON reports. Here's an e
 | `Validator` | Compares test outputs against reference data |
 | `ComparisonMode` | Enum: RELATIVE, ABSOLUTE for comparisons |
 | `Backend` | Abstract base class for execution backends |
+| `InputFileManager` | Discovers and downloads input files from NOAA WW3 repository |
 
 ### regtests.runner.backends
 
