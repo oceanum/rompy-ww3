@@ -145,6 +145,7 @@ class TestRunner:
         validate: bool = False,
         download_inputs: bool = True,
         validate_namelists: bool = False,
+        skip_model_execution: bool = False,
     ) -> TestResult:
         """Execute a single test case and return result.
 
@@ -157,6 +158,7 @@ class TestRunner:
             validate: If True and reference_dir is set, validate outputs
             download_inputs: If True, download missing input files before running
             validate_namelists: If True, validate generated namelists against NOAA references
+            skip_model_execution: If True, skip WW3 execution (only generate/validate namelists)
 
         Returns:
             TestResult with execution outcome
@@ -190,10 +192,17 @@ class TestRunner:
             )
 
         try:
-            result = self.backend.execute(test, workdir=test_output_dir)
+            if skip_model_execution:
+                logger.info(f"Skipping model execution for test: {test.name}")
+                result = TestResult(
+                    test_name=test.name,
+                    status=TestStatus.SUCCESS,
+                    error_message="Model execution skipped (--skip-model-execution)",
+                )
+            else:
+                result = self.backend.execute(test, workdir=test_output_dir)
 
-            # Validate namelists if requested
-            if validate_namelists and result.status == TestStatus.SUCCESS:
+            if validate_namelists:
                 logger.info(f"Validating namelists for test: {test.name}")
                 namelist_report = self.validate_test_namelists(test)
 
@@ -208,7 +217,6 @@ class TestRunner:
                         f"Test {test.name} namelist validation failed: "
                         f"{namelist_report.namelists_matched}/{namelist_report.namelists_compared} matched"
                     )
-                    # Store the report for later access
                     result.namelist_report = namelist_report
                 else:
                     logger.info(
@@ -255,6 +263,7 @@ class TestRunner:
         validate: bool = False,
         download_inputs: bool = True,
         validate_namelists: bool = False,
+        skip_model_execution: bool = False,
     ) -> TestSuiteResult:
         """Execute multiple test cases and aggregate results.
 
@@ -267,6 +276,7 @@ class TestRunner:
             validate: If True and reference_dir is set, validate outputs
             download_inputs: If True, download missing input files before running
             validate_namelists: If True, validate generated namelists against NOAA references
+            skip_model_execution: If True, skip WW3 execution (only generate/validate namelists)
 
         Returns:
             TestSuiteResult with aggregated outcomes
@@ -285,6 +295,7 @@ class TestRunner:
                 validate=validate,
                 download_inputs=download_inputs,
                 validate_namelists=validate_namelists,
+                skip_model_execution=skip_model_execution,
             )
             results.append(result)
 
@@ -320,16 +331,20 @@ class TestRunner:
         if self.namelist_comparator is None:
             self.namelist_comparator = NamelistComparator()
 
-        # Look for namelists in the rompy_runs subdirectory
-        # Structure: test_outputs/{test_name}/rompy_runs/ww3_{test_name}_regression/
         test_name_normalized = test.name.replace(".", "_")
-        possible_dirs = [
+        test_dir = test.config_path.parent
+        rompy_run_dir = (
+            test_dir / "rompy_runs" / f"ww3_{test_name_normalized}_regression"
+        )
+        fallback_dir = (
             self.output_dir
             / test.name
             / "rompy_runs"
-            / f"ww3_{test_name_normalized}_regression",
-            self.output_dir / test.name,
-        ]
+            / f"ww3_{test_name_normalized}_regression"
+        )
+        output_root = self.output_dir / test.name
+
+        possible_dirs = [rompy_run_dir, fallback_dir, output_root]
 
         test_output_dir = None
         for d in possible_dirs:

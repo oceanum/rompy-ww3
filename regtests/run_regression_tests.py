@@ -134,11 +134,22 @@ Examples:
         help="Enable verbose logging",
     )
 
-    # Namelist validation
     parser.add_argument(
         "--validate-namelists",
         action="store_true",
         help="Validate generated namelists against NOAA reference files",
+    )
+    parser.add_argument(
+        "--skip-model-execution",
+        action="store_true",
+        help="Skip WW3 model execution (only generate namelists and validate)",
+    )
+
+    # Output streaming
+    parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="Stream test output in real-time (show logs as they happen)",
     )
 
     # Test discovery path
@@ -160,7 +171,7 @@ Examples:
     if args.backend == "docker":
         backend = DockerBackend(image=args.docker_image)
     else:
-        backend = LocalBackend()
+        backend = LocalBackend(stream_output=args.stream)
 
     # Validate backend environment
     if not backend.validate_env():
@@ -214,11 +225,11 @@ Examples:
         print("DRY RUN - Input Files to Download")
         print("=" * 70)
         for test in tests:
-            missing = input_manager.get_missing_inputs(test)
-            if missing:
+            results = input_manager.download_all_inputs(test, dry_run=True)
+            if results["skipped"] or results["existing"]:
                 print(f"\n{test.name}:")
-                for path in missing:
-                    print(f"  - {path.name}")
+                print(f"  Would download: {len(results['skipped'])} files")
+                print(f"  Already exist: {len(results['existing'])} files")
         print("=" * 70)
         return 0
 
@@ -229,6 +240,7 @@ Examples:
             tests[0],
             download_inputs=args.download_inputs,
             validate_namelists=args.validate_namelists,
+            skip_model_execution=args.skip_model_execution,
         )
 
         # Print result
@@ -257,6 +269,7 @@ Examples:
             tests,
             download_inputs=args.download_inputs,
             validate_namelists=args.validate_namelists,
+            skip_model_execution=args.skip_model_execution,
         )
 
         # Print summary
