@@ -31,6 +31,7 @@ from .core.runner import TestRunner
 from .core.test import TestCase
 from .core.result import TestResult, TestSuiteResult, TestStatus
 from .core.validator import Validator, ComparisonMode
+from .core.input_manager import InputFileManager
 from .backends.base import Backend
 
 __all__ = [
@@ -42,4 +43,5 @@ __all__ = [
     "Backend",
     "Validator",
     "ComparisonMode",
+    "InputFileManager",
 ]

@@ -7,6 +7,7 @@ import logging
 from .test import TestCase
 from .result import TestResult, TestSuiteResult, TestStatus
 from .validator import Validator
+from .input_manager import InputFileManager
 from ..backends.base import Backend
 
 
@@ -40,6 +41,7 @@ class TestRunner:
         output_dir: Optional[Path] = None,
         reference_dir: Optional[Path] = None,
         validator: Optional[Validator] = None,
+        input_manager: Optional[InputFileManager] = None,
     ):
         """Initialize test runner with execution backend.
 
@@ -48,12 +50,14 @@ class TestRunner:
             output_dir: Optional directory for test outputs (default: ./test_outputs)
             reference_dir: Optional directory containing reference outputs for validation
             validator: Optional Validator instance (created if not provided)
+            input_manager: Optional InputFileManager for downloading inputs
         """
         self.backend = backend
         self.output_dir = output_dir or Path("./test_outputs")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.reference_dir = reference_dir
         self.validator = validator or Validator()
+        self.input_manager = input_manager or InputFileManager()
 
     def discover_tests(self, path: Path, pattern: str = "ww3_tp*") -> List[TestCase]:
         """Discover test cases in directory matching pattern.
@@ -97,7 +101,38 @@ class TestRunner:
         logger.info(f"Discovered {len(test_cases)} tests")
         return test_cases
 
-    def run_test(self, test: TestCase, validate: bool = False) -> TestResult:
+    def download_inputs(
+        self, test: TestCase, dry_run: bool = False
+    ) -> tuple[bool, dict]:
+        """Download missing input files for a test.
+
+        Args:
+            test: TestCase to download inputs for
+            dry_run: If True, only report what would be downloaded
+
+        Returns:
+            Tuple of (success: bool, results: dict)
+        """
+        logger.info(f"Checking inputs for test: {test.name}")
+
+        results = self.input_manager.download_inputs(test, dry_run=dry_run)
+
+        if results["failed"]:
+            logger.error(
+                f"Failed to download {len(results['failed'])} input files for {test.name}"
+            )
+            return False, results
+
+        if results["downloaded"]:
+            logger.info(
+                f"Downloaded {len(results['downloaded'])} input files for {test.name}"
+            )
+
+        return True, results
+
+    def run_test(
+        self, test: TestCase, validate: bool = False, download_inputs: bool = True
+    ) -> TestResult:
         """Execute a single test case and return result.
 
         Validates the test configuration, executes it via the backend,
@@ -119,6 +154,15 @@ class TestRunner:
 
         test_output_dir = self.output_dir / test.name
         test_output_dir.mkdir(parents=True, exist_ok=True)
+
+        if download_inputs:
+            success, _ = self.download_inputs(test)
+            if not success:
+                return TestResult(
+                    test_name=test.name,
+                    status=TestStatus.ERROR,
+                    error_message="Failed to download required input files",
+                )
 
         validation = test.validate()
         if not validation.is_valid:
@@ -164,7 +208,12 @@ class TestRunner:
                 error_message=str(e),
             )
 
-    def run_all(self, tests: List[TestCase], validate: bool = False) -> TestSuiteResult:
+    def run_all(
+        self,
+        tests: List[TestCase],
+        validate: bool = False,
+        download_inputs: bool = True,
+    ) -> TestSuiteResult:
         """Execute multiple test cases and aggregate results.
 
         Runs all tests sequentially and aggregates the results into a
@@ -173,6 +222,7 @@ class TestRunner:
         Args:
             tests: List of TestCase objects to execute
             validate: If True and reference_dir is set, validate outputs
+            download_inputs: If True, download missing input files before running
 
         Returns:
             TestSuiteResult with aggregated outcomes
@@ -186,7 +236,9 @@ class TestRunner:
 
         results = []
         for test in tests:
-            result = self.run_test(test, validate=validate)
+            result = self.run_test(
+                test, validate=validate, download_inputs=download_inputs
+            )
             results.append(result)
 
         suite_result = TestSuiteResult.from_results(results)
