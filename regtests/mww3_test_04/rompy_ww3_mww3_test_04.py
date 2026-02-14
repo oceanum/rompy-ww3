@@ -25,7 +25,7 @@ def create_ww3_mww3_test_04_component():
         start="20200101 000000",
         stop="20200101 120000",
         iostyp=1,
-        nrinp=0,
+        nrinp=1,
         nrgrd=3,
     )
 
@@ -88,7 +88,6 @@ def create_ww3_mww3_test_04_component():
 
     output_type = OutputType(
         field=OutputTypeField(list="HS FP DP DIR"),
-        point=WW3DataBlob(source="regtests/mww3_test_04/input/points.list"),
     )
 
     output_date = OutputDate(
