@@ -177,7 +177,8 @@ Examples:
 
     # Discover tests based on selection
     if args.all:
-        pattern = "ww3_*"
+        # Use inclusive pattern to match both ww3_tp* and mww3_test*
+        pattern = "*"
         logger.info("Discovering all tests")
     elif args.series:
         # Convert tp1.x -> ww3_tp1.* or mww3_test_* -> mww3_test_*

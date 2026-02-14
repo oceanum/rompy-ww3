@@ -320,7 +320,26 @@ class TestRunner:
         if self.namelist_comparator is None:
             self.namelist_comparator = NamelistComparator()
 
-        test_output_dir = self.output_dir / test.name
+        # Look for namelists in the rompy_runs subdirectory
+        # Structure: test_outputs/{test_name}/rompy_runs/ww3_{test_name}_regression/
+        test_name_normalized = test.name.replace(".", "_")
+        possible_dirs = [
+            self.output_dir
+            / test.name
+            / "rompy_runs"
+            / f"ww3_{test_name_normalized}_regression",
+            self.output_dir / test.name,
+        ]
+
+        test_output_dir = None
+        for d in possible_dirs:
+            if d.exists() and any(d.glob("*.nml")):
+                test_output_dir = d
+                break
+
+        if test_output_dir is None:
+            test_output_dir = possible_dirs[0]  # Default to first option
+
         return self.namelist_comparator.compare_test_namelists(
             test_name=test.name,
             generated_dir=test_output_dir,
