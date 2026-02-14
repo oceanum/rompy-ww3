@@ -59,6 +59,9 @@ Examples:
 
   # Run without downloading inputs (use existing files only)
   python run_regression_tests.py --test tp2.4 --no-download-inputs
+
+  # Validate namelists against NOAA references
+  python run_regression_tests.py --test tp2.4 --validate-namelists
         """,
     )
 
@@ -126,6 +129,13 @@ Examples:
         "-v",
         action="store_true",
         help="Enable verbose logging",
+    )
+
+    # Namelist validation
+    parser.add_argument(
+        "--validate-namelists",
+        action="store_true",
+        help="Validate generated namelists against NOAA reference files",
     )
 
     # Test discovery path
@@ -204,7 +214,11 @@ Examples:
     # Run tests
     if len(tests) == 1:
         # Run single test
-        result = runner.run_test(tests[0], download_inputs=args.download_inputs)
+        result = runner.run_test(
+            tests[0],
+            download_inputs=args.download_inputs,
+            validate_namelists=args.validate_namelists,
+        )
 
         # Print result
         print("\n" + "=" * 70)
@@ -214,12 +228,25 @@ Examples:
             print(f"Execution time: {result.execution_time:.2f}s")
         if result.error_message:
             print(f"Error: {result.error_message}")
+        if (
+            args.validate_namelists
+            and hasattr(result, "namelist_report")
+            and result.namelist_report
+        ):
+            if not result.namelist_report.is_valid():
+                print("\nNamelist Differences:")
+                for diff in result.namelist_report.get_mismatches():
+                    print(f"  - {diff.namelist_name}")
         print("=" * 70)
 
         return 0 if result.status == TestStatus.SUCCESS else 1
     else:
         # Run multiple tests
-        suite_result = runner.run_all(tests, download_inputs=args.download_inputs)
+        suite_result = runner.run_all(
+            tests,
+            download_inputs=args.download_inputs,
+            validate_namelists=args.validate_namelists,
+        )
 
         # Print summary
         print("\n" + "=" * 70)
