@@ -159,5 +159,4 @@ class Shel(WW3ComponentBaseModel):
         Returns:
             str: The command to run the WW3 shell executable 'ww3_shel'
         """
-        __import__("ipdb").set_trace()
         return "ww3_shel"
