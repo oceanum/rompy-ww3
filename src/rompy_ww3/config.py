@@ -4,7 +4,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Literal, Optional, List, Dict, Any
-from pydantic import Field as PydanticField, model_validator, ConfigDict
+from pydantic import BaseModel, Field as PydanticField, model_validator, ConfigDict
 
 from rompy.core.config import BaseConfig
 
@@ -24,6 +24,285 @@ from .components import (
 logger = logging.getLogger(__name__)
 
 HERE = Path(__file__).parent
+
+
+class GridSpec(BaseModel):
+    """Specification for one grid in multi-grid workflow.
+
+    Matches NOAA pattern where each grid has:
+    - ww3_grid_{name}.nml for grid preprocessing
+    - Optional ww3_prnc_{name}.nml for input preprocessing
+    - Optional ww3_bounc_{name}.nml for boundary conditions
+    """
+
+    name: str = PydanticField(..., description="Grid name (e.g., 'Status', 'coarse')")
+    grid: Grid = PydanticField(
+        ..., description="Grid component for ww3_grid_{name}.nml"
+    )
+    prnc: Optional[Prnc] = PydanticField(
+        default=None, description="Optional input preprocessing"
+    )
+    bounc: Optional[Bounc] = PydanticField(
+        default=None, description="Optional boundary conditions"
+    )
+
+
+class MultiConfig(BaseConfig):
+    """Multi-grid configuration with orchestration.
+
+    Generates complete multi-grid namelist suite:
+    - ww3_multi.nml (from multi field)
+    - ww3_grid_{name}.nml for each grid (from grids field)
+    - Optional ww3_prnc_{name}.nml, ww3_bounc_{name}.nml per grid
+    - Optional ww3_ounf.nml and ww3_ounp.nml for output
+
+    Also generates execution scripts with proper preprocessing order.
+    """
+
+    model_type: Literal["multi"] = PydanticField(
+        default="multi",
+        description="Model type discriminator for multi-grid configuration",
+    )
+    template: str = PydanticField(
+        default=str(HERE / "templates" / "base"),
+        description="The model config template directory",
+    )
+    multi: Multi = PydanticField(
+        ..., description="Multi-grid namelist configuration (ww3_multi.nml)"
+    )
+    grids: List[GridSpec] = PydanticField(
+        ..., description="Per-grid specifications with Grid, Prnc, and Bounc components"
+    )
+    ounf: Optional[Ounf] = PydanticField(
+        default=None, description="Optional field output configuration (ww3_ounf.nml)"
+    )
+    ounp: Optional[Ounp] = PydanticField(
+        default=None, description="Optional point output configuration (ww3_ounp.nml)"
+    )
+
+    @model_validator(mode="after")
+    def validate_grid_names_match(self):
+        """Ensure GridSpec names match Multi's declared grid names.
+
+        Multi.component defines grids in:
+        - domain.nrgrd, domain.nrinp (counts)
+        - input_grid(s), model_grid(s) (names)
+
+        All grids referenced in Multi must have a GridSpec,
+        and all GridSpecs must be referenced in Multi.
+        """
+        multi_names = set()
+
+        if self.multi.input_grid and self.multi.input_grid.name:
+            multi_names.add(self.multi.input_grid.name)
+
+        if self.multi.model_grid and self.multi.model_grid.name:
+            multi_names.add(self.multi.model_grid.name)
+
+        if self.multi.model_grids:
+            for grid in self.multi.model_grids:
+                if grid.name:
+                    multi_names.add(grid.name)
+
+        gridspec_names = {g.name for g in self.grids}
+
+        if multi_names != gridspec_names:
+            missing_in_multi = gridspec_names - multi_names
+            missing_in_grids = multi_names - gridspec_names
+
+            errors = []
+            if missing_in_multi:
+                errors.append(
+                    f"Grids in GridSpec but not in Multi: {sorted(missing_in_multi)}"
+                )
+            if missing_in_grids:
+                errors.append(
+                    f"Grids in Multi but not in GridSpec: {sorted(missing_in_grids)}"
+                )
+
+            raise ValueError("Grid name mismatch: " + "; ".join(errors))
+
+        if self.multi.domain and self.multi.domain.nrgrd is not None:
+            expected_count = self.multi.domain.nrgrd
+            actual_count = len(self.grids)
+            if expected_count != actual_count:
+                raise ValueError(
+                    f"Grid count mismatch: Multi.domain.nrgrd={expected_count} "
+                    f"but {actual_count} GridSpecs provided"
+                )
+
+        return self
+
+    @property
+    def components(self) -> List[str]:
+        """Return list of component names for template rendering."""
+        return ["multi", "grids", "ounf", "ounp"]
+
+    def write_control_files(self, runtime) -> None:
+        """Write all namelists to staging directory.
+
+        Generates:
+        - ww3_multi.nml (main multi-grid config)
+        - ww3_grid_{name}.nml for each grid
+        - ww3_prnc_{name}.nml if prnc specified
+        - ww3_bounc_{name}.nml if bounc specified
+        - ww3_ounf.nml and ww3_ounp.nml if specified
+        """
+        staging_dir = Path(runtime.staging_dir)
+        staging_dir.mkdir(parents=True, exist_ok=True)
+
+        self._propagate_runtime_context(runtime)
+
+        self.multi.write_nml(destdir=staging_dir)
+
+        for grid_spec in self.grids:
+            grid_filepath = staging_dir / f"ww3_grid_{grid_spec.name}.nml"
+            rendered_content = grid_spec.grid.render()
+            with open(grid_filepath, "w") as f:
+                f.write(rendered_content)
+
+            if grid_spec.prnc:
+                prnc_filepath = staging_dir / f"ww3_prnc_{grid_spec.name}.nml"
+                rendered_content = grid_spec.prnc.render()
+                with open(prnc_filepath, "w") as f:
+                    f.write(rendered_content)
+
+            if grid_spec.bounc:
+                bounc_filepath = staging_dir / f"ww3_bounc_{grid_spec.name}.nml"
+                rendered_content = grid_spec.bounc.render()
+                with open(bounc_filepath, "w") as f:
+                    f.write(rendered_content)
+
+        if self.ounf:
+            self.ounf.write_nml(destdir=staging_dir)
+
+        if self.ounp:
+            self.ounp.write_nml(destdir=staging_dir)
+
+    def _propagate_runtime_context(self, runtime) -> None:
+        """Propagate runtime dates to all GridSpec components."""
+        period = getattr(runtime, "period", None)
+        if not period:
+            return
+
+        if hasattr(self.multi, "set_default_dates"):
+            self.multi.set_default_dates(period)
+
+        for grid_spec in self.grids:
+            if hasattr(grid_spec.grid, "set_default_dates"):
+                grid_spec.grid.set_default_dates(period)
+
+            if grid_spec.prnc and hasattr(grid_spec.prnc, "set_default_dates"):
+                grid_spec.prnc.set_default_dates(period)
+
+            if grid_spec.bounc and hasattr(grid_spec.bounc, "set_default_dates"):
+                grid_spec.bounc.set_default_dates(period)
+
+        if self.ounf and hasattr(self.ounf, "set_default_dates"):
+            self.ounf.set_default_dates(period)
+
+        if self.ounp and hasattr(self.ounp, "set_default_dates"):
+            self.ounp.set_default_dates(period)
+
+    def generate_run_script(self, runtime, filename: str = "run_ww3.sh") -> Path:
+        """Generate execution scripts for multi-grid workflow.
+
+        Creates 4 scripts:
+        - preprocess_ww3.sh: Grid prep, input prep, boundary conditions
+        - run_ww3.sh: Multi-grid execution
+        - postprocess_ww3.sh: Output processing
+        - full_ww3.sh: Complete workflow
+
+        Returns path to the main run script.
+        """
+        staging_dir = Path(runtime.staging_dir)
+        staging_dir.mkdir(parents=True, exist_ok=True)
+
+        preprocess_content = self._generate_preprocess_script()
+        preprocess_path = staging_dir / "preprocess_ww3.sh"
+        with open(preprocess_path, "w") as f:
+            f.write(preprocess_content)
+        preprocess_path.chmod(0o755)
+
+        run_content = self._generate_run_script()
+        run_path = staging_dir / "run_ww3.sh"
+        with open(run_path, "w") as f:
+            f.write(run_content)
+        run_path.chmod(0o755)
+
+        postprocess_content = self._generate_postprocess_script()
+        postprocess_path = staging_dir / "postprocess_ww3.sh"
+        with open(postprocess_path, "w") as f:
+            f.write(postprocess_content)
+        postprocess_path.chmod(0o755)
+
+        full_content = self._generate_full_script()
+        full_path = staging_dir / "full_ww3.sh"
+        with open(full_path, "w") as f:
+            f.write(full_content)
+        full_path.chmod(0o755)
+
+        return run_path
+
+    def _generate_preprocess_script(self) -> str:
+        """Generate grid preprocessing script content."""
+        lines = ["#!/bin/bash", ""]
+
+        for grid_spec in self.grids:
+            lines.append(f'echo "Processing grid: {grid_spec.name}"')
+            lines.append("")
+
+            lines.append(f"cp ww3_grid_{grid_spec.name}.nml ww3_grid.nml")
+            lines.append("ww3_grid")
+            lines.append(f"mv mod_def.ww3 mod_def.{grid_spec.name}")
+            lines.append("rm -f ww3_grid.nml")
+            lines.append("")
+
+            if grid_spec.prnc:
+                lines.append(f"ln -sf mod_def.{grid_spec.name} mod_def.ww3")
+                lines.append(f"cp ww3_prnc_{grid_spec.name}.nml ww3_prnc.nml")
+                lines.append("ww3_prnc")
+                lines.append("rm -f mod_def.ww3 ww3_prnc.nml")
+                lines.append("")
+
+            if grid_spec.bounc:
+                lines.append(f"ln -sf mod_def.{grid_spec.name} mod_def.ww3")
+                lines.append(f"cp ww3_bounc_{grid_spec.name}.nml ww3_bounc.nml")
+                lines.append("ww3_bounc")
+                lines.append("rm -f mod_def.ww3 ww3_bounc.nml")
+                lines.append("")
+
+        return "\n".join(lines)
+
+    def _generate_run_script(self) -> str:
+        """Generate multi-grid execution script content."""
+        return "#!/bin/bash\n\n# Multi-grid run\nww3_multi\n"
+
+    def _generate_postprocess_script(self) -> str:
+        """Generate post-processing script content."""
+        lines = ["#!/bin/bash"]
+
+        if self.ounf:
+            lines.append("ww3_ounf")
+
+        if self.ounp:
+            lines.append("ww3_ounp")
+
+        return "\n".join(lines) + "\n"
+
+    def _generate_full_script(self) -> str:
+        """Generate full workflow script content."""
+        return """#!/bin/bash
+set -e
+echo "Starting multi-grid workflow..."
+$(dirname $0)/preprocess_ww3.sh
+echo "Grid preprocessing complete."
+$(dirname $0)/run_ww3.sh
+echo "Multi-grid run complete."
+$(dirname $0)/postprocess_ww3.sh
+echo "Post-processing complete."
+echo "Workflow finished successfully."
+"""
 
 
 class BaseWW3Config(BaseConfig):

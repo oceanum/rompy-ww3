@@ -13,26 +13,26 @@ period:
     interval: "1H"
 
 config:
-    model_type: nml
+    model_type: multi
 
-    multi_component:
+    multi:
         domain:
             start: "20200101 000000"
             stop: "20200102 000000"
             iostyp: 1
-            nrinp: 1
+            nrinp: 0
             nrgrd: 3
 
         model_grids:
             # Outer grid - coarse resolution (50km)
             - name: "grd1"
               forcing:
-                  water_levels: "no"
-                  currents: "no"
+                  water_levels: "F"
+                  currents: "F"
                   winds: "T"
-                  ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
+                  ice_conc: "F"
+                  air_density: "F"
+                  atm_momentum: "F"
               resource:
                   rank_id: 1
                   group_id: 1
@@ -42,12 +42,12 @@ config:
             # Middle grid - medium resolution (15km)
             - name: "grd2"
               forcing:
-                  water_levels: "no"
-                  currents: "no"
+                  water_levels: "F"
+                  currents: "F"
                   winds: "T"
-                  ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
+                  ice_conc: "F"
+                  air_density: "F"
+                  atm_momentum: "F"
               resource:
                   rank_id: 2
                   group_id: 1
@@ -57,12 +57,12 @@ config:
             # Inner grid - high resolution (5km)
             - name: "grd3"
               forcing:
-                  water_levels: "no"
-                  currents: "no"
+                  water_levels: "F"
+                  currents: "F"
                   winds: "T"
-                  ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
+                  ice_conc: "F"
+                  air_density: "F"
+                  atm_momentum: "F"
               resource:
                   rank_id: 3
                   group_id: 1
@@ -78,3 +78,121 @@ config:
                 start: "20200101 000000"
                 stride: "3600"
                 stop: "20200102 000000"
+
+    grids:
+        # Outer grid configuration (50km resolution)
+        - name: grd1
+          grid:
+              spectrum:
+                  xfr: 1.10
+                  freq1: 0.04118
+                  nk: 25
+                  nth: 24
+              run:
+                  flcx: true
+                  flcy: true
+                  flcth: true
+                  flsou: true
+              timesteps:
+                  dtmax: 1800.0
+                  dtxy: 600.0
+                  dtkth: 900.0
+                  dtmin: 5.0
+              grid:
+                  name: "Hurricane grid grd1"
+                  type: "RECT"
+                  coord: "CART"
+                  clos: "NONE"
+                  zlim: -0.1
+                  dmin: 0.25
+              rect:
+                  nx: 55
+                  ny: 55
+                  sx: 50000.0
+                  sy: 50000.0
+                  x0: -1350000.0
+                  y0: -1350000.0
+              depth:
+                  sf: -1000.0
+                  filename: "../input/grd1.depth"
+                  idla: 4
+              mask:
+                  filename: "../input/grd1.mask"
+
+        # Middle grid configuration (15km resolution)
+        - name: grd2
+          grid:
+              spectrum:
+                  xfr: 1.10
+                  freq1: 0.04118
+                  nk: 25
+                  nth: 24
+              run:
+                  flcx: true
+                  flcy: true
+                  flcth: true
+                  flsou: true
+              timesteps:
+                  dtmax: 600.0
+                  dtxy: 200.0
+                  dtkth: 300.0
+                  dtmin: 5.0
+              grid:
+                  name: "Hurricane grid grd2"
+                  type: "RECT"
+                  coord: "CART"
+                  clos: "NONE"
+                  zlim: -0.1
+                  dmin: 0.25
+              rect:
+                  nx: 51
+                  ny: 51
+                  sx: 15000.0
+                  sy: 15000.0
+                  x0: -375000.0
+                  y0: -375000.0
+              depth:
+                  sf: -1000.0
+                  filename: "../input/grd2.depth"
+                  idla: 4
+              mask:
+                  filename: "../input/grd2.mask"
+
+        # Inner grid configuration (5km resolution)
+        - name: grd3
+          grid:
+              spectrum:
+                  xfr: 1.10
+                  freq1: 0.04118
+                  nk: 25
+                  nth: 24
+              run:
+                  flcx: true
+                  flcy: true
+                  flcth: true
+                  flsou: true
+              timesteps:
+                  dtmax: 200.0
+                  dtxy: 66.67
+                  dtkth: 100.0
+                  dtmin: 5.0
+              grid:
+                  name: "Hurricane grid grd3"
+                  type: "RECT"
+                  coord: "CART"
+                  clos: "NONE"
+                  zlim: -0.1
+                  dmin: 0.25
+              rect:
+                  nx: 51
+                  ny: 51
+                  sx: 5000.0
+                  sy: 5000.0
+                  x0: -125000.0
+                  y0: -125000.0
+              depth:
+                  sf: -1000.0
+                  filename: "../input/grd3.depth"
+                  idla: 4
+              mask:
+                  filename: "../input/grd3.mask"

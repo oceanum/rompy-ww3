@@ -13,25 +13,25 @@ period:
     interval: "30m"
 
 config:
-    model_type: nml
+    model_type: multi
 
-    multi_component:
+    multi:
         domain:
             start: "20200101 000000"
             stop: "20200102 000000"
             iostyp: 1
-            nrinp: 1
+            nrinp: 0
             nrgrd: 3
 
         model_grids:
             - name: "coarse"
               forcing:
-                  water_levels: "no"
-                  currents: "no"
+                  water_levels: "F"
+                  currents: "F"
                   winds: "T"
-                  ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
+                  ice_conc: "F"
+                  air_density: "F"
+                  atm_momentum: "F"
               resource:
                   rank_id: 1
                   group_id: 1
@@ -40,12 +40,12 @@ config:
 
             - name: "medium"
               forcing:
-                  water_levels: "no"
-                  currents: "no"
+                  water_levels: "F"
+                  currents: "F"
                   winds: "T"
-                  ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
+                  ice_conc: "F"
+                  air_density: "F"
+                  atm_momentum: "F"
               resource:
                   rank_id: 2
                   group_id: 1
@@ -54,12 +54,12 @@ config:
 
             - name: "fine"
               forcing:
-                  water_levels: "no"
-                  currents: "no"
+                  water_levels: "F"
+                  currents: "F"
                   winds: "T"
-                  ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
+                  ice_conc: "F"
+                  air_density: "F"
+                  atm_momentum: "F"
               resource:
                   rank_id: 3
                   group_id: 1
@@ -75,3 +75,115 @@ config:
                 start: "20200101 000000"
                 stride: "1800"
                 stop: "20200102 000000"
+
+    grids:
+        - name: coarse
+          grid:
+              spectrum:
+                  xfr: 1.1
+                  freq1: 0.04177
+                  nk: 25
+                  nth: 24
+              run:
+                  flcx: true
+                  flcy: true
+                  flcth: true
+              timesteps:
+                  dtmax: 1200.0
+                  dtxy: 400.0
+                  dtkth: 600.0
+                  dtmin: 15.0
+              grid:
+                  name: "Coarse grid - 3-level nesting"
+                  type: "RECT"
+                  coord: "CART"
+                  clos: "NONE"
+                  zlim: -0.1
+                  dmin: 0.25
+              rect:
+                  nx: 23
+                  ny: 23
+                  sx: 10000.0
+                  sy: 10000.0
+                  x0: -10000.0
+                  y0: -10000.0
+              depth:
+                  sf: -1.0
+                  filename: "../input/Status.depth"
+                  idla: 3
+              mask:
+                  filename: "../input/Status.mask"
+
+        - name: medium
+          grid:
+              spectrum:
+                  xfr: 1.1
+                  freq1: 0.04177
+                  nk: 25
+                  nth: 24
+              run:
+                  flcx: true
+                  flcy: true
+                  flcth: true
+              timesteps:
+                  dtmax: 600.0
+                  dtxy: 200.0
+                  dtkth: 300.0
+                  dtmin: 15.0
+              grid:
+                  name: "Medium grid - 3-level nesting"
+                  type: "RECT"
+                  coord: "CART"
+                  clos: "NONE"
+                  zlim: -0.1
+                  dmin: 0.25
+              rect:
+                  nx: 23
+                  ny: 23
+                  sx: 10000.0
+                  sy: 10000.0
+                  x0: -10000.0
+                  y0: -10000.0
+              depth:
+                  sf: -1.0
+                  filename: "../input/Status.depth"
+                  idla: 3
+              mask:
+                  filename: "../input/Status.mask"
+
+        - name: fine
+          grid:
+              spectrum:
+                  xfr: 1.1
+                  freq1: 0.04177
+                  nk: 25
+                  nth: 24
+              run:
+                  flcx: true
+                  flcy: true
+                  flcth: true
+              timesteps:
+                  dtmax: 300.0
+                  dtxy: 100.0
+                  dtkth: 150.0
+                  dtmin: 15.0
+              grid:
+                  name: "Fine grid - 3-level nesting"
+                  type: "RECT"
+                  coord: "CART"
+                  clos: "NONE"
+                  zlim: -0.1
+                  dmin: 0.25
+              rect:
+                  nx: 23
+                  ny: 23
+                  sx: 10000.0
+                  sy: 10000.0
+                  x0: -10000.0
+                  y0: -10000.0
+              depth:
+                  sf: -1.0
+                  filename: "../input/Status.depth"
+                  idla: 3
+              mask:
+                  filename: "../input/Status.mask"

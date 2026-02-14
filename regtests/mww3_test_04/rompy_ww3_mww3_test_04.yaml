@@ -14,26 +14,26 @@ period:
     interval: "1H"
 
 config:
-    model_type: nml
+    model_type: multi
 
-    multi_component:
+    multi:
         domain:
             start: "20200101 000000"
             stop: "20200101 120000"
             iostyp: 1
-            nrinp: 1
+            nrinp: 0
             nrgrd: 3
 
         model_grids:
             # Boundary grid - 1-D propagation with preset boundary data
             - name: "bound"
               forcing:
-                  water_levels: "no"
-                  currents: "no"
-                  winds: "no"
-                  ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
+                  water_levels: "F"
+                  currents: "F"
+                  winds: "F"
+                  ice_conc: "F"
+                  air_density: "F"
+                  atm_momentum: "F"
               resource:
                   rank_id: 1
                   group_id: 1
@@ -43,12 +43,12 @@ config:
             # Outer grid - full 2-D propagation with constant depth
             - name: "outer"
               forcing:
-                  water_levels: "no"
-                  currents: "no"
-                  winds: "no"
-                  ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
+                  water_levels: "F"
+                  currents: "F"
+                  winds: "F"
+                  ice_conc: "F"
+                  air_density: "F"
+                  atm_momentum: "F"
               resource:
                   rank_id: 2
                   group_id: 1
@@ -58,12 +58,12 @@ config:
             # Inner grid - higher resolution with shallow water
             - name: "inner"
               forcing:
-                  water_levels: "no"
-                  currents: "no"
-                  winds: "no"
-                  ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
+                  water_levels: "F"
+                  currents: "F"
+                  winds: "F"
+                  ice_conc: "F"
+                  air_density: "F"
+                  atm_momentum: "F"
               resource:
                   rank_id: 3
                   group_id: 1
@@ -79,3 +79,159 @@ config:
                 start: "20200101 000000"
                 stride: "3600"
                 stop: "20200101 120000"
+
+    grids:
+        # Boundary grid configuration
+        - name: bound
+          grid:
+              spectrum:
+                  xfr: 1.03
+                  freq1: 0.075
+                  nk: 20
+                  nth: 24
+              run:
+                  flcx: true
+              timesteps:
+                  dtmax: 720.0
+                  dtxy: 240.0
+                  dtkth: 360.0
+                  dtmin: 15.0
+              grid:
+                  name: "The Boundary data grid"
+                  type: "RECT"
+                  coord: "CART"
+                  clos: "NONE"
+                  zlim: -0.1
+                  dmin: 0.25
+              rect:
+                  nx: 55
+                  ny: 57
+                  sx: 10000.0
+                  sy: 10000.0
+                  x0: -270000.0
+                  y0: -280000.0
+              depth:
+                  sf: -250.0
+                  filename: "../input/bound.depth"
+                  idla: 4
+              inbound_count:
+                  n_point: 2
+              inbound_points:
+                  points:
+                      - ix: 1
+                        iy: 2
+                        connect: true
+                      - ix: 1
+                        iy: 56
+                        connect: true
+              outbound_count:
+                  n_line: 3
+              outbound_lines:
+                  lines:
+                      - x0: -270000.0
+                        y0: -260000.0
+                        dx: 0.0
+                        dy: 10000.0
+                        n_points: 53
+                      - x0: -270000.0
+                        y0: -270000.0
+                        dx: 10000.0
+                        dy: 0.0
+                        n_points: 54
+                      - x0: -270000.0
+                        y0: 270000.0
+                        dx: 10000.0
+                        dy: 0.0
+                        n_points: 54
+
+        # Outer grid configuration
+        - name: outer
+          grid:
+              spectrum:
+                  xfr: 1.03
+                  freq1: 0.075
+                  nk: 20
+                  nth: 24
+              run:
+                  flcx: true
+                  flcy: true
+                  flcth: true
+              timesteps:
+                  dtmax: 720.0
+                  dtxy: 240.0
+                  dtkth: 360.0
+                  dtmin: 15.0
+              grid:
+                  name: "The outer grid @ 10 km"
+                  type: "RECT"
+                  coord: "CART"
+                  clos: "NONE"
+                  zlim: -0.1
+                  dmin: 0.25
+              rect:
+                  nx: 55
+                  ny: 55
+                  sx: 10000.0
+                  sy: 10000.0
+                  x0: -270000.0
+                  y0: -270000.0
+              depth:
+                  sf: -250.0
+                  filename: "../input/outer.depth"
+                  idla: 4
+              inbound_count:
+                  n_point: 4
+              inbound_points:
+                  points:
+                      - ix: 54
+                        iy: 1
+                        connect: true
+                      - ix: 1
+                        iy: 1
+                        connect: true
+                      - ix: 1
+                        iy: 55
+                        connect: true
+                      - ix: 54
+                        iy: 55
+                        connect: true
+
+        # Inner grid configuration
+        - name: inner
+          grid:
+              spectrum:
+                  xfr: 1.03
+                  freq1: 0.075
+                  nk: 20
+                  nth: 24
+              run:
+                  flcx: true
+                  flcy: true
+                  flcth: true
+                  flck: true
+              timesteps:
+                  dtmax: 360.0
+                  dtxy: 120.0
+                  dtkth: 180.0
+                  dtmin: 15.0
+              grid:
+                  name: "The inner grid @ 5 km"
+                  type: "RECT"
+                  coord: "CART"
+                  clos: "NONE"
+                  zlim: -0.1
+                  dmin: 0.25
+              rect:
+                  nx: 51
+                  ny: 51
+                  sx: 5000.0
+                  sy: 5000.0
+                  x0: -125000.0
+                  y0: -125000.0
+              depth:
+                  sf: -250.0
+                  filename: "../input/inner.depth"
+                  idla: 4
+              mask:
+                  filename: "../input/mask.data"
+                  idla: 3
