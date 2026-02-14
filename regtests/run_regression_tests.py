@@ -62,6 +62,9 @@ Examples:
 
   # Validate namelists against NOAA references
   python run_regression_tests.py --test tp2.4 --validate-namelists
+
+  # Run multi-grid tests
+  python run_regression_tests.py --test mww3_test_01 --validate-namelists
         """,
     )
 
@@ -174,16 +177,23 @@ Examples:
 
     # Discover tests based on selection
     if args.all:
-        pattern = "ww3_tp*"
+        pattern = "ww3_*"
         logger.info("Discovering all tests")
     elif args.series:
-        # Convert tp1.x -> ww3_tp1.*
-        series = args.series.replace(".x", ".*")
-        pattern = f"ww3_{series}"
+        # Convert tp1.x -> ww3_tp1.* or mww3_test_* -> mww3_test_*
+        if args.series.startswith("mww3"):
+            series = args.series.replace(".x", ".*")
+            pattern = f"{series}"
+        else:
+            series = args.series.replace(".x", ".*")
+            pattern = f"ww3_{series}"
         logger.info(f"Discovering tests in series {args.series}")
     else:  # args.test
-        # Convert tp1.1 -> ww3_tp1.1
-        pattern = f"ww3_{args.test}"
+        # Convert tp1.1 -> ww3_tp1.1, but keep mww3_test_01 as-is
+        if args.test.startswith("mww3"):
+            pattern = args.test
+        else:
+            pattern = f"ww3_{args.test}"
         logger.info(f"Discovering test {args.test}")
 
     tests = runner.discover_tests(args.regtests_dir, pattern=pattern)
