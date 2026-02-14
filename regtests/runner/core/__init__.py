@@ -14,6 +14,12 @@ from .test import TestCase, ValidationResult
 from .result import TestResult, TestSuiteResult, TestStatus
 from .validator import Validator
 from .report import ReportGenerator
+from .namelist_comparator import (
+    NamelistComparator,
+    NamelistComparisonReport,
+    NamelistDiff,
+    NamelistMismatchError,
+)
 
 __all__ = [
     "TestRunner",
@@ -24,4 +30,8 @@ __all__ = [
     "Validator",
     "ValidationResult",
     "ReportGenerator",
+    "NamelistComparator",
+    "NamelistComparisonReport",
+    "NamelistDiff",
+    "NamelistMismatchError",
 ]

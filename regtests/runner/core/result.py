@@ -3,8 +3,11 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 import time
+
+if TYPE_CHECKING:
+    from .namelist_comparator import NamelistComparisonReport
 
 
 class TestStatus(Enum):
@@ -42,6 +45,7 @@ class TestResult:
     execution_time: float = 0.0
     outputs_generated: List[Path] = field(default_factory=list)
     validation_results: Optional["ValidationReport"] = None
+    namelist_report: Optional["NamelistComparisonReport"] = None
     error_message: Optional[str] = None
     logs: str = ""
 

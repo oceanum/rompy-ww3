@@ -4,11 +4,17 @@ from pathlib import Path
 from typing import List, Optional
 import logging
 
+from typing import TYPE_CHECKING
+
 from .test import TestCase
 from .result import TestResult, TestSuiteResult, TestStatus
 from .validator import Validator
 from .input_manager import InputFileManager
+from .namelist_comparator import NamelistComparator
 from ..backends.base import Backend
+
+if TYPE_CHECKING:
+    from .namelist_comparator import NamelistComparisonReport
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +48,7 @@ class TestRunner:
         reference_dir: Optional[Path] = None,
         validator: Optional[Validator] = None,
         input_manager: Optional[InputFileManager] = None,
+        namelist_comparator: Optional[NamelistComparator] = None,
     ):
         """Initialize test runner with execution backend.
 
@@ -51,6 +58,7 @@ class TestRunner:
             reference_dir: Optional directory containing reference outputs for validation
             validator: Optional Validator instance (created if not provided)
             input_manager: Optional InputFileManager for downloading inputs
+            namelist_comparator: Optional NamelistComparator for validating namelists
         """
         self.backend = backend
         self.output_dir = output_dir or Path("./test_outputs")
@@ -58,6 +66,7 @@ class TestRunner:
         self.reference_dir = reference_dir
         self.validator = validator or Validator()
         self.input_manager = input_manager or InputFileManager()
+        self.namelist_comparator = namelist_comparator
 
     def discover_tests(self, path: Path, pattern: str = "ww3_tp*") -> List[TestCase]:
         """Discover test cases in directory matching pattern.
@@ -131,16 +140,23 @@ class TestRunner:
         return True, results
 
     def run_test(
-        self, test: TestCase, validate: bool = False, download_inputs: bool = True
+        self,
+        test: TestCase,
+        validate: bool = False,
+        download_inputs: bool = True,
+        validate_namelists: bool = False,
     ) -> TestResult:
         """Execute a single test case and return result.
 
         Validates the test configuration, executes it via the backend,
-        and collects the results. Optionally validates against reference outputs.
+        and collects the results. Optionally validates against reference outputs
+        and/or reference namelists.
 
         Args:
             test: TestCase to execute
             validate: If True and reference_dir is set, validate outputs
+            download_inputs: If True, download missing input files before running
+            validate_namelists: If True, validate generated namelists against NOAA references
 
         Returns:
             TestResult with execution outcome
@@ -176,6 +192,31 @@ class TestRunner:
         try:
             result = self.backend.execute(test, workdir=test_output_dir)
 
+            # Validate namelists if requested
+            if validate_namelists and result.status == TestStatus.SUCCESS:
+                logger.info(f"Validating namelists for test: {test.name}")
+                namelist_report = self.validate_test_namelists(test)
+
+                if not namelist_report.is_valid():
+                    result.status = TestStatus.FAILURE
+                    mismatches = namelist_report.get_mismatches()
+                    result.error_message = (
+                        f"Namelist validation failed: {len(mismatches)}/{namelist_report.namelists_compared} "
+                        f"namelists differ from NOAA references"
+                    )
+                    logger.warning(
+                        f"Test {test.name} namelist validation failed: "
+                        f"{namelist_report.namelists_matched}/{namelist_report.namelists_compared} matched"
+                    )
+                    # Store the report for later access
+                    result.namelist_report = namelist_report
+                else:
+                    logger.info(
+                        f"Test {test.name} namelist validation passed: "
+                        f"{namelist_report.namelists_matched}/{namelist_report.namelists_compared} matched"
+                    )
+
+            # Validate outputs if requested
             if validate and self.reference_dir and result.status == TestStatus.SUCCESS:
                 logger.info(f"Validating outputs for test: {test.name}")
                 test_reference_dir = self.reference_dir / test.name
@@ -190,11 +231,11 @@ class TestRunner:
                     if not validation_report.is_valid():
                         result.status = TestStatus.FAILURE
                         logger.warning(
-                            f"Test {test.name} validation failed: "
+                            f"Test {test.name} output validation failed: "
                             f"{validation_report.files_matched}/{validation_report.files_compared} files matched"
                         )
                     else:
-                        logger.info(f"Test {test.name} validation passed")
+                        logger.info(f"Test {test.name} output validation passed")
                 else:
                     logger.warning(f"No reference directory found for {test.name}")
 
@@ -213,16 +254,19 @@ class TestRunner:
         tests: List[TestCase],
         validate: bool = False,
         download_inputs: bool = True,
+        validate_namelists: bool = False,
     ) -> TestSuiteResult:
         """Execute multiple test cases and aggregate results.
 
         Runs all tests sequentially and aggregates the results into a
-        TestSuiteResult for reporting. Optionally validates against references.
+        TestSuiteResult for reporting. Optionally validates against references
+        and/or namelists.
 
         Args:
             tests: List of TestCase objects to execute
             validate: If True and reference_dir is set, validate outputs
             download_inputs: If True, download missing input files before running
+            validate_namelists: If True, validate generated namelists against NOAA references
 
         Returns:
             TestSuiteResult with aggregated outcomes
@@ -237,7 +281,10 @@ class TestRunner:
         results = []
         for test in tests:
             result = self.run_test(
-                test, validate=validate, download_inputs=download_inputs
+                test,
+                validate=validate,
+                download_inputs=download_inputs,
+                validate_namelists=validate_namelists,
             )
             results.append(result)
 
@@ -260,3 +307,22 @@ class TestRunner:
             logger.error(f"Test {test.name} validation failed: {validation.message}")
             return False
         return True
+
+    def validate_test_namelists(self, test: TestCase) -> "NamelistComparisonReport":
+        """Validate generated namelists against NOAA references.
+
+        Args:
+            test: TestCase to validate
+
+        Returns:
+            NamelistComparisonReport with comparison results
+        """
+        if self.namelist_comparator is None:
+            self.namelist_comparator = NamelistComparator()
+
+        test_output_dir = self.output_dir / test.name
+        return self.namelist_comparator.compare_test_namelists(
+            test_name=test.name,
+            generated_dir=test_output_dir,
+            download_missing=True,
+        )
