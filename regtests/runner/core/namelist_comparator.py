@@ -33,6 +33,22 @@ DEFAULT_NAMELIST_PATTERNS = [
 ]
 
 
+def _parse_grdset(test_name: str) -> Tuple[str, Optional[str]]:
+    """Parse test name to extract base name and grdset.
+
+    Args:
+        test_name: Name of the test (e.g., 'mww3_test_02_grdset_a')
+
+    Returns:
+        Tuple of (base_test_name, grdset_name or None)
+        Example: ('mww3_test_02', 'grdset_a') or ('tp1.1', None)
+    """
+    grdset_match = re.match(r"(.+)_(grdset_[a-z0-9]+)$", test_name)
+    if grdset_match:
+        return grdset_match.group(1), grdset_match.group(2)
+    return test_name, None
+
+
 class NamelistDiff:
     """Represents a difference between two namelist files.
 
@@ -171,28 +187,36 @@ class NamelistComparator:
         """Get local path for caching a reference namelist.
 
         Args:
-            test_name: Name of the test (e.g., 'tp1.1')
+            test_name: Name of the test (e.g., 'tp1.1' or 'mww3_test_02_grdset_a')
             namelist_file: Name of the namelist file (e.g., 'ww3_shel.nml')
 
         Returns:
             Path to local reference namelist file
         """
-        # Test names in NOAA repo are like 'ww3_tp1.1'
-        repo_test_name = f"ww3_{test_name}"
+        base_name, grdset = _parse_grdset(test_name)
+        repo_test_name = f"ww3_{base_name}"
+
+        if grdset:
+            return (
+                self.reference_dir / repo_test_name / "input" / grdset / namelist_file
+            )
         return self.reference_dir / repo_test_name / namelist_file
 
     def get_reference_url(self, test_name: str, namelist_file: str) -> str:
         """Construct URL for downloading reference namelist.
 
         Args:
-            test_name: Name of the test (e.g., 'tp1.1')
+            test_name: Name of the test (e.g., 'tp1.1' or 'mww3_test_02_grdset_a')
             namelist_file: Name of the namelist file (e.g., 'ww3_shel.nml')
 
         Returns:
             URL to download the reference namelist
         """
-        # Test names in NOAA repo are like 'ww3_tp1.1'
-        repo_test_name = f"ww3_{test_name}"
+        base_name, grdset = _parse_grdset(test_name)
+        repo_test_name = f"ww3_{base_name}"
+
+        if grdset:
+            return f"{self.base_url}/{repo_test_name}/input/{grdset}/{namelist_file}"
         return f"{self.base_url}/{repo_test_name}/{namelist_file}"
 
     def download_reference_namelist(

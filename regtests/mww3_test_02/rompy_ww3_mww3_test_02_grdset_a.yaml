@@ -1,0 +1,139 @@
+# WW3 mww3_test_02 Multi-Grid Regression Test Configuration
+# Grid Set A: outer + coarse
+#
+# Test: Static nesting (propagation only) - Single nest basic test
+# Purpose: Validate basic multi-grid coupling between outer and coarse grids
+# Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/mww3_test_02
+#
+# Grdset A uses:
+# - outer: 43x43 rectilinear Cartesian, dx=dy=25km
+# - coarse: 13x13 rectilinear Cartesian, dx=dy=25km (same res, inner domain)
+
+run_id: "ww3_mww3_test_02_grdset_a_regression"
+output_dir: "rompy_runs"
+
+period:
+    start: "2020-01-01T00:00:00"
+    duration: "1D"
+    interval: "30m"
+
+config:
+    model_type: multi
+
+    multi:
+        domain:
+            start: "20200101 000000"
+            stop: "20200102 000000"
+            iostyp: 1
+            nrinp: 0
+            nrgrd: 2
+
+        model_grids:
+            - name: "outer"
+              forcing:
+                  water_levels: "F"
+                  currents: "F"
+                  winds: "F"
+                  ice_conc: "F"
+                  air_density: "F"
+                  atm_momentum: "F"
+              resource:
+                  rank_id: 1
+                  group_id: 1
+                  comm_frac_start: 0.00
+                  comm_frac_end: 0.50
+
+            - name: "coarse"
+              forcing:
+                  water_levels: "F"
+                  currents: "F"
+                  winds: "F"
+                  ice_conc: "F"
+                  air_density: "F"
+                  atm_momentum: "F"
+              resource:
+                  rank_id: 2
+                  group_id: 1
+                  comm_frac_start: 0.50
+                  comm_frac_end: 1.00
+
+        output_type:
+            field:
+                list: "HS FP DP DIR"
+
+        output_date:
+            field:
+                start: "20200101 000000"
+                stride: "1800"
+                stop: "20200102 000000"
+
+    grids:
+        - name: outer
+          grid:
+              spectrum:
+                  xfr: 1.1
+                  freq1: 0.04177
+                  nk: 25
+                  nth: 24
+              run:
+                  flcx: "T"
+                  flcy: "T"
+                  flcth: "T"
+              timesteps:
+                  dtmax: 1200.0
+                  dtxy: 400.0
+                  dtkth: 600.0
+                  dtmin: 15.0
+              grid:
+                  name: "Outer grid - grdset_a"
+                  type: "RECT"
+                  coord: "CART"
+                  clos: "NONE"
+                  zlim: -0.1
+                  dmin: 0.25
+              rect:
+                  nx: 43
+                  ny: 43
+                  sx: 25000.0
+                  sy: 25000.0
+                  x0: -25000.0
+                  y0: -25000.0
+              depth:
+                  sf: -1.0
+                  filename: "../input/outer.depth"
+                  idla: 3
+
+        - name: coarse
+          grid:
+              spectrum:
+                  xfr: 1.1
+                  freq1: 0.04177
+                  nk: 25
+                  nth: 24
+              run:
+                  flcx: "T"
+                  flcy: "T"
+                  flcth: "T"
+              timesteps:
+                  dtmax: 1200.0
+                  dtxy: 400.0
+                  dtkth: 600.0
+                  dtmin: 15.0
+              grid:
+                  name: "Coarse grid - grdset_a"
+                  type: "RECT"
+                  coord: "CART"
+                  clos: "NONE"
+                  zlim: -0.1
+                  dmin: 0.25
+              rect:
+                  nx: 13
+                  ny: 13
+                  sx: 25000.0
+                  sy: 25000.0
+                  x0: 600000.0
+                  y0: 600000.0
+              depth:
+                  sf: -1.0
+                  filename: "../input/coarse.depth"
+                  idla: 3

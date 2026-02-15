@@ -244,6 +244,12 @@ class MultiConfig(BaseConfig):
 
         return run_path
 
+    def __call__(self, runtime) -> dict:
+        """Callable invoked by rompy to generate namelists and scripts."""
+        self.write_control_files(runtime)
+        self.generate_run_script(runtime)
+        return {}
+
     def _generate_preprocess_script(self) -> str:
         """Generate grid preprocessing script content."""
         lines = ["#!/bin/bash", ""]

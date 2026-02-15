@@ -62,15 +62,16 @@ class TestCase:
 
     @property
     def name(self) -> str:
-        """Test identifier (e.g., 'tp1.1').
+        """Test identifier (e.g., 'tp1.1')."""
+        config_name = self.config_path.stem
+        if "_grdset_" in config_name:
+            if config_name.startswith("rompy_ww3_"):
+                return config_name[10:]
+            return config_name
 
-        Extracts the test name from the directory name.
-        Example: 'ww3_tp1.1' -> 'tp1.1'
-        """
         dir_name = self.test_dir.name
-        # Extract tp1.1 from ww3_tp1.1
         if dir_name.startswith("ww3_"):
-            return dir_name[4:]  # Remove 'ww3_' prefix
+            return dir_name[4:]
         return dir_name
 
     @property

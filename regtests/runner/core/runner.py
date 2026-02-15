@@ -1,5 +1,6 @@
 """Main test runner orchestration."""
 
+import re
 from pathlib import Path
 from typing import List, Optional
 import logging
@@ -18,6 +19,21 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_grdset_from_pattern(pattern: str) -> tuple[str, Optional[str]]:
+    """Parse test pattern to extract base name and optional grdset.
+
+    Args:
+        pattern: Test pattern (e.g., 'mww3_test_02' or 'mww3_test_02_grdset_a')
+
+    Returns:
+        Tuple of (base_pattern, grdset_suffix or None)
+    """
+    grdset_match = re.match(r"(.+)_(grdset_[a-z0-9]+)$", pattern)
+    if grdset_match:
+        return grdset_match.group(1), grdset_match.group(2)
+    return pattern, None
 
 
 class TestRunner:
@@ -73,6 +89,7 @@ class TestRunner:
 
         Scans the specified directory for test case directories matching the pattern.
         Each test case directory should contain a YAML configuration file.
+        Supports grdset variants (e.g., mww3_test_02_grdset_a).
 
         Args:
             path: Root directory to search for tests
@@ -91,21 +108,39 @@ class TestRunner:
 
         logger.info(f"Discovering tests in {path} with pattern {pattern}")
 
-        # Find all directories matching pattern
-        for test_dir in sorted(path.glob(pattern)):
-            if not test_dir.is_dir():
-                continue
+        # Check if pattern includes grdset suffix
+        base_pattern, grdset = _parse_grdset_from_pattern(pattern)
 
-            # Look for YAML config file
-            config_files = list(test_dir.glob("rompy_ww3_*.yaml"))
-            if not config_files:
-                logger.warning(f"No config file found in {test_dir}")
-                continue
+        if grdset:
+            # Look for specific grdset config in base directory
+            test_dir = path / base_pattern
+            if test_dir.is_dir():
+                # Look for specific grdset config file
+                config_file = test_dir / f"rompy_ww3_{pattern}.yaml"
+                if config_file.exists():
+                    test_case = TestCase(config_path=config_file)
+                    test_cases.append(test_case)
+                    logger.debug(f"Discovered grdset test: {test_case.name}")
+                else:
+                    logger.warning(f"Grdset config not found: {config_file}")
+            else:
+                logger.warning(f"Base test directory not found: {test_dir}")
+        else:
+            # Standard discovery - find all directories matching pattern
+            for test_dir in sorted(path.glob(pattern)):
+                if not test_dir.is_dir():
+                    continue
 
-            # Create TestCase for first config found
-            test_case = TestCase(config_path=config_files[0])
-            test_cases.append(test_case)
-            logger.debug(f"Discovered test: {test_case.name}")
+                # Look for YAML config file
+                config_files = list(test_dir.glob("rompy_ww3_*.yaml"))
+                if not config_files:
+                    logger.warning(f"No config file found in {test_dir}")
+                    continue
+
+                # Create TestCase for first config found
+                test_case = TestCase(config_path=config_files[0])
+                test_cases.append(test_case)
+                logger.debug(f"Discovered test: {test_case.name}")
 
         logger.info(f"Discovered {len(test_cases)} tests")
         return test_cases
@@ -192,7 +227,7 @@ class TestRunner:
             )
 
         try:
-            if skip_model_execution:
+            if skip_model_execution and not validate_namelists:
                 logger.info(f"Skipping model execution for test: {test.name}")
                 result = TestResult(
                     test_name=test.name,
@@ -333,8 +368,14 @@ class TestRunner:
 
         test_name_normalized = test.name.replace(".", "_")
         test_dir = test.config_path.parent
+        regtests_dir = test_dir.parent  # Parent of test directory (regtests/)
+
+        # Possible locations for generated namelists
         rompy_run_dir = (
             test_dir / "rompy_runs" / f"ww3_{test_name_normalized}_regression"
+        )
+        regtests_run_dir = (
+            regtests_dir / "rompy_runs" / f"ww3_{test_name_normalized}_regression"
         )
         fallback_dir = (
             self.output_dir
@@ -344,7 +385,7 @@ class TestRunner:
         )
         output_root = self.output_dir / test.name
 
-        possible_dirs = [rompy_run_dir, fallback_dir, output_root]
+        possible_dirs = [rompy_run_dir, regtests_run_dir, fallback_dir, output_root]
 
         test_output_dir = None
         for d in possible_dirs:
