@@ -1,95 +1,77 @@
-# WW3 mww3_test_01 Single-Grid Regression Test Configuration
-#
-# Test: Tests for expanded status map (wetting and drying)
-# Purpose: Pre-test for multi-grid approach - validates status map functionality
-# Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/mww3_test_01
-#
-# NOTE: This is a SINGLE-GRID test, not a multi-grid test.
-# It tests wetting/drying functionality needed for ww3_multi, but does NOT use ww3_multi.
-
-# ModelRun parameters
-run_id: "ww3_mww3_test_01_regression"
-output_dir: "rompy_runs"
-
-# Time configuration
+run_id: ww3_mww3_test_01_regression
+output_dir: rompy_runs
 period:
-    start: "2020-01-01T00:00:00"
-    duration: "1D"
-    interval: "1H"
-
-# Model configuration (NMLConfig for single-grid)
+  start: '2020-01-01T00:00:00'
+  duration: 1D
+  interval: 1H
 config:
-    model_type: nml
-
-    # Shell component for ww3_shel.nml
-    ww3_shel:
-        domain:
-            start: "20200101 000000"
-            stop: "20200102 000000"
-            iostyp: 1
-        input_nml:
-            forcing:
-                winds: "F"
-                water_levels: "F"
-                currents: "F"
-                ice_conc: "F"
-        output_type:
-            field:
-                list: "HS"
-        output_date:
-            field:
-                start: "20200101 000000"
-                stride: "3600"
-                stop: "20200102 000000"
-        homog_count:
-            n_wnd: 0
-            n_lev: 0
-            n_cur: 0
-            n_ice: 0
-
-    # Grid component for ww3_grid.nml - Status map testing grid
-    ww3_grid:
-        spectrum:
-            xfr: 1.1
-            freq1: 0.04177
-            nk: 25
-            nth: 24
-        run:
-            flcx: "T"
-            flcy: "T"
-            flcth: "T"
-        timesteps:
-            dtmax: 450.0
-            dtxy: 450.0
-            dtkth: 450.0
-            dtmin: 15.0
-        grid:
-            name: "Status map testing"
-            type: "RECT"
-            coord: "CART"
-            clos: "NONE"
-            zlim: -0.1
-            dmin: 0.25
-        rect:
-            nx: 23
-            ny: 23
-            sx: 10000.0
-            sy: 10000.0
-            x0: -10000.0
-            y0: -10000.0
-        depth:
-            sf: -1.0
-            filename:
-                model_type: data_blob
-                source: "regtests/mww3_test_01/input/Status.depth"
-            idla: 3
-        mask:
-            filename:
-                model_type: data_blob
-                source: "regtests/mww3_test_01/input/Status.mask"
-
-    # Parameters component for namelists.nml
-    namelists:
-        # Physics parameters for depth breaking only (DB1)
-        sdm:
-            sdbco: 0.1  # Default depth breaking coefficient
+  model_type: nml
+  ww3_shel:
+    domain:
+      start: 20200101 000000
+      stop: 20200102 000000
+      iostyp: 1
+    input_nml:
+      forcing:
+        winds: F
+        water_levels: F
+        currents: F
+        ice_conc: F
+    output_type:
+      field:
+        list: HS
+    output_date:
+      field:
+        start: 20200101 000000
+        stride: '3600'
+        stop: 20200102 000000
+    homog_count:
+      n_wnd: 0
+      n_lev: 0
+      n_cur: 0
+      n_ice: 0
+  ww3_grid:
+    spectrum:
+      xfr: 1.1
+      freq1: 0.04177
+      nk: 25
+      nth: 24
+    run:
+      flcx: T
+      flcy: T
+      flcth: T
+    timesteps:
+      dtmax: 450.0
+      dtxy: 150.0
+      dtkth: 200.0
+      dtmin: 15.0
+    grid:
+      name: Status map testing
+      type: RECT
+      coord: CART
+      clos: NONE
+      zlim: -0.1
+      dmin: 0.25
+    rect:
+      nx: 23
+      ny: 23
+      sx: 10000.0
+      sy: 10000.0
+      x0: -10000.0
+      y0: -10000.0
+    depth:
+      sf: -1.0
+      filename:
+        model_type: data_blob
+        source: "regtests/mww3_test_01/input/Status.depth"
+      idla: 3
+    mask:
+      filename:
+        model_type: data_blob
+        source: "regtests/mww3_test_01/input/Status.mask"
+  namelists:
+    pro2:
+      dtime: 0.0
+    pro3:
+      wdthcg: 0.0
+      wdthth: 0.0

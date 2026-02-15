@@ -100,7 +100,7 @@ config:
                   y0: -25000.0
               depth:
                   sf: -1.0
-                  filename: "../input/outer.depth"
+                  filename: "../../input/outer.depth"
                   idla: 3
 
         - name: respec
@@ -135,5 +135,12 @@ config:
                   y0: 600000.0
               depth:
                   sf: -1.0
-                  filename: "../input/respec.depth"
+                  filename: "../../input/respec.depth"
                   idla: 3
+
+    namelists:
+        pro2:
+            dtime: 0.0
+        pro3:
+            wdthcg: 0.0
+            wdthth: 0.0

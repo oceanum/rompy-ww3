@@ -1,189 +1,172 @@
-# WW3 mww3_test_02 Multi-Grid Regression Test Configuration
-#
-# Test: Multi-grid configuration with 3 model grids with varying resolution
-# Purpose: Validate multi-grid nesting with 3-level grid hierarchy
-# Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/mww3_test_02
-
-run_id: "ww3_mww3_test_02_regression"
-output_dir: "rompy_runs"
-
+run_id: ww3_mww3_test_02_regression
+output_dir: rompy_runs
 period:
-    start: "2020-01-01T00:00:00"
-    duration: "1D"
-    interval: "30m"
-
+  start: '2020-01-01T00:00:00'
+  duration: 1D
+  interval: 30m
 config:
-    model_type: multi
-
-    multi:
-        domain:
-            start: "20200101 000000"
-            stop: "20200102 000000"
-            iostyp: 1
-            nrinp: 0
-            nrgrd: 3
-
-        model_grids:
-            - name: "coarse"
-              forcing:
-                  water_levels: "F"
-                  currents: "F"
-                  winds: "T"
-                  ice_conc: "F"
-                  air_density: "F"
-                  atm_momentum: "F"
-              resource:
-                  rank_id: 1
-                  group_id: 1
-                  comm_frac_start: 0.00
-                  comm_frac_end: 0.33
-
-            - name: "medium"
-              forcing:
-                  water_levels: "F"
-                  currents: "F"
-                  winds: "T"
-                  ice_conc: "F"
-                  air_density: "F"
-                  atm_momentum: "F"
-              resource:
-                  rank_id: 2
-                  group_id: 1
-                  comm_frac_start: 0.33
-                  comm_frac_end: 0.67
-
-            - name: "fine"
-              forcing:
-                  water_levels: "F"
-                  currents: "F"
-                  winds: "T"
-                  ice_conc: "F"
-                  air_density: "F"
-                  atm_momentum: "F"
-              resource:
-                  rank_id: 3
-                  group_id: 1
-                  comm_frac_start: 0.67
-                  comm_frac_end: 1.00
-
-        output_type:
-            field:
-                list: "HS FP DP DIR SPR WND CUR"
-
-        output_date:
-            field:
-                start: "20200101 000000"
-                stride: "1800"
-                stop: "20200102 000000"
-
-    grids:
-        - name: coarse
-          grid:
-              spectrum:
-                  xfr: 1.1
-                  freq1: 0.04177
-                  nk: 25
-                  nth: 24
-              run:
-                  flcx: true
-                  flcy: true
-                  flcth: true
-              timesteps:
-                  dtmax: 1200.0
-                  dtxy: 400.0
-                  dtkth: 600.0
-                  dtmin: 15.0
-              grid:
-                  name: "Coarse grid - 3-level nesting"
-                  type: "RECT"
-                  coord: "CART"
-                  clos: "NONE"
-                  zlim: -0.1
-                  dmin: 0.25
-              rect:
-                  nx: 23
-                  ny: 23
-                  sx: 10000.0
-                  sy: 10000.0
-                  x0: -10000.0
-                  y0: -10000.0
-              depth:
-                  sf: -1.0
-                  filename: "../input/Status.depth"
-                  idla: 3
-              mask:
-                  filename: "../input/Status.mask"
-
-        - name: medium
-          grid:
-              spectrum:
-                  xfr: 1.1
-                  freq1: 0.04177
-                  nk: 25
-                  nth: 24
-              run:
-                  flcx: true
-                  flcy: true
-                  flcth: true
-              timesteps:
-                  dtmax: 600.0
-                  dtxy: 200.0
-                  dtkth: 300.0
-                  dtmin: 15.0
-              grid:
-                  name: "Medium grid - 3-level nesting"
-                  type: "RECT"
-                  coord: "CART"
-                  clos: "NONE"
-                  zlim: -0.1
-                  dmin: 0.25
-              rect:
-                  nx: 23
-                  ny: 23
-                  sx: 10000.0
-                  sy: 10000.0
-                  x0: -10000.0
-                  y0: -10000.0
-              depth:
-                  sf: -1.0
-                  filename: "../input/Status.depth"
-                  idla: 3
-              mask:
-                  filename: "../input/Status.mask"
-
-        - name: fine
-          grid:
-              spectrum:
-                  xfr: 1.1
-                  freq1: 0.04177
-                  nk: 25
-                  nth: 24
-              run:
-                  flcx: true
-                  flcy: true
-                  flcth: true
-              timesteps:
-                  dtmax: 300.0
-                  dtxy: 100.0
-                  dtkth: 150.0
-                  dtmin: 15.0
-              grid:
-                  name: "Fine grid - 3-level nesting"
-                  type: "RECT"
-                  coord: "CART"
-                  clos: "NONE"
-                  zlim: -0.1
-                  dmin: 0.25
-              rect:
-                  nx: 23
-                  ny: 23
-                  sx: 10000.0
-                  sy: 10000.0
-                  x0: -10000.0
-                  y0: -10000.0
-              depth:
-                  sf: -1.0
-                  filename: "../input/Status.depth"
-                  idla: 3
-              mask:
-                  filename: "../input/Status.mask"
+  model_type: multi
+  multi:
+    domain:
+      start: 20200101 000000
+      stop: 20200102 000000
+      iostyp: 1
+      nrinp: 0
+      nrgrd: 3
+    model_grids:
+    - name: coarse
+      forcing:
+        water_levels: F
+        currents: F
+        winds: T
+        ice_conc: F
+        air_density: F
+        atm_momentum: F
+      resource:
+        rank_id: 1
+        group_id: 1
+        comm_frac_start: 0.0
+        comm_frac_end: 0.33
+    - name: medium
+      forcing:
+        water_levels: F
+        currents: F
+        winds: T
+        ice_conc: F
+        air_density: F
+        atm_momentum: F
+      resource:
+        rank_id: 2
+        group_id: 1
+        comm_frac_start: 0.33
+        comm_frac_end: 0.67
+    - name: fine
+      forcing:
+        water_levels: F
+        currents: F
+        winds: T
+        ice_conc: F
+        air_density: F
+        atm_momentum: F
+      resource:
+        rank_id: 3
+        group_id: 1
+        comm_frac_start: 0.67
+        comm_frac_end: 1.0
+    output_type:
+      field:
+        list: HS FP DP DIR SPR WND CUR
+    output_date:
+      field:
+        start: 20200101 000000
+        stride: '1800'
+        stop: 20200102 000000
+  grids:
+  - name: coarse
+    grid:
+      spectrum:
+        xfr: 1.1
+        freq1: 0.04177
+        nk: 25
+        nth: 24
+      run:
+        flcx: true
+        flcy: true
+        flcth: true
+      timesteps:
+        dtmax: 1200.0
+        dtxy: 400.0
+        dtkth: 600.0
+        dtmin: 15.0
+      grid:
+        name: Coarse grid - 3-level nesting
+        type: RECT
+        coord: CART
+        clos: NONE
+        zlim: -0.1
+        dmin: 0.25
+      rect:
+        nx: 13
+        ny: 13
+        sx: 10000.0
+        sy: 10000.0
+        x0: -10000.0
+        y0: -10000.0
+      depth:
+        sf: -1.0
+        filename: ../../input/coarse.depth
+        idla: 3
+  - name: medium
+    grid:
+      spectrum:
+        xfr: 1.1
+        freq1: 0.04177
+        nk: 25
+        nth: 24
+      run:
+        flcx: true
+        flcy: true
+        flcth: true
+      timesteps:
+        dtmax: 600.0
+        dtxy: 200.0
+        dtkth: 300.0
+        dtmin: 15.0
+      grid:
+        name: Medium grid - 3-level nesting
+        type: RECT
+        coord: CART
+        clos: NONE
+        zlim: -0.1
+        dmin: 0.25
+      rect:
+        nx: 43
+        ny: 43
+        sx: 10000.0
+        sy: 10000.0
+        x0: -10000.0
+        y0: -10000.0
+      depth:
+        sf: -1.0
+        filename: ../../input/outer.depth
+        idla: 3
+  - name: fine
+    grid:
+      spectrum:
+        xfr: 1.1
+        freq1: 0.04177
+        nk: 25
+        nth: 24
+      run:
+        flcx: true
+        flcy: true
+        flcth: true
+      timesteps:
+        dtmax: 300.0
+        dtxy: 100.0
+        dtkth: 150.0
+        dtmin: 15.0
+      grid:
+        name: Fine grid - 3-level nesting
+        type: RECT
+        coord: CART
+        clos: NONE
+        zlim: -0.1
+        dmin: 0.25
+      rect:
+        nx: 25
+        ny: 25
+        sx: 10000.0
+        sy: 10000.0
+        x0: -10000.0
+        y0: -10000.0
+      depth:
+        sf: -1.0
+        filename: ../../input/fine.depth
+        idla: 3
+  namelists:
+    pro2:
+      dtime: 0.0
+    pro3:
+      wdthcg: 0.0
+      wdthth: 0.0

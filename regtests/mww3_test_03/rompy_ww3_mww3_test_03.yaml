@@ -185,3 +185,10 @@ config:
                 sf: -1
                 filename: "../input/g3.depth.20x20"
                 idla: 3
+
+    namelists:
+        pro2:
+            dtime: 0.0
+        pro3:
+            wdthcg: 0.0
+            wdthth: 0.0

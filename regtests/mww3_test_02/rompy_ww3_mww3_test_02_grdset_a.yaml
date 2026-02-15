@@ -100,7 +100,9 @@ config:
                   y0: -25000.0
               depth:
                   sf: -1.0
-                  filename: "../input/outer.depth"
+                  filename:
+                    model_type: data_blob
+                    source: "regtests/mww3_test_02/input/outer.depth"
                   idla: 3
 
         - name: coarse
@@ -135,5 +137,14 @@ config:
                   y0: 600000.0
               depth:
                   sf: -1.0
-                  filename: "../input/coarse.depth"
+                  filename:
+                    model_type: data_blob
+                    source: "regtests/mww3_test_02/input/coarse.depth"
                   idla: 3
+
+    namelists:
+        pro2:
+            dtime: 0.0
+        pro3:
+            wdthcg: 0.0
+            wdthth: 0.0

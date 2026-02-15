@@ -114,10 +114,14 @@ config:
                   y0: -1350000.0
               depth:
                   sf: -1000.0
-                  filename: "../input/grd1.depth"
+                  filename:
+                    model_type: data_blob
+                    source: "regtests/mww3_test_05/input/grd1.depth"
                   idla: 4
               mask:
-                  filename: "../input/grd1.mask"
+                  filename:
+                    model_type: data_blob
+                    source: "regtests/mww3_test_05/input/grd1.mask"
 
         # Middle grid configuration (15km resolution)
         - name: grd2
@@ -153,10 +157,14 @@ config:
                   y0: -375000.0
               depth:
                   sf: -1000.0
-                  filename: "../input/grd2.depth"
+                  filename:
+                    model_type: data_blob
+                    source: "regtests/mww3_test_05/input/grd2.depth"
                   idla: 4
               mask:
-                  filename: "../input/grd2.mask"
+                  filename:
+                    model_type: data_blob
+                    source: "regtests/mww3_test_05/input/grd2.mask"
 
         # Inner grid configuration (5km resolution)
         - name: grd3
@@ -192,7 +200,18 @@ config:
                   y0: -125000.0
               depth:
                   sf: -1000.0
-                  filename: "../input/grd3.depth"
+                  filename:
+                    model_type: data_blob
+                    source: "regtests/mww3_test_05/input/grd3.depth"
                   idla: 4
               mask:
-                  filename: "../input/grd3.mask"
+                  filename:
+                    model_type: data_blob
+                    source: "regtests/mww3_test_05/input/grd3.mask"
+
+    namelists:
+        pro2:
+            dtime: 0.0
+        pro3:
+            wdthcg: 0.0
+            wdthth: 0.0

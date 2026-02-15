@@ -79,6 +79,9 @@ class MultiConfig(BaseConfig):
     ounp: Optional[Ounp] = PydanticField(
         default=None, description="Optional point output configuration (ww3_ounp.nml)"
     )
+    namelists: Optional[Namelists] = PydanticField(
+        default=None, description="Optional physics parameters (namelists.nml)"
+    )
 
     @model_validator(mode="after")
     def validate_grid_names_match(self):
@@ -157,19 +160,19 @@ class MultiConfig(BaseConfig):
 
         for grid_spec in self.grids:
             grid_filepath = staging_dir / f"ww3_grid_{grid_spec.name}.nml"
-            rendered_content = grid_spec.grid.render()
+            rendered_content = grid_spec.grid.render(destdir=staging_dir)
             with open(grid_filepath, "w") as f:
                 f.write(rendered_content)
 
             if grid_spec.prnc:
                 prnc_filepath = staging_dir / f"ww3_prnc_{grid_spec.name}.nml"
-                rendered_content = grid_spec.prnc.render()
+                rendered_content = grid_spec.prnc.render(destdir=staging_dir)
                 with open(prnc_filepath, "w") as f:
                     f.write(rendered_content)
 
             if grid_spec.bounc:
                 bounc_filepath = staging_dir / f"ww3_bounc_{grid_spec.name}.nml"
-                rendered_content = grid_spec.bounc.render()
+                rendered_content = grid_spec.bounc.render(destdir=staging_dir)
                 with open(bounc_filepath, "w") as f:
                     f.write(rendered_content)
 
@@ -178,6 +181,9 @@ class MultiConfig(BaseConfig):
 
         if self.ounp:
             self.ounp.write_nml(destdir=staging_dir)
+
+        if self.namelists:
+            self.namelists.write_nml(destdir=staging_dir)
 
     def _propagate_runtime_context(self, runtime) -> None:
         """Propagate runtime dates to all GridSpec components."""
@@ -275,6 +281,10 @@ class MultiConfig(BaseConfig):
             self.ounf.set_default_dates(period)
         if self.ounp and hasattr(self.ounp, "set_default_dates"):
             self.ounp.set_default_dates(period)
+
+        # Set dates on namelists if present
+        if self.namelists and hasattr(self.namelists, "set_default_dates"):
+            self.namelists.set_default_dates(period)
 
     def _generate_preprocess_script(self) -> str:
         """Generate grid preprocessing script content."""
