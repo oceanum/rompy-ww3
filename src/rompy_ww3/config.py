@@ -246,9 +246,35 @@ class MultiConfig(BaseConfig):
 
     def __call__(self, runtime) -> dict:
         """Callable invoked by rompy to generate namelists and scripts."""
+        self._set_default_dates(runtime)
         self.write_control_files(runtime)
         self.generate_run_script(runtime)
         return {}
+
+    def _set_default_dates(self, runtime):
+        """Set default start and end dates from runtime period for multi-grid config."""
+        period = getattr(runtime, "period", None)
+        if not period:
+            return
+
+        # Set dates on multi component (domain)
+        if self.multi and hasattr(self.multi, "set_default_dates"):
+            self.multi.set_default_dates(period)
+
+        # Set dates on each grid in grids
+        for grid_spec in self.grids:
+            if hasattr(grid_spec.grid, "set_default_dates"):
+                grid_spec.grid.set_default_dates(period)
+            if grid_spec.prnc and hasattr(grid_spec.prnc, "set_default_dates"):
+                grid_spec.prnc.set_default_dates(period)
+            if grid_spec.bounc and hasattr(grid_spec.bounc, "set_default_dates"):
+                grid_spec.bounc.set_default_dates(period)
+
+        # Set dates on optional output components
+        if self.ounf and hasattr(self.ounf, "set_default_dates"):
+            self.ounf.set_default_dates(period)
+        if self.ounp and hasattr(self.ounp, "set_default_dates"):
+            self.ounp.set_default_dates(period)
 
     def _generate_preprocess_script(self) -> str:
         """Generate grid preprocessing script content."""
