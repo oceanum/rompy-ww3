@@ -53,8 +53,8 @@ def create_ww3_mww3_test_01_component():
             currents="no",
             winds="T",  # Wind forcing from files
             ice_conc="no",
-            air_density="no",
-            atm_momentum="no",
+            
+            
         ),
         resource=ModelGridResource(
             rank_id=1,  # MPI rank assignment
@@ -72,8 +72,8 @@ def create_ww3_mww3_test_01_component():
             currents="no",
             winds="T",  # Wind forcing from files
             ice_conc="no",
-            air_density="no",
-            atm_momentum="no",
+            
+            
         ),
         resource=ModelGridResource(
             rank_id=2,  # Different MPI rank

@@ -32,8 +32,7 @@ config:
                   currents: "no"
                   winds: "no"
                   ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
+
               resource:
                   rank_id: 1
                   group_id: 1
@@ -47,8 +46,7 @@ config:
                   currents: "no"
                   winds: "no"
                   ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
+
               resource:
                   rank_id: 2
                   group_id: 1
@@ -62,8 +60,7 @@ config:
                   currents: "no"
                   winds: "no"
                   ice_conc: "no"
-                  air_density: "no"
-                  atm_momentum: "no"
+
               resource:
                   rank_id: 3
                   group_id: 1

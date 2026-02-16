@@ -27,12 +27,11 @@ config:
             # Outer grid - coarse resolution (50km)
             - name: "grd1"
               forcing:
-                  water_levels: "F"
-                  currents: "F"
+                  water_levels: "no"
+                  currents: "no"
                   winds: "T"
-                  ice_conc: "F"
-                  air_density: "F"
-                  atm_momentum: "F"
+                  ice_conc: "no"
+
               resource:
                   rank_id: 1
                   group_id: 1
@@ -42,12 +41,11 @@ config:
             # Middle grid - medium resolution (15km)
             - name: "grd2"
               forcing:
-                  water_levels: "F"
-                  currents: "F"
+                  water_levels: "no"
+                  currents: "no"
                   winds: "T"
-                  ice_conc: "F"
-                  air_density: "F"
-                  atm_momentum: "F"
+                  ice_conc: "no"
+
               resource:
                   rank_id: 2
                   group_id: 1
@@ -57,12 +55,11 @@ config:
             # Inner grid - high resolution (5km)
             - name: "grd3"
               forcing:
-                  water_levels: "F"
-                  currents: "F"
+                  water_levels: "no"
+                  currents: "no"
                   winds: "T"
-                  ice_conc: "F"
-                  air_density: "F"
-                  atm_momentum: "F"
+                  ice_conc: "no"
+
               resource:
                   rank_id: 3
                   group_id: 1

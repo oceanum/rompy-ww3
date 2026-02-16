@@ -28,12 +28,11 @@ config:
             # Boundary grid - 1-D propagation with preset boundary data
             - name: "bound"
               forcing:
-                  water_levels: "F"
-                  currents: "F"
-                  winds: "F"
-                  ice_conc: "F"
-                  air_density: "F"
-                  atm_momentum: "F"
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "no"
+                  ice_conc: "no"
+
               resource:
                   rank_id: 1
                   group_id: 1
@@ -43,12 +42,11 @@ config:
             # Outer grid - full 2-D propagation with constant depth
             - name: "outer"
               forcing:
-                  water_levels: "F"
-                  currents: "F"
-                  winds: "F"
-                  ice_conc: "F"
-                  air_density: "F"
-                  atm_momentum: "F"
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "no"
+                  ice_conc: "no"
+
               resource:
                   rank_id: 2
                   group_id: 1
@@ -58,12 +56,11 @@ config:
             # Inner grid - higher resolution with shallow water
             - name: "inner"
               forcing:
-                  water_levels: "F"
-                  currents: "F"
-                  winds: "F"
-                  ice_conc: "F"
-                  air_density: "F"
-                  atm_momentum: "F"
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "no"
+                  ice_conc: "no"
+
               resource:
                   rank_id: 3
                   group_id: 1

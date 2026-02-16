@@ -27,12 +27,11 @@ config:
             # Grid A - lower resolution
             - name: "grd_a"
               forcing:
-                  water_levels: "F"
-                  currents: "F"
+                  water_levels: "no"
+                  currents: "no"
                   winds: "T"
                   ice_conc: "T"
-                  air_density: "F"
-                  atm_momentum: "F"
+
               resource:
                   rank_id: 1
                   group_id: 1
@@ -42,12 +41,11 @@ config:
             # Grid B - higher resolution
             - name: "grd_b"
               forcing:
-                  water_levels: "F"
-                  currents: "F"
+                  water_levels: "no"
+                  currents: "no"
                   winds: "T"
                   ice_conc: "T"
-                  air_density: "F"
-                  atm_momentum: "F"
+
               resource:
                   rank_id: 2
                   group_id: 1

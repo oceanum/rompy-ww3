@@ -43,8 +43,8 @@ def create_ww3_mww3_test_03_component():
             currents="T",
             winds="T",
             ice_conc="no",
-            air_density="no",
-            atm_momentum="no",
+            
+            
         ),
         resource=ModelGridResource(
             rank_id=1,
@@ -61,8 +61,8 @@ def create_ww3_mww3_test_03_component():
             currents="T",
             winds="T",
             ice_conc="no",
-            air_density="no",
-            atm_momentum="no",
+            
+            
         ),
         resource=ModelGridResource(
             rank_id=2,
@@ -79,8 +79,8 @@ def create_ww3_mww3_test_03_component():
             currents="T",
             winds="T",
             ice_conc="no",
-            air_density="no",
-            atm_momentum="no",
+            
+            
         ),
         resource=ModelGridResource(
             rank_id=3,
