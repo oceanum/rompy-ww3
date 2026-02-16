@@ -4,7 +4,7 @@ from typing import Optional, List
 from pydantic import Field as PydanticField
 from ..namelists.domain import Domain
 from ..namelists.input import InputGrid, ModelGrid
-from ..namelists.output_type import OutputType
+from ..namelists.output_type import AllType
 from ..namelists.output_date import OutputDate
 from ..namelists.homogeneous import HomogCount
 from .basemodel import WW3ComponentBaseModel
@@ -89,7 +89,7 @@ class Multi(WW3ComponentBaseModel):
             "Each model grid includes grid names and model parameters for multi-grid runs."
         ),
     )
-    output_type: Optional[OutputType] = PydanticField(
+    output_type: Optional[AllType] = PydanticField(
         default=None,
         description=(
             "OUTPUT_TYPE_NML configuration for multi-grid output types. "
@@ -156,55 +156,46 @@ class Multi(WW3ComponentBaseModel):
                     multi_content.append(input_grid_nml)
                     multi_content.append("")
 
-        # Add MODEL_GRID_NML configurations
         if self.model_grids:
+            multi_content.append("&MODEL_GRID_NML")
             for i, model_grid in enumerate(self.model_grids):
                 rendered = model_grid.render()
-                # Replace the namelist name to be MODEL_GRID_NML instead of whatever is in the render
                 lines = rendered.split("\n")
-                updated_lines = []
                 for line in lines:
-                    if line.strip().startswith("&"):
-                        updated_lines.append("&MODEL_GRID_NML")
-                    elif line.strip() == "/":
-                        updated_lines.append(
-                            f"  MODEL_NAME = '{model_grid.name}'  ! Index: {i + 1}"
-                        )
-                        updated_lines.append("/")
-                    else:
+                    if line.strip().startswith("&") or line.strip() == "/":
+                        continue
+                    elif line.strip():
                         updated_line = line.replace("MODEL_GRID%", f"MODEL({i + 1})%")
-                        updated_lines.append(updated_line)
-                multi_content.extend(updated_lines)
-                multi_content.append("")
-        elif self.model_grid:  # Single model grid
+                        multi_content.append(updated_line)
+            multi_content.append("/")
+            multi_content.append("")
+        elif self.model_grid:
+            multi_content.append("&MODEL_GRID_NML")
             rendered = self.model_grid.render()
-            # Replace the namelist name and fields to use proper indexed format
             lines = rendered.split("\n")
-            updated_lines = []
             for line in lines:
-                if line.strip().startswith("&"):
-                    updated_lines.append("&MODEL_GRID_NML")
-                elif line.strip() == "/":
-                    updated_lines.append(
-                        f"  MODEL_NAME = '{self.model_grid.name}'  ! Index: 1"
-                    )
-                    updated_lines.append("/")
-                else:
+                if line.strip().startswith("&") or line.strip() == "/":
+                    continue
+                elif line.strip():
                     updated_line = line.replace("MODEL_GRID%", "MODEL(1)%")
-                    updated_lines.append(updated_line)
-            multi_content.extend(updated_lines)
+                    multi_content.append(updated_line)
+            multi_content.append("/")
             multi_content.append("")
 
         # Add OUTPUT_TYPE_NML
         if self.output_type:
             rendered = self.output_type.render()
-            multi_content.extend(rendered.split("\n"))
+            lines = rendered.split("\n")
+            for line in lines:
+                multi_content.append(line.replace("TYPE%", "ALLTYPE%"))
             multi_content.append("")
 
         # Add OUTPUT_DATE_NML
         if self.output_date:
             rendered = self.output_date.render()
-            multi_content.extend(rendered.split("\n"))
+            lines = rendered.split("\n")
+            for line in lines:
+                multi_content.append(line.replace("DATE%", "ALLDATE%"))
             multi_content.append("")
 
         # Add HOMOG_COUNT_NML if needed for multi-grid
