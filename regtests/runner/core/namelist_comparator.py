@@ -16,8 +16,13 @@ import fnmatch
 
 logger = logging.getLogger(__name__)
 
-# Base URL for NOAA WW3 repository raw files
-NOAA_WW3_RAW_URL = "https://raw.githubusercontent.com/NOAA-EMC/WW3/develop/regtests"
+# Default WW3 release tag to use for reference lookups
+DEFAULT_WW3_TAG = "6.07.1"
+
+# Base URL for NOAA WW3 repository raw files (pinned to DEFAULT_WW3_TAG by default)
+NOAA_WW3_RAW_URL = (
+    f"https://raw.githubusercontent.com/NOAA-EMC/WW3/{DEFAULT_WW3_TAG}/regtests"
+)
 
 # Default namelist file patterns to compare
 DEFAULT_NAMELIST_PATTERNS = [
@@ -162,11 +167,12 @@ class NamelistComparator:
 
     def __init__(
         self,
-        base_url: str = NOAA_WW3_RAW_URL,
+        base_url: str = None,
         reference_dir: Optional[Path] = None,
         namelist_patterns: Optional[List[str]] = None,
         normalize_whitespace: bool = True,
         ignore_comments: bool = False,
+        ww3_tag: str = DEFAULT_WW3_TAG,
     ):
         """Initialize namelist comparator.
 
@@ -177,7 +183,13 @@ class NamelistComparator:
             normalize_whitespace: Whether to normalize whitespace in comparison
             ignore_comments: Whether to ignore comment lines in comparison
         """
-        self.base_url = base_url
+        # Allow overriding the WW3 tag or the full base_url
+        if base_url:
+            self.base_url = base_url
+        else:
+            self.base_url = (
+                f"https://raw.githubusercontent.com/NOAA-EMC/WW3/{ww3_tag}/regtests"
+            )
         self.reference_dir = reference_dir or Path(".reference_namelists")
         self.namelist_patterns = namelist_patterns or DEFAULT_NAMELIST_PATTERNS
         self.normalize_whitespace = normalize_whitespace
@@ -194,7 +206,13 @@ class NamelistComparator:
             Path to local reference namelist file
         """
         base_name, grdset = _parse_grdset(test_name)
-        repo_test_name = f"ww3_{base_name}"
+        # The NOAA repo uses names like 'mww3_test_01' or 'ww3_tp1.1'.
+        # Avoid adding an extra 'ww3_' prefix when the base_name already
+        # contains the expected prefix (e.g., 'mww3_test_01' or 'ww3_...').
+        if base_name.startswith("mww3") or base_name.startswith("ww3_"):
+            repo_test_name = base_name
+        else:
+            repo_test_name = f"ww3_{base_name}"
 
         if grdset:
             return (
@@ -213,7 +231,11 @@ class NamelistComparator:
             URL to download the reference namelist
         """
         base_name, grdset = _parse_grdset(test_name)
-        repo_test_name = f"ww3_{base_name}"
+        # See note in get_reference_namelist_path: don't double-prefix names
+        if base_name.startswith("mww3") or base_name.startswith("ww3_"):
+            repo_test_name = base_name
+        else:
+            repo_test_name = f"ww3_{base_name}"
 
         if grdset:
             return f"{self.base_url}/{repo_test_name}/input/{grdset}/{namelist_file}"
@@ -379,12 +401,14 @@ class NamelistComparator:
 
         if not reference_path.exists():
             logger.debug(f"Reference namelist not found: {reference_path}")
+            # Treat missing reference as a mismatch so users become aware that
+            # the expected NOAA reference file is not present for the pinned tag.
             return NamelistDiff(
                 namelist_name=namelist_name,
                 generated_path=generated_path,
                 reference_path=reference_path,
                 diff_content="Reference namelist file not found (not in NOAA repo)",
-                is_match=True,  # Don't fail if reference doesn't exist
+                is_match=False,
             )
 
         # Read and normalize files
@@ -461,6 +485,27 @@ class NamelistComparator:
             NamelistComparisonReport with all comparison results
         """
         logger.info(f"Comparing namelists for test: {test_name}")
+
+        # Coerce generated_dir to Path and attempt to locate a generated
+        # run directory if the exact path isn't present. Some runs include
+        # grdset suffixes (e.g., ww3_mww3_test_02_grdset_a_regression).
+        if not isinstance(generated_dir, Path):
+            generated_dir = Path(generated_dir)
+
+        if not generated_dir.exists():
+            # Try to find a matching directory under rompy_runs
+            candidate_root = Path("rompy_runs")
+            pattern = f"ww3_{test_name}*"
+            matches = (
+                list(candidate_root.glob(pattern)) if candidate_root.exists() else []
+            )
+            if matches:
+                # prefer the most-recently-modified match
+                matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+                generated_dir = matches[0]
+                logger.info(
+                    f"Using fallback generated dir for {test_name}: {generated_dir}"
+                )
 
         # Find generated namelists
         generated_namelists = self.find_generated_namelists(generated_dir)

@@ -22,7 +22,7 @@ config:
                 file:
                     model_type: data_blob
                     id: data
-                    source: regtests/ww3_tp1.10/input/points.list
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.10/input/points.list"
                     link: false
         output_date:
             field:
@@ -64,7 +64,7 @@ config:
             filename:
                 model_type: data_blob
                 id: data
-                source: regtests/ww3_tp1.10/input/1-D.depth
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.10/input/1-D.depth"
                 link: false
             idf: 50
             idla: 2

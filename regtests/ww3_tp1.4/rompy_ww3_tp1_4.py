@@ -58,7 +58,7 @@ def create_ww3_tp1_4_components():
         output_type=OutputType(
             field={"list": "HS T01 DIR"},  # Output HS, mean period, direction
             point={
-                "file": WW3DataBlob(source="regtests/ww3_tp1.4/input/points.list")
+                "file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.4/input/points.list")
             },  # Point output file
         ),
         output_date=OutputDate(
@@ -123,7 +123,7 @@ def create_ww3_tp1_4_components():
         ),
         depth=Depth(
             filename=WW3DataBlob(
-                source="regtests/ww3_tp1.4/input/1-D.depth",
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.4/input/1-D.depth",
             ),
             sf=-1.0,  # Scale factor
             idf=50,

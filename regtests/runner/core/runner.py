@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 from .test import TestCase
 from .result import TestResult, TestSuiteResult, TestStatus
 from .validator import Validator
-from .input_manager import InputFileManager
 from .namelist_comparator import NamelistComparator
 from ..backends.base import Backend
 
@@ -63,7 +62,6 @@ class TestRunner:
         output_dir: Optional[Path] = None,
         reference_dir: Optional[Path] = None,
         validator: Optional[Validator] = None,
-        input_manager: Optional[InputFileManager] = None,
         namelist_comparator: Optional[NamelistComparator] = None,
     ):
         """Initialize test runner with execution backend.
@@ -73,7 +71,6 @@ class TestRunner:
             output_dir: Optional directory for test outputs (default: ./test_outputs)
             reference_dir: Optional directory containing reference outputs for validation
             validator: Optional Validator instance (created if not provided)
-            input_manager: Optional InputFileManager for downloading inputs
             namelist_comparator: Optional NamelistComparator for validating namelists
         """
         self.backend = backend
@@ -81,7 +78,6 @@ class TestRunner:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.reference_dir = reference_dir
         self.validator = validator or Validator()
-        self.input_manager = input_manager or InputFileManager()
         self.namelist_comparator = namelist_comparator
 
     def discover_tests(self, path: Path, pattern: str = "ww3_tp*") -> List[TestCase]:
@@ -145,40 +141,10 @@ class TestRunner:
         logger.info(f"Discovered {len(test_cases)} tests")
         return test_cases
 
-    def download_inputs(
-        self, test: TestCase, dry_run: bool = False
-    ) -> tuple[bool, dict]:
-        """Download missing input files for a test.
-
-        Args:
-            test: TestCase to download inputs for
-            dry_run: If True, only report what would be downloaded
-
-        Returns:
-            Tuple of (success: bool, results: dict)
-        """
-        logger.info(f"Checking inputs for test: {test.name}")
-
-        results = self.input_manager.download_inputs(test, dry_run=dry_run)
-
-        if results["failed"]:
-            logger.error(
-                f"Failed to download {len(results['failed'])} input files for {test.name}"
-            )
-            return False, results
-
-        if results["downloaded"]:
-            logger.info(
-                f"Downloaded {len(results['downloaded'])} input files for {test.name}"
-            )
-
-        return True, results
-
     def run_test(
         self,
         test: TestCase,
         validate: bool = False,
-        download_inputs: bool = True,
         validate_namelists: bool = False,
         skip_model_execution: bool = False,
     ) -> TestResult:
@@ -191,7 +157,6 @@ class TestRunner:
         Args:
             test: TestCase to execute
             validate: If True and reference_dir is set, validate outputs
-            download_inputs: If True, download missing input files before running
             validate_namelists: If True, validate generated namelists against NOAA references
             skip_model_execution: If True, skip WW3 execution (only generate/validate namelists)
 
@@ -207,15 +172,6 @@ class TestRunner:
 
         test_output_dir = self.output_dir / test.name
         test_output_dir.mkdir(parents=True, exist_ok=True)
-
-        if download_inputs:
-            success, _ = self.download_inputs(test)
-            if not success:
-                return TestResult(
-                    test_name=test.name,
-                    status=TestStatus.ERROR,
-                    error_message="Failed to download required input files",
-                )
 
         validation = test.validate()
         if not validation.is_valid:
@@ -296,7 +252,6 @@ class TestRunner:
         self,
         tests: List[TestCase],
         validate: bool = False,
-        download_inputs: bool = True,
         validate_namelists: bool = False,
         skip_model_execution: bool = False,
     ) -> TestSuiteResult:
@@ -309,7 +264,6 @@ class TestRunner:
         Args:
             tests: List of TestCase objects to execute
             validate: If True and reference_dir is set, validate outputs
-            download_inputs: If True, download missing input files before running
             validate_namelists: If True, validate generated namelists against NOAA references
             skip_model_execution: If True, skip WW3 execution (only generate/validate namelists)
 
@@ -328,7 +282,6 @@ class TestRunner:
             result = self.run_test(
                 test,
                 validate=validate,
-                download_inputs=download_inputs,
                 validate_namelists=validate_namelists,
                 skip_model_execution=skip_model_execution,
             )

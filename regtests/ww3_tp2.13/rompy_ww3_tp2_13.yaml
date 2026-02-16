@@ -22,7 +22,7 @@ config:
                 file:
                     model_type: data_blob
                     id: data
-                    source: regtests/ww3_tp2.13/input/points.list
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.13/input/points.list"
                     link: false
         output_date:
             field:

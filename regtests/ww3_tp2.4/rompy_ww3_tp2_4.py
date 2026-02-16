@@ -56,7 +56,7 @@ def create_ww3_tp2_4_components():
         output_type=OutputType(
             field={"list": "DPT HS FP DIR SPR"},  # Output fields from reference
             point={
-                "file": WW3DataBlob(source="regtests/ww3_tp2.4/input/points.list")
+                "file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.4/input/points.list")
             },  # Point output file
         ),
         output_date=OutputDate(
@@ -122,7 +122,7 @@ def create_ww3_tp2_4_components():
         depth=Depth(
             # filename="./../input/depth.225x106.IDLA1.dat",
             filename=WW3DataBlob(
-                source="regtests/ww3_tp2.4/input/depth.225x106.IDLA1.dat",
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.4/input/depth.225x106.IDLA1.dat",
             ),
             sf=-1.0,  # Scale factor from reference
             idf=50,  # IDF

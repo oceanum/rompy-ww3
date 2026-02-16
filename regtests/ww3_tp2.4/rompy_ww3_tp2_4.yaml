@@ -30,7 +30,7 @@ config:
             point:
                 file:
                     model_type: data_blob
-                    source: "regtests/ww3_tp2.4/input/points.list" # Point output file
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.4/input/points.list" # Point output file
         output_date:
             # field:
             #     start: "20080522 000000"
@@ -84,7 +84,7 @@ config:
         depth:
             filename:
                 model_type: data_blob
-                source: "regtests/ww3_tp2.4/input/depth.225x106.IDLA1.dat"
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.4/input/depth.225x106.IDLA1.dat"
             sf: -1.0 # Scale factor from reference
             idf: 50 # IDF
             idla: 1 # IDLA

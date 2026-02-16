@@ -142,13 +142,13 @@ def create_ww3_tp2_15_config():
             ny=42,  # 42 points in y-direction
             xcoord=CoordData(
                 filename=WW3DataBlob(
-                    source="regtests/ww3_tp2.15/input/lon_ste_adri_15km.dat"
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.15/input/lon_ste_adri_15km.dat"
                 ),
                 format="(...)",  # Auto-detect format
             ),
             ycoord=CoordData(
                 filename=WW3DataBlob(
-                    source="regtests/ww3_tp2.15/input/lat_ste_adri_15km.dat"
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.15/input/lat_ste_adri_15km.dat"
                 ),
                 format="(...)",  # Auto-detect format
             ),
@@ -156,12 +156,12 @@ def create_ww3_tp2_15_config():
         depth=Depth(
             sf=0.001,  # Scale factor (convert from mm to m)
             filename=WW3DataBlob(
-                source="regtests/ww3_tp2.15/input/ste_adri_15km_etopo1.depth"
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.15/input/ste_adri_15km_etopo1.depth"
             ),
         ),
         mask=Mask(
             filename=WW3DataBlob(
-                source="regtests/ww3_tp2.15/input/ste_adri_15km_etopo1.mask"
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.15/input/ste_adri_15km_etopo1.mask"
             ),
             format="(...)",  # Auto-detect format
         ),

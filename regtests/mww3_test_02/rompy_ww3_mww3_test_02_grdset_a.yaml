@@ -102,7 +102,7 @@ config:
                   sf: -1.0
                   filename:
                     model_type: data_blob
-                    source: "regtests/mww3_test_02/input/outer.depth"
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/mww3_test_02/input/outer.depth"
                   idla: 3
 
         - name: coarse
@@ -139,7 +139,7 @@ config:
                   sf: -1.0
                   filename:
                     model_type: data_blob
-                    source: "regtests/mww3_test_02/input/coarse.depth"
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/mww3_test_02/input/coarse.depth"
                   idla: 3
 
     namelists:

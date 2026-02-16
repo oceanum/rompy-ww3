@@ -32,7 +32,7 @@ config:
             point:
                 file:
                     model_type: data_blob
-                    source: "regtests/ww3_tp1.1/input/points.list" # Point output file
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.1/input/points.list"
         output_date:
             # Field and point output every 24 hours (86400 seconds)
             # field:
@@ -87,7 +87,7 @@ config:
         depth:
             filename:
                 model_type: data_blob
-                source: "regtests/ww3_tp1.1/input/1-D.depth"
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.1/input/1-D.depth"
             sf: -2500.0 # Scale factor from reference
             idf: 50 # IDF (default)
             idla: 2 # IDLA from reference

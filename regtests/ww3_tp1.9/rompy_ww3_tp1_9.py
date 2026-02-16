@@ -50,7 +50,7 @@ def create_ww3_tp1_9_components():
         input_nml=Input(),
         output_type=OutputType(
             field={"list": "DPT HS T0M1"},
-            point={"file": WW3DataBlob(source="regtests/ww3_tp1.9/input/points.list")},
+            point={"file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.9/input/points.list")},
         ),
         output_date=OutputDate(
             field={
@@ -114,7 +114,7 @@ def create_ww3_tp1_9_components():
         ),
         depth=Depth(
             filename=WW3DataBlob(
-                source="regtests/ww3_tp1.9/input/NONLINEAR.depth",
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.9/input/NONLINEAR.depth",
             ),
             sf=-1.0,
             idf=50,

@@ -113,7 +113,7 @@ def create_ww3_tp1_2_components():
         ),
         depth=Depth(
             filename=WW3DataBlob(
-                source="regtests/ww3_tp1.2/input/1-D.depth",
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.2/input/1-D.depth",
             ),
             sf=-2500.0,
             idf=50,

@@ -33,20 +33,20 @@ config:
             filename:
                 model_type: data_blob
                 id: data
-                source: input/glo_30m.bot
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.12/input/glo_30m.bot"
                 link: false
         mask:
             filename:
                 model_type: data_blob
                 id: data
-                source: input/glo_30m.mask
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.12/input/glo_30m.mask"
                 link: false
         obstacle:
             sf: 0.01
             filename:
                 model_type: data_blob
                 id: data
-                source: input/glo_30m.obst
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.12/input/glo_30m.obst"
                 link: false
         grid:
             name: Global 30 min GFS wind grid

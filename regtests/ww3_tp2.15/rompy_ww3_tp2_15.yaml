@@ -61,13 +61,13 @@ config:
             filename:
                 model_type: data_blob
                 id: data
-                source: regtests/ww3_tp2.15/input/ste_adri_15km_etopo1.depth
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.15/input/ste_adri_15km_etopo1.depth"
                 link: false
         mask:
             filename:
                 model_type: data_blob
                 id: data
-                source: regtests/ww3_tp2.15/input/ste_adri_15km_etopo1.mask
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.15/input/ste_adri_15km_etopo1.mask"
                 link: false
             format: (...)
         curv:
@@ -79,7 +79,7 @@ config:
                 filename:
                     model_type: data_blob
                     id: data
-                    source: regtests/ww3_tp2.15/input/lon_ste_adri_15km.dat
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.15/input/lon_ste_adri_15km.dat"
                     link: false
                 idf: 21
                 idla: 1
@@ -91,7 +91,7 @@ config:
                 filename:
                     model_type: data_blob
                     id: data
-                    source: regtests/ww3_tp2.15/input/lat_ste_adri_15km.dat
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.15/input/lat_ste_adri_15km.dat"
                     link: false
                 idf: 21
                 idla: 1

@@ -57,7 +57,7 @@ def create_ww3_tp1_1_components():
         output_type=OutputType(
             field={"list": "HS"},  # Output significant wave height only
             point={
-                "file": WW3DataBlob(source="regtests/ww3_tp1.1/input/points.list")
+                "file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.1/input/points.list")
             },  # Point output file
         ),
         output_date=OutputDate(
@@ -122,7 +122,7 @@ def create_ww3_tp1_1_components():
         ),
         depth=Depth(
             filename=WW3DataBlob(
-                source="regtests/ww3_tp1.1/input/1-D.depth",
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.1/input/1-D.depth",
             ),
             sf=-2500.0,
             idf=50,

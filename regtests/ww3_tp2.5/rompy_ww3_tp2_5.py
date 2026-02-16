@@ -54,7 +54,7 @@ def create_ww3_tp2_5_config():
         input_nml=Input(),  # No forcing inputs
         output_type=OutputType(
             field={"list": "DPT HS FP DIR SPR"},
-            point={"file": WW3DataBlob(source="regtests/ww3_tp2.5/input/points.list")},
+            point={"file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/points.list")},
         ),
         output_date=OutputDate(
             field={
@@ -116,7 +116,7 @@ def create_ww3_tp2_5_config():
                 sf=1.0,
                 off=0.0,
                 filename=WW3DataBlob(
-                    source="regtests/ww3_tp2.5/input/lon.361x361.IDLA1.dat"
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/lon.361x361.IDLA1.dat"
                 ),
                 idf=21,
                 idla=1,
@@ -127,7 +127,7 @@ def create_ww3_tp2_5_config():
                 sf=1.0,
                 off=0.0,
                 filename=WW3DataBlob(
-                    source="regtests/ww3_tp2.5/input/lat.361x361.IDLA1.dat"
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/lat.361x361.IDLA1.dat"
                 ),
                 idf=22,
                 idla=1,
@@ -137,7 +137,7 @@ def create_ww3_tp2_5_config():
         ),
         depth=Depth(
             filename=WW3DataBlob(
-                source="regtests/ww3_tp2.5/input/depth.361x361.IDLA1.dat"
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/depth.361x361.IDLA1.dat"
             ),
             sf=-1.0,
             idf=50,

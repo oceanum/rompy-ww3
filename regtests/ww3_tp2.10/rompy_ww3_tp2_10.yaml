@@ -86,19 +86,19 @@ config:
       mcel:
         filename:
           model_type: data_blob
-          source: "regtests/ww3_tp2.10/input/ErieSMCel.dat"
+          source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.10/input/ErieSMCel.dat"
       iside:
         filename:
           model_type: data_blob
-          source: "regtests/ww3_tp2.10/input/ErieISide.dat"
+          source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.10/input/ErieISide.dat"
       jside:
         filename:
           model_type: data_blob
-          source: "regtests/ww3_tp2.10/input/ErieJSide.dat"
+          source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.10/input/ErieJSide.dat"
       subtr:
         filename:
           model_type: data_blob
-          source: "regtests/ww3_tp2.10/input/ErieObstr.dat"
+          source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.10/input/ErieObstr.dat"
 
     depth:
       sf: -1.0

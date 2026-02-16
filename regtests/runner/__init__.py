@@ -31,7 +31,6 @@ from .core.runner import TestRunner
 from .core.test import TestCase
 from .core.result import TestResult, TestSuiteResult, TestStatus
 from .core.validator import Validator, ComparisonMode
-from .core.input_manager import InputFileManager
 from .core.namelist_comparator import (
     NamelistComparator,
     NamelistComparisonReport,
@@ -49,7 +48,6 @@ __all__ = [
     "Backend",
     "Validator",
     "ComparisonMode",
-    "InputFileManager",
     "NamelistComparator",
     "NamelistComparisonReport",
     "NamelistDiff",

@@ -54,12 +54,6 @@ Examples:
   # Enable verbose logging
   python run_regression_tests.py --test tp2.4 --verbose
 
-  # Check what inputs would be downloaded (dry run)
-  python run_regression_tests.py --test tp2.4 --dry-run
-
-  # Run without downloading inputs (use existing files only)
-  python run_regression_tests.py --test tp2.4 --no-download-inputs
-
   # Validate namelists against NOAA references
   python run_regression_tests.py --test tp2.4 --validate-namelists
 
@@ -107,25 +101,6 @@ Examples:
         help="Output directory for test results (default: ./test_outputs)",
     )
 
-    # Input handling
-    parser.add_argument(
-        "--download-inputs",
-        action="store_true",
-        default=True,
-        help="Automatically download missing input files (default: True)",
-    )
-    parser.add_argument(
-        "--no-download-inputs",
-        action="store_false",
-        dest="download_inputs",
-        help="Skip downloading input files",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would be downloaded without downloading",
-    )
-
     # Logging
     parser.add_argument(
         "--verbose",
@@ -143,6 +118,13 @@ Examples:
         "--skip-model-execution",
         action="store_true",
         help="Skip WW3 model execution (only generate namelists and validate)",
+    )
+
+    parser.add_argument(
+        "--ww3-reference-tag",
+        metavar="TAG",
+        default=None,
+        help="WW3 GitHub release tag to use for reference namelists (default: 6.07.1 or WW3_REFERENCE_TAG env)",
     )
 
     # Output streaming
@@ -184,6 +166,12 @@ Examples:
         logger.info(f"Backend versions: {version_info}")
 
     # Initialize test runner
+    # Set WW3 reference tag for this run (env overrides comparator/input manager)
+    if args.ww3_reference_tag:
+        import os
+
+        os.environ["WW3_REFERENCE_TAG"] = args.ww3_reference_tag
+
     runner = TestRunner(backend=backend, output_dir=args.output_dir)
 
     # Discover tests based on selection
@@ -216,29 +204,11 @@ Examples:
 
     logger.info(f"Found {len(tests)} test(s)")
 
-    # Handle dry-run for input downloading
-    if args.dry_run:
-        from runner import InputFileManager
-
-        input_manager = InputFileManager()
-        print("\n" + "=" * 70)
-        print("DRY RUN - Input Files to Download")
-        print("=" * 70)
-        for test in tests:
-            results = input_manager.download_all_inputs(test, dry_run=True)
-            if results["skipped"] or results["existing"]:
-                print(f"\n{test.name}:")
-                print(f"  Would download: {len(results['skipped'])} files")
-                print(f"  Already exist: {len(results['existing'])} files")
-        print("=" * 70)
-        return 0
-
     # Run tests
     if len(tests) == 1:
         # Run single test
         result = runner.run_test(
             tests[0],
-            download_inputs=args.download_inputs,
             validate_namelists=args.validate_namelists,
             skip_model_execution=args.skip_model_execution,
         )
@@ -267,7 +237,6 @@ Examples:
         # Run multiple tests
         suite_result = runner.run_all(
             tests,
-            download_inputs=args.download_inputs,
             validate_namelists=args.validate_namelists,
             skip_model_execution=args.skip_model_execution,
         )

@@ -53,7 +53,7 @@ def create_ww3_tp2_6_config():
         ),
         output_type=OutputType(
             field={"list": "HS LM T02 T01 T0M1 UST CHA CGE DTD FC CFX CFD QP QKK"},
-            point={"file": WW3DataBlob(source="regtests/ww3_tp2.6/input/points.list")},
+            point={"file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.6/input/points.list")},
         ),
         output_date=OutputDate(
             field={
@@ -111,7 +111,7 @@ def create_ww3_tp2_6_config():
         ),
         unst=Unst(
             sf=-1.0,
-            filename=WW3DataBlob(source="regtests/ww3_tp2.6/input/limon_ll.msh"),
+            filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.6/input/limon_ll.msh"),
             idf=20,
             idla=4,
             idfm=1,

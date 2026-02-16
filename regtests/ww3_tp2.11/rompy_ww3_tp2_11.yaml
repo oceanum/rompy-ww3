@@ -60,20 +60,20 @@ config:
             filename:
                 model_type: data_blob
                 id: data
-                source: ../ww3_tp2.9/input/curv_2d.bot
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.bot"
                 link: false
         mask:
             filename:
                 model_type: data_blob
                 id: data
-                source: ../ww3_tp2.9/input/curv_2d.mask
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.mask"
                 link: false
         obstacle:
             sf: 0.01
             filename:
                 model_type: data_blob
                 id: data
-                source: ../ww3_tp2.9/input/curv_2d.obs
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.obs"
                 link: false
         curv:
             nx: 121
@@ -84,7 +84,7 @@ config:
                 filename:
                     model_type: data_blob
                     id: data
-                    source: ../ww3_tp2.9/input/curv_2d.lon
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.lon"
                     link: false
                 idf: 11
                 idla: 1
@@ -96,7 +96,7 @@ config:
                 filename:
                     model_type: data_blob
                     id: data
-                    source: ../ww3_tp2.9/input/curv_2d.lat
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.lat"
                     link: false
                 idf: 12
                 idla: 1

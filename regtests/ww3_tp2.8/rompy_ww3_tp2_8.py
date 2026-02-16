@@ -58,7 +58,7 @@ def create_ww3_tp2_8_config():
         ),
         output_type=OutputType(
             field={"list": "DPT CUR HS FP DIR SPR"},
-            point={"file": WW3DataBlob(source="regtests/ww3_tp2.8/input/points.list")},
+            point={"file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.8/input/points.list")},
         ),
         output_date=OutputDate(
             field={
@@ -124,7 +124,7 @@ def create_ww3_tp2_8_config():
         ),
         depth=Depth(
             sf=-1.0,
-            filename=WW3DataBlob(source="regtests/ww3_tp2.8/input/iro_1p5k.bot"),
+            filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.8/input/iro_1p5k.bot"),
             idf=50,
             idla=1,
         ),

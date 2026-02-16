@@ -151,7 +151,7 @@ def create_ww3_tp2_16_config():
         depth=Depth(
             sf=1.0,  # Scale factor (meters)
             filename=WW3DataBlob(
-                source="regtests/ww3_tp2.16/input/depth.200x200.IDLA1.dat"
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.16/input/depth.200x200.IDLA1.dat"
             ),
             idla=1,  # IDLA format 1
         ),

@@ -116,12 +116,12 @@ config:
                   sf: -1000.0
                   filename:
                     model_type: data_blob
-                    source: "regtests/mww3_test_05/input/grd1.depth"
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/mww3_test_05/input/grd1.depth"
                   idla: 4
               mask:
                   filename:
                     model_type: data_blob
-                    source: "regtests/mww3_test_05/input/grd1.mask"
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/mww3_test_05/input/grd1.mask"
 
         # Middle grid configuration (15km resolution)
         - name: grd2
@@ -159,12 +159,12 @@ config:
                   sf: -1000.0
                   filename:
                     model_type: data_blob
-                    source: "regtests/mww3_test_05/input/grd2.depth"
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/mww3_test_05/input/grd2.depth"
                   idla: 4
               mask:
                   filename:
                     model_type: data_blob
-                    source: "regtests/mww3_test_05/input/grd2.mask"
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/mww3_test_05/input/grd2.mask"
 
         # Inner grid configuration (5km resolution)
         - name: grd3
@@ -202,12 +202,12 @@ config:
                   sf: -1000.0
                   filename:
                     model_type: data_blob
-                    source: "regtests/mww3_test_05/input/grd3.depth"
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/mww3_test_05/input/grd3.depth"
                   idla: 4
               mask:
                   filename:
                     model_type: data_blob
-                    source: "regtests/mww3_test_05/input/grd3.mask"
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/mww3_test_05/input/grd3.mask"
 
     namelists:
         pro2:

@@ -43,7 +43,7 @@ def create_ww3_tp1_6_components():
         ),
         output_type=OutputType(
             field={"list": "DPT CUR HS"},
-            point={"file": WW3DataBlob(source="regtests/ww3_tp1.6/input/points.list")},
+            point={"file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.6/input/points.list")},
         ),
         output_date=OutputDate(
             field={
@@ -107,7 +107,7 @@ def create_ww3_tp1_6_components():
         ),
         depth=Depth(
             filename=WW3DataBlob(
-                source="regtests/ww3_tp1.6/input/WAVE.depth",
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.6/input/WAVE.depth",
             ),
             sf=-1000.0,
             idf=50,

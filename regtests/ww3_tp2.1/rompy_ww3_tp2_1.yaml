@@ -54,7 +54,7 @@ config:
             filename:
                 model_type: data_blob
                 id: data
-                source: regtests/ww3_tp2.1/input/2-D.depth
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.1/input/2-D.depth"
                 link: false
             idf: 50
             idla: 2

@@ -107,7 +107,7 @@ def create_ww3_tp1_3_components():
         ),
         depth=Depth(
             filename=WW3DataBlob(
-                source="regtests/ww3_tp1.3/input/MONOCHROMATIC.depth",
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.3/input/MONOCHROMATIC.depth",
             ),
             sf=-1.0,
             idf=50,

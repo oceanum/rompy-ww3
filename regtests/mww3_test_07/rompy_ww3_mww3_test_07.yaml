@@ -71,12 +71,12 @@ config:
         unst:
             filename:
                 model_type: data_blob
-                source: "regtests/mww3_test_07/input/refug.msh"
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/mww3_test_07/input/refug.msh"
         depth:
             sf: -1.0
             filename:
                 model_type: data_blob
-                source: "regtests/mww3_test_07/input/refug.depth"
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/mww3_test_07/input/refug.depth"
             idla: 3
 
     # Parameters component for namelists.nml
