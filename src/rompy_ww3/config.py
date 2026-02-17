@@ -126,7 +126,7 @@ class BaseWW3Config(BaseConfig):
         os.chmod(Path(destdir) / "full_ww3.sh", 0o755)
 
 
-class NMLConfig(BaseWW3Config):
+class ShelConfig(BaseWW3Config):
     """WW3 namelist-based config class.
     This class provides direct control over WW3 namelists via component objects.
     """

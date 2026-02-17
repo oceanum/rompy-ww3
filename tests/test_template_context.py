@@ -4,7 +4,7 @@ Test cases for WW3 template context generation.
 
 import tempfile
 from pathlib import Path
-from rompy_ww3.config import NMLConfig
+from rompy_ww3.config import ShelConfig
 from rompy_ww3.namelists import Domain
 from rompy_ww3.components import Shel as ShellComponent
 from rompy_ww3.namelists.input import Input
@@ -19,7 +19,7 @@ def test_template_context_generation():
     )
 
     # Create config with component
-    config = NMLConfig(
+    config = ShelConfig(
         ww3_shel=shell_component,
     )
 
@@ -43,7 +43,7 @@ def test_run_script_generation():
         workdir = Path(tmpdir)
 
         # Generate run scripts
-        config = NMLConfig(
+        config = ShelConfig(
             ww3_shel=ShellComponent(
                 domain=Domain(
                     start="20230101 000000", stop="20230102 000000", iostyp=0
@@ -52,8 +52,7 @@ def test_run_script_generation():
             ),
             ww3_grid=None,
             multi_component=None,
-            ww3_bound=None,
-            boundary_update_component=None,
+            ww3_bounc=None,
             ww3_prnc=None,
             ww3_track=None,
             ww3_ounf=None,

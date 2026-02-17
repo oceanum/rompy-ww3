@@ -14,7 +14,7 @@ from rompy.model import ModelRun
 from rompy.core.time import TimeRange
 from rompy_ww3.core.data import WW3DataBlob
 
-from rompy_ww3.config import NMLConfig
+from rompy_ww3.config import ShelConfig
 
 # Import component models
 from rompy_ww3.components import (
@@ -175,7 +175,7 @@ def demonstrate_config_approach():
     components = create_ww3_tp2_4_components()
 
     # Create Config with components
-    config = NMLConfig(**components)
+    config = ShelConfig(**components)
 
     return config
 
@@ -252,7 +252,7 @@ def demonstrate_ww3config_approach():
     )
 
     # Create Config with the enhanced components
-    config = NMLConfig(
+    config = ShelConfig(
         grid_component=grid_component,
     )
 

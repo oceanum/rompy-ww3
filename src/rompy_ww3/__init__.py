@@ -5,8 +5,8 @@ __email__ = "developers@rompy.com"
 __version__ = "0.1.0"
 
 # Delay import to avoid circular dependency during package initialization
-from .config import NMLConfig
+from .config import ShelConfig
 
 
-Config = NMLConfig  # Create an alias for backward compatibility
-__all__ = ["NMLConfig", "Config"]
+Config = ShelConfig  # Create an alias for backward compatibility
+__all__ = ["ShelConfig", "Config"]
