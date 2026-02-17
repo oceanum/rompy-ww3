@@ -520,7 +520,7 @@ Max Concurrent: 3-4 (Waves 2, 3)
 
 ### Wave 2: File Discovery
 
-- [ ] **5. Parse OutputType namelists**
+- [x] **5. Parse OutputType namelists**
 
   **What to do**:
   - Implement parser for OutputType namelist in `discovery.py`
