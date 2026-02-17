@@ -5,7 +5,7 @@ Test cases for WW3 Config class.
 import tempfile
 from pathlib import Path
 from rompy.core.time import TimeRange
-from rompy_ww3.config import NMLConfig
+from rompy_ww3.config import ShelConfig
 from rompy_ww3.namelists import Domain, HomogInput, Timesteps
 from rompy_ww3.components import Shel, Grid
 from rompy_ww3.namelists.field import Field
@@ -32,7 +32,7 @@ def test_config_with_namelists():
     )
 
     # Create a config with components
-    config = NMLConfig(
+    config = ShelConfig(
         ww3_shel=shell_component,
         ww3_grid=grid_component,
     )
@@ -61,7 +61,7 @@ def test_nml_config_integration():
     )
 
     # Create config
-    config = NMLConfig(
+    config = ShelConfig(
         ww3_shel=shell_component,
         ww3_grid=grid_component,
     )
@@ -119,7 +119,7 @@ def test_config_stride_functionality():
 
     ounf_component = Ounf(field=field_component)
 
-    config = NMLConfig(
+    config = ShelConfig(
         ww3_ounf=ounf_component,  # Output field component
         ww3_ounp=ounp_component,  # Output point component
     )
@@ -170,7 +170,7 @@ def test_config_stride_preserves_existing_values():
 
     ounf_component = Ounf(field=field_component_with_stride)
 
-    config = NMLConfig(
+    config = ShelConfig(
         ww3_ounf=ounf_component,  # Output field component
         ww3_ounp=ounp_component,  # Output point component
     )
@@ -214,7 +214,7 @@ def test_output_date_initialization_when_output_type_active():
         output_date=None,  # This is intentionally None
     )
 
-    config = NMLConfig(ww3_shel=shell_component)
+    config = ShelConfig(ww3_shel=shell_component)
 
     # Create runtime mock with period
     class MockRuntime:
@@ -258,7 +258,7 @@ def test_output_date_not_initialized_when_output_type_inactive():
         output_date=None,  # This is intentionally None
     )
 
-    config = NMLConfig(ww3_shel=shell_component)
+    config = ShelConfig(ww3_shel=shell_component)
 
     # Create runtime mock with period
     class MockRuntime:
