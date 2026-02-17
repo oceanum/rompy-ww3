@@ -3,7 +3,7 @@
 from typing import Optional
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
-from .validation import validate_grid_type, validate_coord_type, validate_clos_type, validate_non_negative_value
+from .validation import validate_grid_type, validate_coord_type, validate_clos_type
 
 
 class Grid(NamelistBaseModel):

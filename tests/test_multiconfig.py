@@ -13,7 +13,6 @@ Tests cover:
 import tempfile
 from pathlib import Path
 import pytest
-import yaml
 
 from rompy_ww3.config import MultiConfig, GridSpec
 from rompy_ww3.components import Multi, Grid as GridComponent
@@ -26,8 +25,6 @@ from rompy_ww3.namelists import (
     Rect,
     Depth,
     ModelGrid,
-    OutputType,
-    OutputDate,
 )
 
 
@@ -520,7 +517,7 @@ class TestMultiConfig:
 
             # Check expected files exist
             multi_file = Path(tmpdir) / "ww3_multi.nml"
-            grid_file = Path(tmpdir) / f"ww3_grid_test.nml"
+            grid_file = Path(tmpdir) / "ww3_grid_test.nml"
 
             assert multi_file.exists(), "ww3_multi.nml was not created"
             assert grid_file.exists(), "ww3_grid_test.nml was not created"

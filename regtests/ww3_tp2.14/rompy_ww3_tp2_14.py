@@ -15,7 +15,7 @@ Key configuration:
 
 from rompy.model import ModelRun
 from rompy.core.time import TimeRange
-from rompy_ww3.core.data import WW3DataBlob, WW3Boundary
+from rompy_ww3.core.data import WW3DataBlob
 
 from rompy_ww3.config import NMLConfig
 

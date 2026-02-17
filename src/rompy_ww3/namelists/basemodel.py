@@ -4,8 +4,8 @@ import logging
 import re
 from pathlib import Path
 from datetime import datetime
-from typing import Any, Dict, Union, Optional
-from pydantic import model_serializer, model_validator, field_validator
+from typing import Any, Dict, Union
+from pydantic import model_serializer, model_validator
 from rompy.core.types import RompyBaseModel
 
 

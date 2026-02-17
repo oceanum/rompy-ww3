@@ -176,12 +176,12 @@ def main():
         if report:
             reports[test_name] = report
 
-            print(f"\nResults:")
+            print("\nResults:")
             print(f"  Namelists compared: {report.namelists_compared}")
             print(f"  Namelists matched: {report.namelists_matched}")
 
             if report.is_valid():
-                print(f"  ✅ All namelists match NOAA references")
+                print("  ✅ All namelists match NOAA references")
             else:
                 print(f"  ❌ {len(report.get_mismatches())} namelist(s) differ")
 
@@ -189,7 +189,7 @@ def main():
                     print(f"\n  --- {diff.namelist_name} ---")
 
                     if diff.reference_path and not diff.reference_path.exists():
-                        print(f"  ⚠️  Reference not found in NOAA repo")
+                        print("  ⚠️  Reference not found in NOAA repo")
                     elif args.show_diffs and diff.diff_content:
                         # Show first 30 lines of diff
                         lines = diff.diff_content.split("\n")[:30]
@@ -199,7 +199,7 @@ def main():
                                 f"    ... ({len(diff.diff_content.split(chr(10))) - 30} more lines)"
                             )
                     else:
-                        print(f"  Use --show-diffs to see differences")
+                        print("  Use --show-diffs to see differences")
 
     elif args.all:
         # Analyze all available tests

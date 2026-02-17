@@ -25,7 +25,7 @@ from rompy_ww3.core.data import WW3DataBlob
 from rompy_ww3.config import NMLConfig
 
 from rompy_ww3.components import Grid, Namelists
-from rompy_ww3.components.namelists import SIN4, MISC
+from rompy_ww3.components.namelists import MISC
 
 from rompy_ww3.namelists import (
     Spectrum,
@@ -148,12 +148,12 @@ if __name__ == "__main__":
         print("\n" + "=" * 70)
         print("GRID CHARACTERISTICS:")
         print("=" * 70)
-        print(f"  Total Points:      223,920 (720×311)")
-        print(f"  Resolution:        0.5° (~55 km at equator)")
-        print(f"  Longitude:         0° to 360° (wraps with SMPL closure)")
-        print(f"  Latitude:          -77.5° to 77.5°")
-        print(f"  Closure Type:      SMPL (simple - periodic in longitude)")
-        print(f"  Spectral:          50 frequencies × 36 directions")
+        print("  Total Points:      223,920 (720×311)")
+        print("  Resolution:        0.5° (~55 km at equator)")
+        print("  Longitude:         0° to 360° (wraps with SMPL closure)")
+        print("  Latitude:          -77.5° to 77.5°")
+        print("  Closure Type:      SMPL (simple - periodic in longitude)")
+        print("  Spectral:          50 frequencies × 36 directions")
     else:
         print("\n✗ Configuration generation failed")
         sys.exit(1)

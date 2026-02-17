@@ -9,7 +9,6 @@ Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/mww3_test_01
 
 from rompy.model import ModelRun
 from rompy.core.time import TimeRange
-from rompy_ww3.core.data import WW3DataBlob
 
 from rompy_ww3.config import NMLConfig
 
@@ -17,15 +16,10 @@ from rompy_ww3.components import Multi
 
 from rompy_ww3.namelists import (
     Domain,
-    Spectrum,
-    Run,
-    Timesteps,
     OutputType,
 )
 from rompy_ww3.namelists.input import (
-    InputGrid,
     ModelGrid,
-    InputForcing,
     ModelGridForcing,
     ModelGridResource,
 )

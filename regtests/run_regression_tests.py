@@ -247,7 +247,7 @@ Examples:
         print("=" * 70)
         print(suite_result.summary())
         print("=" * 70)
-        print(f"\nIndividual Results:")
+        print("\nIndividual Results:")
         for result in suite_result.results:
             status_symbol = "✓" if result.status == TestStatus.SUCCESS else "✗"
             print(f"  {status_symbol} {result.test_name}: {result.status.value}")

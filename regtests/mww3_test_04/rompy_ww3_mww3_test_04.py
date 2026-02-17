@@ -15,7 +15,6 @@ from rompy_ww3.namelists import Domain
 from rompy_ww3.namelists.input import ModelGrid, ModelGridForcing, ModelGridResource
 from rompy_ww3.namelists.output_date import OutputDate, OutputDateField
 from rompy_ww3.namelists.output_type import OutputType, OutputTypeField
-from rompy_ww3.core.data import WW3DataBlob
 
 
 def create_ww3_mww3_test_04_component():

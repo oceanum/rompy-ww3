@@ -11,7 +11,6 @@ from typing import List, Optional, Dict, Tuple
 from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 from difflib import unified_diff
-import fnmatch
 
 
 logger = logging.getLogger(__name__)

@@ -1,6 +1,6 @@
 import time
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 import logging
 
 from .base import Backend

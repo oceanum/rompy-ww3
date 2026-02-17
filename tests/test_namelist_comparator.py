@@ -36,7 +36,7 @@ def test_identical_namelists():
 
     print(f"Namelist: {diff.namelist_name}")
     print(f"Match: {diff.is_match}")
-    print(f"Expected: True")
+    print("Expected: True")
 
     if diff.is_match:
         print("✓ Test 1 PASSED")
@@ -70,7 +70,7 @@ def test_different_namelists():
 
     print(f"Namelist: {diff.namelist_name}")
     print(f"Match: {diff.is_match}")
-    print(f"Expected: False")
+    print("Expected: False")
 
     if not diff.is_match and diff.diff_content:
         print("✓ Test 2 PASSED (correctly detected differences)")
@@ -139,7 +139,7 @@ def test_missing_reference():
 
     print(f"Namelist: {diff.namelist_name}")
     print(f"Match: {diff.is_match}")
-    print(f"Expected: True (should not fail when reference is missing)")
+    print("Expected: True (should not fail when reference is missing)")
 
     if diff.is_match:
         print("✓ Test 4 PASSED")

@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional, TYPE_CHECKING
-import time
 
 if TYPE_CHECKING:
     from .namelist_comparator import NamelistComparisonReport

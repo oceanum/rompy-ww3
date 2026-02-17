@@ -51,7 +51,6 @@ from rompy_ww3.namelists.smc import Smc, SMCFile
 from rompy_ww3.namelists.depth import Depth
 from rompy_ww3.namelists.field import Field
 from rompy_ww3.namelists.output_file import File as FileNml
-from rompy_ww3.namelists.point import Point
 
 
 def create_ww3_tp2_10_config():
