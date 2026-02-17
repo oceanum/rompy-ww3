@@ -1,9 +1,9 @@
 {
-  "active_plan": "/home/tdurrant/source/rompy/rompy-meta/repos/rompy-ww3/main/.sisyphus/plans/ww3-regression-tests.md",
-  "started_at": "2026-02-10T11:44:25.642Z",
+  "active_plan": "/home/tdurrant/source/rompy/rompy-meta/repos/rompy-ww3/main/.sisyphus/plans/multiconfig-implementation.md",
+  "started_at": "2026-02-14T16:25:23.114Z",
   "session_ids": [
-    "ses_3b8a20c2fffeJZ5YCzdG7k6sh4"
+    "ses_3a3076294ffe20eEPCnETXakny"
   ],
-  "plan_name": "ww3-regression-tests",
+  "plan_name": "multiconfig-implementation",
   "agent": "atlas"
 }

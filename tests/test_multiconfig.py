@@ -115,8 +115,6 @@ class TestMultiConfig:
                         "currents": "no",
                         "water_levels": "no",
                         "ice_conc": "no",
-                        "air_density": "no",
-                        "atm_momentum": "no",
                     },
                     resource={
                         "rank_id": 1,
@@ -179,8 +177,6 @@ class TestMultiConfig:
                         "currents": "no",
                         "water_levels": "no",
                         "ice_conc": "no",
-                        "air_density": "no",
-                        "atm_momentum": "no",
                     },
                     resource={
                         "rank_id": 1,
@@ -196,8 +192,6 @@ class TestMultiConfig:
                         "currents": "no",
                         "water_levels": "no",
                         "ice_conc": "no",
-                        "air_density": "no",
-                        "atm_momentum": "no",
                     },
                     resource={
                         "rank_id": 2,
@@ -211,7 +205,7 @@ class TestMultiConfig:
 
         grid_coarse = GridSpec(
             name="coarse",
-            grid=Grid(
+            grid=GridComponent(
                 spectrum=Spectrum(xfr=1.1, freq1=0.04177, nk=25, nth=24),
                 run=Run(flcx=True, flcy=True, flcth=True, flsou=True),
                 timesteps=Timesteps(dtmax=1200.0, dtxy=400.0, dtkth=600.0, dtmin=40.0),
@@ -230,7 +224,7 @@ class TestMultiConfig:
 
         grid_fine = GridSpec(
             name="fine",
-            grid=Grid(
+            grid=GridComponent(
                 spectrum=Spectrum(xfr=1.1, freq1=0.04177, nk=25, nth=24),
                 run=Run(flcx=True, flcy=True, flcth=True, flsou=True),
                 timesteps=Timesteps(dtmax=600.0, dtxy=200.0, dtkth=300.0, dtmin=20.0),
@@ -269,8 +263,6 @@ class TestMultiConfig:
                         "currents": "no",
                         "water_levels": "no",
                         "ice_conc": "no",
-                        "air_density": "no",
-                        "atm_momentum": "no",
                     },
                     resource={
                         "rank_id": 1,
@@ -284,7 +276,7 @@ class TestMultiConfig:
 
         grid_coarse = GridSpec(
             name="coarse",
-            grid=Grid(
+            grid=GridComponent(
                 spectrum=Spectrum(xfr=1.1, freq1=0.04177, nk=25, nth=24),
                 run=Run(flcx=True, flcy=True, flcth=True, flsou=True),
                 timesteps=Timesteps(dtmax=1200.0, dtxy=400.0, dtkth=600.0, dtmin=40.0),
@@ -303,7 +295,7 @@ class TestMultiConfig:
 
         grid_extra = GridSpec(
             name="extra",
-            grid=Grid(
+            grid=GridComponent(
                 spectrum=Spectrum(xfr=1.1, freq1=0.04177, nk=25, nth=24),
                 run=Run(flcx=True, flcy=True, flcth=True, flsou=True),
                 timesteps=Timesteps(dtmax=600.0, dtxy=200.0, dtkth=300.0, dtmin=20.0),
@@ -341,8 +333,6 @@ class TestMultiConfig:
                         "currents": "no",
                         "water_levels": "no",
                         "ice_conc": "no",
-                        "air_density": "no",
-                        "atm_momentum": "no",
                     },
                     resource={
                         "rank_id": 1,
@@ -358,8 +348,6 @@ class TestMultiConfig:
                         "currents": "no",
                         "water_levels": "no",
                         "ice_conc": "no",
-                        "air_density": "no",
-                        "atm_momentum": "no",
                     },
                     resource={
                         "rank_id": 2,
@@ -373,7 +361,7 @@ class TestMultiConfig:
 
         grid_coarse = GridSpec(
             name="coarse",
-            grid=Grid(
+            grid=GridComponent(
                 spectrum=Spectrum(xfr=1.1, freq1=0.04177, nk=25, nth=24),
                 run=Run(flcx=True, flcy=True, flcth=True, flsou=True),
                 timesteps=Timesteps(dtmax=1200.0, dtxy=400.0, dtkth=600.0, dtmin=40.0),
@@ -412,8 +400,6 @@ class TestMultiConfig:
                         "currents": "no",
                         "water_levels": "no",
                         "ice_conc": "no",
-                        "air_density": "no",
-                        "atm_momentum": "no",
                     },
                     resource={
                         "rank_id": 1,
@@ -427,7 +413,7 @@ class TestMultiConfig:
 
         grid_spec = GridSpec(
             name="test",
-            grid=Grid(
+            grid=GridComponent(
                 spectrum=Spectrum(xfr=1.1, freq1=0.04177, nk=25, nth=24),
                 run=Run(flcx=True, flcy=True, flcth=True, flsou=True),
                 timesteps=Timesteps(dtmax=900.0, dtxy=300.0, dtkth=450.0, dtmin=30.0),
@@ -466,8 +452,6 @@ class TestMultiConfig:
                         "currents": "no",
                         "water_levels": "no",
                         "ice_conc": "no",
-                        "air_density": "no",
-                        "atm_momentum": "no",
                     },
                     resource={
                         "rank_id": 1,
@@ -489,7 +473,7 @@ class TestMultiConfig:
 
         grid_spec = GridSpec(
             name="test",
-            grid=Grid(
+            grid=GridComponent(
                 spectrum=Spectrum(xfr=1.1, freq1=0.04177, nk=25, nth=24),
                 run=Run(flcx=True, flcy=True, flcth=True, flsou=True),
                 timesteps=Timesteps(dtmax=900.0, dtxy=300.0, dtkth=450.0, dtmin=30.0),
@@ -552,8 +536,6 @@ class TestMultiConfig:
                         "currents": "no",
                         "water_levels": "no",
                         "ice_conc": "no",
-                        "air_density": "no",
-                        "atm_momentum": "no",
                     },
                     resource={
                         "rank_id": 1,
@@ -567,7 +549,7 @@ class TestMultiConfig:
 
         grid_spec = GridSpec(
             name="test",
-            grid=Grid(
+            grid=GridComponent(
                 spectrum=Spectrum(xfr=1.1, freq1=0.04177, nk=25, nth=24),
                 run=Run(flcx=True, flcy=True, flcth=True, flsou=True),
                 timesteps=Timesteps(dtmax=900.0, dtxy=300.0, dtkth=450.0, dtmin=30.0),
@@ -646,8 +628,6 @@ class TestMultiConfig:
                             "currents": "no",
                             "water_levels": "no",
                             "ice_conc": "no",
-                            "air_density": "no",
-                            "atm_momentum": "no",
                         },
                         "resource": {
                             "rank_id": 1,
@@ -737,8 +717,6 @@ class TestMultiConfigIntegration:
                             "currents": "no",
                             "water_levels": "no",
                             "ice_conc": "no",
-                            "air_density": "no",
-                            "atm_momentum": "no",
                         },
                         "resource": {
                             "rank_id": 1,
@@ -754,8 +732,6 @@ class TestMultiConfigIntegration:
                             "currents": "no",
                             "water_levels": "no",
                             "ice_conc": "no",
-                            "air_density": "no",
-                            "atm_momentum": "no",
                         },
                         "resource": {
                             "rank_id": 2,
