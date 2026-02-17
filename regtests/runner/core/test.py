@@ -143,7 +143,7 @@ class TestCase:
 
         # Try loading config
         try:
-            config = self.load_config()
+            self.load_config()
         except Exception as e:
             return ValidationResult(
                 is_valid=False,

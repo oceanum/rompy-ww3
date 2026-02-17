@@ -16,7 +16,6 @@ from rompy_ww3.components import Multi
 
 from rompy_ww3.namelists import (
     Domain,
-    OutputType,
 )
 from rompy_ww3.namelists.input import (
     ModelGrid,
@@ -47,8 +46,6 @@ def create_ww3_mww3_test_01_component():
             currents="no",
             winds="T",  # Wind forcing from files
             ice_conc="no",
-            
-            
         ),
         resource=ModelGridResource(
             rank_id=1,  # MPI rank assignment
@@ -66,8 +63,6 @@ def create_ww3_mww3_test_01_component():
             currents="no",
             winds="T",  # Wind forcing from files
             ice_conc="no",
-            
-            
         ),
         resource=ModelGridResource(
             rank_id=2,  # Different MPI rank
