@@ -66,6 +66,54 @@ The rompy-ww3 plugin includes complete implementations for all major WW3 namelis
 - **Source**: WW3-specific data sources with variable mapping
 - **Namelists**: Complete set of Pydantic models for WW3 namelists
 
+## Post-Processing
+
+The rompy-ww3 package includes a post-processing system for transferring WW3 output files to multiple destinations with datestamped filenames.
+
+### WW3TransferPostprocessor
+
+Automatically transfers WW3 model outputs (restart files, field outputs, point outputs) to multiple destination prefixes using the rompy transfer backend system. The postprocessor is registered as the `ww3_transfer` entry point under the `rompy.postprocess` group.
+
+**Features:**
+- Multi-destination fan-out: transfer to multiple destinations in one operation
+- Datestamped filenames: automatic `YYYYMMDD_HHMMSS_filename` format
+- Special restart handling: uses valid-date computation for restart files
+- Failure policies: continue on error or fail-fast
+- Backend-agnostic: works with any rompy.transfer backend (file://, s3://, etc.)
+
+**Basic Usage:**
+
+```python
+from rompy_ww3.postprocess.processor import WW3TransferPostprocessor
+
+# Single destination (local filesystem)
+postprocessor = WW3TransferPostprocessor(
+    destinations=["file:///backup/ww3-outputs/"],
+    output_types={"restart": {"extra": "DW"}},
+    failure_policy="CONTINUE",
+    start_date="20230101 000000"
+)
+
+# Multi-destination (S3 + local backup)
+postprocessor = WW3TransferPostprocessor(
+    destinations=[
+        "s3://my-bucket/model-outputs/",
+        "file:///local/backup/"
+    ],
+    output_types={
+        "restart": {"extra": "DW"},
+        "field": {"list": [1, 2, 3]}
+    },
+    failure_policy="FAIL_FAST",
+    start_date="20230101 000000",
+    output_stride=3600
+)
+
+# Process outputs after model run
+result = postprocessor.process(model_run)
+print(f"Transferred: {result['transferred_count']}, Failed: {result['failed_count']}")
+```
+
 ## WW3 Executable Components
 
 The rompy-ww3 package includes a comprehensive set of components for each WW3 executable:

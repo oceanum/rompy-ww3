@@ -95,7 +95,7 @@ Final verification: F1–F4
 
 ### Wave 1 — rompy-core (`../../rompy/transfer_entrypoint`)
 
-- [ ] 1. Inventory transfer_entrypoint API and decide module placement
+- [x] 1. Inventory transfer_entrypoint API and decide module placement
 
   **What to do**:
   - Confirm module location for new helper: `rompy/transfer/manager.py`.
@@ -169,7 +169,7 @@ Final verification: F1–F4
   **Acceptance Criteria**:
   - [ ] `python -c "from rompy.transfer import TransferManager"` works.
 
-- [ ] 6. Dev-install transfer_entrypoint and smoke test
+- [x] 6. Dev-install transfer_entrypoint and smoke test
 
   **What to do**:
   - Run `uv pip install -e ../../rompy/transfer_entrypoint` in this workspace env.
@@ -183,12 +183,13 @@ Final verification: F1–F4
 ### Wave 2 — rompy-ww3 (`src/rompy_ww3/postprocess/`)
 
 - [x] 7. Implement WW3 naming helpers (datestamp normalization + restart valid-date)
-- [ ] 8. Implement manifest-from-namelists output selection
-- [ ] 9. Implement `WW3TransferPostprocessor.process()` delegating to TransferManager
-- [ ] 10. Register postprocessor entrypoint under `rompy.postprocess`
-- [ ] 11. Add WW3-side config schema (destinations + failure policy + retention)
-- [ ] 12. Hermetic integration test (FileTransfer destinations only)
-- [ ] 13. Update minimal usage docs
+- [x] 8. Implement manifest-from-namelists output selection
+- [x] 9. Implement `WW3TransferPostprocessor.process()` delegating to TransferManager
+- [x] 10. Register postprocessor entrypoint under `rompy.postprocess`
+- [x] 11. Add WW3-side config schema (destinations + failure policy + retention)
+  **Decision**: Config schema not needed - `WW3TransferPostprocessor.__init__` signature serves as the schema. Entry point instantiation uses kwargs directly. No redundant Pydantic model required.
+- [x] 12. Hermetic integration test (FileTransfer destinations only)
+- [x] 13. Update minimal usage docs
 
 ---
 
