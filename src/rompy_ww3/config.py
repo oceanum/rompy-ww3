@@ -454,7 +454,7 @@ class ShelConfig(BaseWW3Config):
 
     model_config = ConfigDict(extra="forbid")
 
-    model_type: Literal["nml"] = PydanticField(
+    model_type: Literal["shel"] = PydanticField(
         default="nml",
         description="Model type discriminator",
     )

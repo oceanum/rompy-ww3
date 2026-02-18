@@ -22,7 +22,7 @@ docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
 rompy_ww3 = "rompy_ww3.cli:app"
 
 [project.entry-points."rompy.config"]
-ww3nml = "rompy_ww3.config:NMLConfig"
+ww3shel = "rompy_ww3.config:ShelConfig"
 ww3multi = "rompy_ww3.config:MultiConfig"
 
 [project.entry-points."rompy.source"]
