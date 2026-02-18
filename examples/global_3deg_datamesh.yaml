@@ -4,8 +4,7 @@
 # directly with the rompy CLI for the WW3 tp2.4 regression test.
 
 # ModelRun parameters
-run_id: glob3"
-output_dir: "rompy_runs"
+run_id: glob3
 
 # Time configuration
 period:
