@@ -9,7 +9,11 @@ from rompy_ww3.namelists.output_type import (
     OutputTypeRestart,
     OutputTypeTrack,
 )
-from rompy_ww3.postprocess.discovery import parse_output_type
+from rompy_ww3.postprocess.discovery import (
+    generate_manifest,
+    parse_output_type,
+)
+from pathlib import Path
 
 
 def test_parse_output_type_with_field():
@@ -94,6 +98,20 @@ def test_parse_output_type_with_restart():
 
     assert result["restart"] is not None
     assert result["restart"]["extra"] == "DW CUR"
+
+
+def test_generate_manifest_restart_configured():
+    """Test generate_manifest returns restart file when restart is configured."""
+    config = {"restart": {"extra": "DW"}}
+    result = generate_manifest(Path("/out"), config)
+    assert Path("/out/restart.ww3") in result
+
+
+def test_generate_manifest_no_restart():
+    """Test generate_manifest returns empty list when restart is not configured."""
+    config = {}
+    result = generate_manifest(Path("/out"), config)
+    assert len(result) == 0
 
 
 def test_parse_output_type_with_multiple_types():
