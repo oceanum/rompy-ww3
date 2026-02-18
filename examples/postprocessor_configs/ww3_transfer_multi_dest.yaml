@@ -1,0 +1,44 @@
+# WW3 Transfer Postprocessor - Multi-Destination Example
+# This configuration demonstrates transferring WW3 outputs to multiple cloud
+# and local destinations with different output types.
+#
+# Usage:
+#   rompy postprocess --processor-config examples/postprocessor_configs/ww3_transfer_multi_dest.yaml
+#
+# Prerequisites:
+#   - For S3: AWS credentials configured (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+#   - For GCS: Google credentials configured (GOOGLE_APPLICATION_CREDENTIALS)
+#   - For Azure: Connection string configured (AZURE_STORAGE_CONNECTION_STRING)
+
+type: ww3_transfer
+
+# Multiple destinations: local backup + cloud archives
+destinations:
+  - "file:///local/ww3_backup/"           # Local filesystem backup
+  - "s3://my-bucket/ww3-outputs/"         # AWS S3 bucket
+  - "gs://my-gcs-bucket/model-runs/"      # Google Cloud Storage
+  - "az://my-container/ww3-data/"         # Azure Blob Storage
+
+# Output types: restart + field outputs
+output_types:
+  restart:
+    extra: DW                               # Restart files with extra output
+  field:
+    list: [1, 2, 3, 4]                     # Field output indices (HS, DIR, SPR, DP)
+
+# Failure policy: stop on first error (strict mode)
+failure_policy: FAIL_FAST
+
+# Start date: model start time for restart valid-date computation
+start_date: "20230101 000000"
+
+# Output stride: 1 hour = 3600 seconds
+output_stride: 3600
+
+# Longer timeout for cloud transfers (2 hours)
+timeout: 7200
+
+# Environment variables: AWS profile selection
+env_vars:
+  AWS_PROFILE: "production"
+  AWS_REGION: "us-west-2"
