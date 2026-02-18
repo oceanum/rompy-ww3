@@ -1,0 +1,13 @@
+Evidence: WW3 naming helpers (task-7)
+- Implemented src/rompy_ww3/postprocess/naming.py with:
+  - normalize_datestamp(date_str) -> str, producing YYYYMMDD_HHMMSS
+  - compute_restart_valid_date(restart_path, start_date, output_stride) -> str
+  - compute_target_name(local_path, ...) -> str
+- Wrote tests at tests/postprocess/test_naming.py covering:
+  - normalize_datestamp with WW3 and ISO formats
+  - restart valid date computation (v1 behavior)
+  - target name for regular outputs and restart files
+- Ran tests: 6 passed, 1 warning
+- Verified no lsp_diagnostics errors on renamed module
+- Initial doctest examples included in docstrings and updated to pass
+- Evidence available in this file for traceability
