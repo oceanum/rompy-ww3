@@ -29,12 +29,6 @@ output_types:
 # Failure policy: stop on first error (strict mode)
 failure_policy: FAIL_FAST
 
-# Start date: model start time for restart valid-date computation
-start_date: "20230101 000000"
-
-# Output stride: 1 hour = 3600 seconds
-output_stride: 3600
-
 # Longer timeout for cloud transfers (2 hours)
 timeout: 7200
 

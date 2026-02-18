@@ -17,8 +17,6 @@ def test_config_valid_minimal():
     assert config.destinations == ["file:///tmp/dest"]
     assert config.output_types == {"restart": {"extra": "DW"}}
     assert config.failure_policy == "CONTINUE"
-    assert config.start_date is None
-    assert config.output_stride is None
 
 
 def test_config_valid_full():
@@ -27,15 +25,11 @@ def test_config_valid_full():
         destinations=["s3://bucket/prefix", "gs://bucket/prefix"],
         output_types={"restart": {"extra": "DW"}, "field": {"list": [1, 2, 3]}},
         failure_policy="FAIL_FAST",
-        start_date="20230101 000000",
-        output_stride=3600,
         timeout=7200,
         env_vars={"AWS_PROFILE": "default"},
     )
     assert config.destinations == ["s3://bucket/prefix", "gs://bucket/prefix"]
     assert config.failure_policy == "FAIL_FAST"
-    assert config.start_date == "20230101 000000"
-    assert config.output_stride == 3600
     assert config.timeout == 7200
 
 
@@ -58,36 +52,6 @@ def test_config_invalid_failure_policy():
         )
 
 
-def test_config_invalid_start_date_format():
-    """Test config validation fails with invalid start_date format."""
-    with pytest.raises(ValidationError, match="YYYYMMDD HHMMSS"):
-        WW3TransferConfig(
-            destinations=["file:///tmp/dest"],
-            output_types={},
-            start_date="2023-01-01",
-        )
-
-
-def test_config_invalid_start_date_parts():
-    """Test config validation fails with invalid date parts."""
-    with pytest.raises(ValidationError, match="8 digits"):
-        WW3TransferConfig(
-            destinations=["file:///tmp/dest"],
-            output_types={},
-            start_date="202301 000000",
-        )
-
-
-def test_config_invalid_output_stride():
-    """Test config validation fails with invalid output_stride."""
-    with pytest.raises(ValidationError):
-        WW3TransferConfig(
-            destinations=["file:///tmp/dest"],
-            output_types={},
-            output_stride=0,
-        )
-
-
 def test_config_get_postprocessor_class():
     """Test config returns correct postprocessor class."""
     config = WW3TransferConfig(
@@ -103,7 +67,6 @@ def test_config_instantiate_postprocessor():
     config = WW3TransferConfig(
         destinations=["file:///tmp/dest"],
         output_types={"restart": {"extra": "DW"}},
-        start_date="20230101 000000",
     )
     processor_class = config.get_postprocessor_class()
     processor = processor_class()

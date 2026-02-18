@@ -23,12 +23,6 @@ output_types:
 # Failure policy: continue on errors (log warnings but keep processing)
 failure_policy: CONTINUE
 
-# Start date: used for datestamped filenames (YYYYMMDD HHMMSS format)
-start_date: "20230101 000000"
-
-# Output stride: restart interval in seconds (6 hours = 21600s)
-output_stride: 21600
-
 # Optional: execution timeout in seconds (default: 3600)
 timeout: 3600
 

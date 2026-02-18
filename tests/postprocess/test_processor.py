@@ -58,7 +58,6 @@ def test_single_destination_transfer(tmp_path):
         destinations=[f"file://{dest_dir}"],
         output_types={"restart": {"extra": "DW"}},
         failure_policy="CONTINUE",
-        start_date="20230101 000000",
     )
 
     assert result["success"] is True
@@ -88,7 +87,6 @@ def test_multi_destination_transfer(tmp_path):
         destinations=[f"file://{dest1}", f"file://{dest2}"],
         output_types={"restart": {"extra": "DW"}},
         failure_policy="CONTINUE",
-        start_date="20230101 000000",
     )
 
     assert result["success"] is True

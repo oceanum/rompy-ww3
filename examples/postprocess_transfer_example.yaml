@@ -105,12 +105,6 @@ postprocessor:
     
     # Failure policy: "CONTINUE" or "FAIL_FAST"
     failure_policy: "CONTINUE"
-    
-    # Start date for restart valid-date computation (WW3 format: "YYYYMMDD HHMMSS")
-    start_date: "20230101 000000"
-    
-    # Output stride in seconds (used for restart valid-date computation)
-    output_stride: 21600
 
 # Backend configuration (optional - defaults to local)
 backend:

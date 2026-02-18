@@ -62,14 +62,107 @@ class WW3TransferPostprocessor:
 
         raise AttributeError("Cannot determine output directory from model_run")
 
+    def _extract_start_date(self, model_run: Any) -> Optional[str]:
+        """Extract start date from model_run configuration.
+
+        Attempts to extract from:
+        1) model_run.config.ww3_shel.domain.start
+        2) model_run.config.ww3_multi.domain.start
+        3) model_run.period.start (converted to WW3 format)
+
+        Returns:
+            Optional[str]: Start date in 'YYYYMMDD HHMMSS' format, or None if not found
+        """
+        config = getattr(model_run, "config", None)
+        if config is None:
+            return None
+
+        # Try ww3_shel component
+        ww3_shel = getattr(config, "ww3_shel", None)
+        if ww3_shel is not None:
+            domain = getattr(ww3_shel, "domain", None)
+            if domain is not None:
+                start = getattr(domain, "start", None)
+                if start is not None:
+                    return start
+
+        # Try ww3_multi component
+        ww3_multi = getattr(config, "ww3_multi", None)
+        if ww3_multi is not None:
+            domain = getattr(ww3_multi, "domain", None)
+            if domain is not None:
+                start = getattr(domain, "start", None)
+                if start is not None:
+                    return start
+
+        # Try period object (from rompy ModelRun)
+        period = getattr(model_run, "period", None)
+        if period is not None:
+            start = getattr(period, "start", None)
+            if start is not None:
+                # Convert datetime to WW3 format
+                try:
+                    from datetime import datetime
+
+                    if isinstance(start, str):
+                        start = datetime.fromisoformat(start)
+                    return start.strftime("%Y%m%d %H%M%S")
+                except Exception:
+                    pass
+
+        return None
+
+    def _extract_output_stride(self, model_run: Any) -> Optional[int]:
+        """Extract restart output stride from model_run configuration.
+
+        Attempts to extract from:
+        1) model_run.config.ww3_shel.output_date.restart.stride
+        2) model_run.config.ww3_multi.output_date.restart.stride
+
+        Returns:
+            Optional[int]: Output stride in seconds, or None if not found
+        """
+        config = getattr(model_run, "config", None)
+        if config is None:
+            return None
+
+        # Try ww3_shel component
+        ww3_shel = getattr(config, "ww3_shel", None)
+        if ww3_shel is not None:
+            output_date = getattr(ww3_shel, "output_date", None)
+            if output_date is not None:
+                restart = getattr(output_date, "restart", None)
+                if restart is not None:
+                    stride = getattr(restart, "stride", None)
+                    if stride is not None:
+                        # Convert string to int (WW3 stores as string)
+                        try:
+                            return int(stride)
+                        except (ValueError, TypeError):
+                            pass
+
+        # Try ww3_multi component
+        ww3_multi = getattr(config, "ww3_multi", None)
+        if ww3_multi is not None:
+            output_date = getattr(ww3_multi, "output_date", None)
+            if output_date is not None:
+                restart = getattr(output_date, "restart", None)
+                if restart is not None:
+                    stride = getattr(restart, "stride", None)
+                    if stride is not None:
+                        try:
+                            return int(stride)
+                        except (ValueError, TypeError):
+                            pass
+
+        return None
+
     def process(
         self,
         model_run: Any,
         destinations: List[str],
         output_types: Dict[str, Any],
         failure_policy: str = "CONTINUE",
-        start_date: Optional[str] = None,
-        output_stride: Optional[int] = None,
         **kwargs,
     ) -> Dict[str, object]:
         """Execute the transfer post-processing for a given model_run.
@@ -79,8 +172,6 @@ class WW3TransferPostprocessor:
             destinations: List of destination URIs for file transfers
             output_types: Manifest filter describing which WW3 output types to include
             failure_policy: How to react to transfer failures ("CONTINUE" or "FAIL_FAST")
-            start_date: Optional date string (YYYYMMDD HHMMSS) for generating target names
-            output_stride: Optional stride in seconds for restart file naming
             **kwargs: Additional parameters (ignored)
 
         Returns:
@@ -91,11 +182,12 @@ class WW3TransferPostprocessor:
             - results: list of per-file transfer results
 
         Steps:
-        1. Resolve the output directory from the model_run
-        2. Generate a manifest of files to transfer
-        3. Compute per-file target names
-        4. Invoke TransferManager.transfer_files with the computed mapping
-        5. Return a structured summary of the transfer results
+        1. Extract configuration from model_run (start_date, output_stride)
+        2. Resolve the output directory from the model_run
+        3. Generate a manifest of files to transfer
+        4. Compute per-file target names
+        5. Invoke TransferManager.transfer_files with the computed mapping
+        6. Return a structured summary of the transfer results
         """
 
         # Validate destinations
@@ -110,23 +202,22 @@ class WW3TransferPostprocessor:
         else:
             raise ValueError(f"Invalid failure_policy: {failure_policy}")
 
-        # 1) Determine where WW3 outputs live
+        # 1) Extract configuration from model_run
+        start_date = self._extract_start_date(model_run)
+        output_stride = self._extract_output_stride(model_run)
+
+        # 2) Determine where WW3 outputs live
         output_dir = self._get_output_dir(model_run)
 
-        # 2) Build manifest of files to transfer
+        # 3) Build manifest of files to transfer
         files = generate_manifest(output_dir, output_types)
         files = [Path(p) if not isinstance(p, Path) else p for p in files]
 
-        # 3) Build mapping from source file to target name
-        # Use Path objects as keys to satisfy TransferManager expectations
+        # 4) Build mapping from source file to target name
         name_map: Dict[Path, str] = {}
         for f in files:
-            # Detect restart files for special compute_target_name usage
             is_restart = f.name == "restart.ww3"
             if is_restart:
-                # If restart-specific params are available, compute a proper
-                # restart target name. Otherwise, fall back to a stable name
-                # based on the file name to avoid raising during tests.
                 if start_date is not None and output_stride is not None:
                     target_name = compute_target_name(
                         f,
@@ -140,7 +231,7 @@ class WW3TransferPostprocessor:
                 target_name = compute_target_name(f, date_str=start_date)
             name_map[f] = target_name
 
-        # 4) Perform the transfers
+        # 5) Perform the transfers
         manager = TransferManager()
         result = manager.transfer_files(
             files=files,
@@ -149,8 +240,7 @@ class WW3TransferPostprocessor:
             policy=policy,
         )
 
-        # 5) Normalize the result into a predictable dict
-        # TransferBatchResult exposes: total, succeeded, failed, items, and all_succeeded()
+        # 6) Normalize the result into a predictable dict
         return {
             "success": bool(result.all_succeeded()),
             "transferred_count": int(result.succeeded),

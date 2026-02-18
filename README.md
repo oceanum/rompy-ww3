@@ -77,6 +77,7 @@ Automatically transfers WW3 model outputs (restart files, field outputs, point o
 **Features:**
 - Multi-destination fan-out: transfer to multiple destinations in one operation
 - Datestamped filenames: automatic `YYYYMMDD_HHMMSS_filename` format
+- Auto-extraction: timing parameters (`start_date` and `output_stride`) automatically extracted from model config
 - Special restart handling: uses valid-date computation for restart files
 - Failure policies: continue on error or fail-fast
 - Backend-agnostic: works with any rompy.transfer backend (file://, s3://, gs://, az://, etc.)
@@ -91,23 +92,19 @@ from rompy_ww3.postprocess import WW3TransferConfig
 config = WW3TransferConfig(
     destinations=["file:///backup/ww3-outputs/", "s3://my-bucket/outputs/"],
     output_types={"restart": {"extra": "DW"}, "field": {"list": [1, 2, 3]}},
-    failure_policy="CONTINUE",
-    start_date="20230101 000000",
-    output_stride=3600
+    failure_policy="CONTINUE"
 )
 
 # Get processor class and instantiate
 processor_class = config.get_postprocessor_class()
 processor = processor_class()
 
-# Process outputs (config fields passed as kwargs)
+# Process outputs - start_date and output_stride auto-extracted from model_run.config
 result = processor.process(
     model_run,
     destinations=config.destinations,
     output_types=config.output_types,
-    failure_policy=config.failure_policy,
-    start_date=config.start_date,
-    output_stride=config.output_stride
+    failure_policy=config.failure_policy
 )
 print(f"Transferred: {result['transferred_count']}, Failed: {result['failed_count']}")
 ```
@@ -140,9 +137,11 @@ output_types:
     list: [1, 2, 3, 4]
 
 failure_policy: CONTINUE
-start_date: "20230101 000000"
-output_stride: 3600
 timeout: 3600
+
+# Note: start_date and output_stride are automatically extracted from the model configuration
+# They are read from model_run.config.ww3_shel.domain.start and 
+# model_run.config.ww3_shel.output_date.restart.stride (or ww3_multi equivalents)
 ```
 
 See `examples/postprocessor_configs/` for complete working examples.
