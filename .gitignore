@@ -121,3 +121,41 @@ tests/data
 regtests/**/rompy
 simulations/
 
+
+# WW3 regression test input data (auto-downloaded)
+regtests/ww3_*/input/
+regtests/mww3_*/input/
+
+# WW3 reference outputs (large binary files, generated locally or downloaded)
+regtests/reference_outputs/ww3_*/
+!regtests/reference_outputs/ww3_*/metadata.json
+regtests/reference_outputs/**/*.nc
+regtests/reference_outputs/**/*.ww3
+regtests/reference_outputs/**/*.spec
+regtests/reference_outputs/**/*.out
+
+# WW3 test outputs and generated files (added during cleanup)
+rompy_runs/
+**/rompy_runs/
+
+# WW3 grid/bathymetry files
+*.bot
+*.obst
+*.mask
+*.lon
+*.lat
+*.obs
+
+# WW3 binary outputs
+*.ww3
+ST4TABUHF2*
+mod_def.ww3
+out_grd.ww3
+out_pnt.ww3
+restart.ww3
+
+# Fortran output
+fort.10
+
+# Regression test compilation artifacts
+regtests/comp.Gnu

@@ -1,0 +1,121 @@
+# Complete WW3 ModelRun configuration for ww3_tp1.3 regression test
+#
+# Test: 1-D propagation on Cartesian grid with monochromatic shoaling (no source terms).
+# Physics: !/LN0 !/ST0 !/NL0 !/BT0 !/DB0 !/TR0 !/BS0 (no source terms)
+# Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/ww3_tp1.3
+
+# ModelRun parameters
+run_id: "ww3_tp1_3_regression"
+output_dir: "rompy_runs"
+
+# Time configuration (8 days total, matching official test)
+period:
+    start: "1968-06-06T00:00:00"
+    duration: "48H" # 2 days duration (168 hours = 7 days from start)
+    interval: "1H" # 1 hour time interval
+
+# Model configuration (equivalent to NMLConfig)
+config:
+    model_type: nml
+
+    # Shell component for ww3_shel.nml (main model configuration)
+    ww3_shel:
+        domain:
+            # Start and stop from official ww3_shel.nml
+            # start: "19680606 000000"
+            # stop: "19680608 000000"
+            iostyp: 1 # Output server type (default)
+        input_nml: {}
+        output_type:
+            field:
+                list: "DPT HS FC CFX" # Output depth, wave height, frequency, x-current (from reference)
+        output_date:
+            # Field output every 1 hour (3600 seconds)
+            # field:
+            #     start: "19680606 000000"
+            #     stride: "3600"
+            #     stop: "19680608 000000"
+        homog_count:
+            n_wnd: 0 # No wind input for tp1.3 (no source terms)
+            n_lev: 0
+            n_cur: 0
+            n_ice: 0
+        homog_input: []
+
+    # Grid component for ww3_grid.nml (grid preprocessing configuration)
+    ww3_grid:
+        spectrum:
+            xfr: 1.25 # Frequency increment from reference
+            freq1: 0.08 # First frequency (Hz) from reference
+            nk: 3 # Number of frequencies (3 for tp1.3)
+            nth: 4 # Number of direction bins (4 for 1-D test, from reference)
+            thoff: 0.0 # Relative offset of first direction
+        run:
+            fldry: false # Not a dry run
+            flcx: true # X-component of propagation (only flcx=T in reference)
+            flcy: false # No Y-component for 1-D propagation
+            flcth: false # No direction shift for 1-D
+            flck: false # No wavenumber shift
+            flsou: false # No source terms for this test case (pure propagation)
+        timesteps:
+            dtmax: 3600.0 # Maximum CFL timestep (1 hour) - adjusted to satisfy dtmax ≈ 3×dtxy
+            dtxy: 1200.0 # Propagation timestep (20 minutes)
+            dtkth: 1800.0 # Refraction timestep (30 minutes) - between dtmax/10 and dtmax/2
+            dtmin: 10.0 # Minimum time step (10 seconds) - standard source term timestep
+        grid:
+            name: "MONOCHROMATIC SHOALING X" # Grid name from reference
+            type: "RECT" # Rectilinear grid from reference
+            coord: "CART" # Cartesian coordinates (NOT spherical) from reference
+            clos: "NONE" # No closure (not 360 degrees) from reference
+            zlim: -1.0 # Minimum depth from reference
+            dmin: 1.0 # Minimum water depth from reference
+        rect:
+            nx: 43 # Number of points along x-axis from reference
+            ny: 3 # Number of points along y-axis (3 for 1-D test) from reference
+            sx: 15000.0 # Grid increment along x-axis (15 km) from reference
+            sy: 15000.0 # Grid increment along y-axis (15 km) from reference
+            x0: -15000.0 # Western boundary (meters) from reference
+            y0: -15000.0 # Southern boundary (meters) from reference
+        depth:
+            filename:
+                model_type: data_blob
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.3/input/MONOCHROMATIC.depth"
+            sf: -1.0 # Scale factor from reference
+            idf: 50 # IDF (default)
+            idla: 2 # IDLA from reference
+        inbound_count:
+            n_point: 1 # One boundary point from reference
+        inbound_points:
+            points:
+                - x_index: 1 # First x-index
+                  y_index: 2 # Second y-index (middle of 3-point width)
+                  connect: false # No connection flag
+
+    # Parameters component for namelists.nml (model parameters configuration)
+    namelists:
+        pro2:
+            dtime: 0.0 # From namelists_MONOCHROMATIC.nml
+        pro3:
+            wdthcg: 0.0 # From namelists_MONOCHROMATIC.nml
+            wdthth: 0.0 # From namelists_MONOCHROMATIC.nml
+        pro4:
+            rnfac: 0.0 # From namelists_MONOCHROMATIC.nml
+            rsfac: 0.0 # From namelists_MONOCHROMATIC.nml
+
+    # Field output component for ww3_ounf.nml (field output post-processing)
+    ww3_ounf:
+        field:
+            # timestart: "19680606 000000" # Start time from reference
+            timestride: "3600" # Time stride (1 hour = 3600 seconds) from reference
+            timecount: "999" # Number of time steps
+            list: "DPT HS FC CFX" # Output depth, wave height, frequency, x-current
+            partition: "0 1 2" # Wave partitions
+            type: 4 # Data type: REAL
+            samefile: true # All variables in same file
+        file:
+            prefix: "ww3."
+            netcdf: 3 # NetCDF version
+            ix0: 1 # First X-axis index
+            ixn: 1000000000 # Last X-axis index (default large value)
+            iy0: 1 # First Y-axis index
+            iyn: 1000000000 # Last Y-axis index (default large value)

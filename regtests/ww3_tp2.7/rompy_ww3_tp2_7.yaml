@@ -1,0 +1,170 @@
+# WW3 ModelRun configuration for ww3_tp2.7 regression test
+# Auto-generated from rompy_ww3_tp2_7.py
+
+run_id: ww3_tp2.7_regression
+output_dir: rompy_runs
+period:
+    start: '2003-01-01T00:00:00'
+    duration: 12H
+    interval: 1H
+config:
+    model_type: nml
+    ww3_shel:
+        domain:
+            start: 20030101 000000
+            stop: 20030101 120000
+            iostyp: 2
+        input_nml:
+            forcing:
+                winds: H
+        output_type:
+            field:
+                list: HS T02 T01 ABR UBR
+            point:
+                file:
+                    model_type: data_blob
+                    id: data
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.7/input/points.list"
+                    link: false
+        output_date:
+            field:
+                start: 20030101 000000
+                stride: '3600'
+                stop: 20031231 233000
+            point:
+                start: 20030101 000000
+                stride: '3600'
+                stop: 20031231 233000
+        homog_count:
+            n_wnd: 1
+        homog_input:
+        -   name: WND
+            date: 20020905 000000
+            value1: 8.0
+            value2: 270.0
+            value3: 0.0
+    ww3_grid:
+        grid_type: base
+        spectrum:
+            xfr: 1.1
+            freq1: 0.0373
+            nk: 32
+            nth: 24
+            thoff: 0.0
+        run:
+            fldry: false
+            flcx: true
+            flcy: true
+            flcth: true
+            flck: true
+            flsou: true
+        timesteps:
+            dtmax: 600.0
+            dtxy: 200.0
+            dtkth: 200.0
+            dtmin: 10.0
+        inbound_count:
+            n_point: 19
+        inbound_points:
+            points:
+            -   x_index: 1
+                y_index: 1
+                connect: false
+            -   x_index: 19
+                y_index: 1
+                connect: true
+            -   x_index: 70
+                y_index: 1
+                connect: false
+            -   x_index: 53
+                y_index: 1
+                connect: false
+            -   x_index: 107
+                y_index: 1
+                connect: false
+            -   x_index: 62
+                y_index: 1
+                connect: false
+            -   x_index: 41
+                y_index: 1
+                connect: false
+            -   x_index: 110
+                y_index: 1
+                connect: false
+            -   x_index: 90
+                y_index: 1
+                connect: false
+            -   x_index: 88
+                y_index: 1
+                connect: false
+            -   x_index: 86
+                y_index: 1
+                connect: false
+            -   x_index: 87
+                y_index: 1
+                connect: false
+            -   x_index: 79
+                y_index: 1
+                connect: false
+            -   x_index: 109
+                y_index: 1
+                connect: false
+            -   x_index: 100
+                y_index: 1
+                connect: false
+            -   x_index: 101
+                y_index: 1
+                connect: false
+            -   x_index: 105
+                y_index: 1
+                connect: false
+            -   x_index: 50
+                y_index: 1
+                connect: false
+            -   x_index: 42
+                y_index: 1
+                connect: false
+        unst:
+            sf: -1.0
+            filename:
+                model_type: data_blob
+                id: data
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.7/input/ref1.msh"
+                link: false
+            idf: 20
+            idla: 4
+            idfm: 1
+            format: (20f10.2)
+            ugobcfile: ../input/ref1.mshb
+        grid:
+            name: REF-UG
+            type: UNST
+            coord: SPHE
+            clos: NONE
+            zlim: -0.1
+            dmin: 0.3
+    namelists:
+        pro2:
+            dtime: 64800.0
+        pro3:
+            wdthcg: 1.5
+            wdthth: 1.5
+        pro4:
+            rnfac: 0.0
+            rsfac: 0.0
+    ww3_ounf:
+        field:
+            timestart: 20030101 000000
+            timestride: '3600'
+            timecount: '999'
+            list: HS ABR UBR
+            partition: 0 1 2
+            samefile: true
+            type: 4
+        file:
+            prefix: ww3.
+            netcdf: 3
+            ix0: 1
+            ixn: 1000000000
+            iy0: 1
+            iyn: 1000000000

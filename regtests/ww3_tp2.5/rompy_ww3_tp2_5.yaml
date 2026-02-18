@@ -1,0 +1,129 @@
+# WW3 ModelRun configuration for ww3_tp2.5 regression test
+# Auto-generated from rompy_ww3_tp2_5.py
+
+run_id: ww3_tp2.5_regression
+output_dir: rompy_runs
+period:
+    start: '2008-05-22T00:00:00'
+    duration: 12H
+    interval: 1H
+config:
+    model_type: nml
+    ww3_shel:
+        domain:
+            start: 20080522 000000
+            stop: 20080522 120000
+            iostyp: 1
+        input_nml: {}
+        output_type:
+            field:
+                list: DPT HS FP DIR SPR
+            point:
+                file:
+                    model_type: data_blob
+                    id: data
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/points.list"
+                    link: false
+        output_date:
+            field:
+                start: 20080522 000000
+                stride: '3600'
+                stop: 20080525 000000
+            point:
+                start: 20080522 000000
+                stride: '3600'
+                stop: 20080525 000000
+        homog_count:
+            n_lev: 0
+            n_cur: 0
+            n_wnd: 0
+            n_ice: 0
+        homog_input: []
+    ww3_grid:
+        grid_type: base
+        spectrum:
+            xfr: 1.1
+            freq1: 0.03679
+            nk: 3
+            nth: 12
+            thoff: 0.0
+        run:
+            fldry: false
+            flcx: true
+            flcy: true
+            flcth: true
+            flck: false
+            flsou: false
+        timesteps:
+            dtmax: 1650.0
+            dtxy: 550.0
+            dtkth: 825.0
+            dtmin: 10.0
+        depth:
+            sf: -1.0
+            filename:
+                model_type: data_blob
+                id: data
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/depth.361x361.IDLA1.dat"
+                link: false
+            idf: 50
+            idla: 1
+        curv:
+            nx: 361
+            ny: 361
+            xcoord:
+                sf: 1.0
+                'off': 0.0
+                filename:
+                    model_type: data_blob
+                    id: data
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/lon.361x361.IDLA1.dat"
+                    link: false
+                idf: 21
+                idla: 1
+                idfm: 1
+                format: (....)
+            ycoord:
+                sf: 1.0
+                'off': 0.0
+                filename:
+                    model_type: data_blob
+                    id: data
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/lat.361x361.IDLA1.dat"
+                    link: false
+                idf: 22
+                idla: 1
+                idfm: 1
+                format: (....)
+        grid:
+            name: 2-D PROPAGATION TEST 2.5
+            type: CURV
+            coord: SPHE
+            clos: NONE
+            zlim: -0.1
+            dmin: 7.5
+    namelists:
+        pro2:
+            dtime: 64800.0
+        pro3:
+            wdthcg: 1.5
+            wdthth: 1.5
+        pro4:
+            rnfac: 0.0
+            rsfac: 0.0
+    ww3_ounf:
+        field:
+            timestart: 20080522 000000
+            timestride: '3600'
+            timecount: '999'
+            list: DPT HS
+            partition: 0 1 2
+            samefile: true
+            type: 4
+        file:
+            prefix: ww3.
+            netcdf: 3
+            ix0: 1
+            ixn: 1000000000
+            iy0: 1
+            iyn: 1000000000

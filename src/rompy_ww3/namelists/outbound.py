@@ -37,10 +37,10 @@ class OutboundLine(BaseModel):
             "This defines how many points will be included in the boundary line starting from (x0,y0) "
             "with increments (dx,dy)."
         ),
-        ne=0  # Should not be zero
+        ne=0,  # Should not be zero
     )
 
-    @field_validator('np')
+    @field_validator("np")
     @classmethod
     def validate_number_of_points(cls, v):
         """Validate number of points is not zero."""
@@ -56,7 +56,7 @@ class OutboundCount(NamelistBaseModel):
     The OUTBND_COUNT_NML namelist defines the number of output boundary lines
     for WAVEWATCH III grids. This namelist sets up how many boundary lines
     will be specified in the corresponding OUTBND_LINE_NML namelist.
-    
+
     It creates a nest file with output boundaries for an inner grid.
     The prefered way to do it is to use ww3_bounc program.
     These do not need to be defined for data transfer between grids in the multi-grid driver.
@@ -65,10 +65,10 @@ class OutboundCount(NamelistBaseModel):
     n_line: Optional[int] = Field(
         default=None,
         description="Number of output boundary lines, defines how many boundary lines will be specified",
-        ge=0  # Can have 0 boundary lines
+        ge=0,  # Can have 0 boundary lines
     )
 
-    @field_validator('n_line')
+    @field_validator("n_line")
     @classmethod
     def validate_n_line(cls, v):
         """Validate number of lines is non-negative."""
@@ -83,15 +83,15 @@ class OutboundLineList(NamelistBaseModel):
 
     The OUTBND_LINE_NML namelist defines the output boundary lines for WAVEWATCH III grids.
     Each line is specified by its starting point (x0, y0), increments (dx, dy), and number of points (np).
-    
+
     Output boundary points are defined as a number of straight lines, defined by its starting point (X0,Y0),
     increments (DX,DY) and number of points. A negative number of points starts a new output file.
-    
+
     For spherical grids in degrees, an example would be:
     '1.75  1.50  0.25 -0.10     3'
     '2.25  1.50 -0.10  0.00    -6'
     '0.10  0.10  0.10  0.00   -10'
-    
+
     It creates a nest file with output boundaries for an inner grid.
     The prefered way to do it is to use ww3_bounc program.
     These do not need to be defined for data transfer between grids in the multi-grid driver.
@@ -99,20 +99,22 @@ class OutboundLineList(NamelistBaseModel):
 
     lines: List[OutboundLine] = Field(
         default_factory=list,
-        description="List of outbound boundary lines, each specifying x0, y0, dx, dy, and np"
+        description="List of outbound boundary lines, each specifying x0, y0, dx, dy, and np",
     )
 
-    @field_validator('lines')
+    @field_validator("lines")
     @classmethod
     def validate_lines_list(cls, v):
         """Validate the lines list."""
         if v is not None:
             for i, line in enumerate(v):
                 if not isinstance(line, OutboundLine):
-                    raise ValueError(f"Line at index {i} must be of type OutboundLine, got {type(line)}")
+                    raise ValueError(
+                        f"Line at index {i} must be of type OutboundLine, got {type(line)}"
+                    )
         return v
 
-    def render(self) -> str:
+    def render(self, *args, **kwargs) -> str:
         """Render the namelist content with unindexed parameters."""
         lines = ["&OUTBND_LINE_NML"]
 

@@ -9,29 +9,29 @@ class ExcludedPoint(BaseModel):
     """Represents a single excluded point configuration.
 
     The excluded points define grid points that should be excluded from the simulation.
-    Each point is specified by its grid indices and a connect flag that determines 
+    Each point is specified by its grid indices and a connect flag that determines
     if intermediate points should be added to the exclusion list.
     """
 
     x_index: Optional[int] = Field(
         default=None,
         description="X grid index of the excluded point, defines the discrete x-coordinate counter",
-        ge=1  # Assuming grid indices start at 1
+        ge=1,  # Assuming grid indices start at 1
     )
     y_index: Optional[int] = Field(
         default=None,
         description="Y grid index of the excluded point, defines the discrete y-coordinate counter",
-        ge=1  # Assuming grid indices start at 1
+        ge=1,  # Assuming grid indices start at 1
     )
     connect: Optional[bool] = Field(
         default=None,
         description=(
             "Connect flag for the point. If true and the present and previous point are on a grid line "
             "or diagonal, all intermediate points are also defined as excluded points."
-        )
+        ),
     )
 
-    @field_validator('x_index', 'y_index')
+    @field_validator("x_index", "y_index")
     @classmethod
     def validate_grid_index(cls, v):
         """Validate grid index is positive."""
@@ -40,7 +40,7 @@ class ExcludedPoint(BaseModel):
                 raise ValueError(f"Grid index must be positive, got {v}")
         return v
 
-    @field_validator('connect')
+    @field_validator("connect")
     @classmethod
     def validate_connect_flag(cls, v):
         """Validate connect flag is a boolean."""
@@ -53,22 +53,22 @@ class ExcludedBody(BaseModel):
     """Represents a single excluded body configuration.
 
     The excluded bodies define closed bodies of sea points to be removed from the simulation.
-    Each body is defined by a point inside the closed body, which results in 
+    Each body is defined by a point inside the closed body, which results in
     the entire closed body of sea points being excluded.
     """
 
     x_index: Optional[int] = Field(
         default=None,
         description="X grid index of the excluded body, should be a point inside the closed body to be removed",
-        ge=1  # Assuming grid indices start at 1
+        ge=1,  # Assuming grid indices start at 1
     )
     y_index: Optional[int] = Field(
         default=None,
         description="Y grid index of the excluded body, should be a point inside the closed body to be removed",
-        ge=1  # Assuming grid indices start at 1
+        ge=1,  # Assuming grid indices start at 1
     )
 
-    @field_validator('x_index', 'y_index')
+    @field_validator("x_index", "y_index")
     @classmethod
     def validate_grid_index(cls, v):
         """Validate grid index is positive."""
@@ -84,7 +84,7 @@ class ExcludedCount(NamelistBaseModel):
     The EXCL_COUNT_NML namelist defines the number of excluded points and bodies
     for WAVEWATCH III grids. This namelist sets up how many excluded points and bodies
     will be specified in the corresponding EXCL_POINT_NML and EXCL_BODY_NML namelists.
-    
+
     If no mask is defined, EXCL can be used to specify excluded areas.
     NOTE: If a mask is defined, EXCL cannot be used.
     """
@@ -92,15 +92,15 @@ class ExcludedCount(NamelistBaseModel):
     n_point: Optional[int] = Field(
         default=None,
         description="Number of excluded point segments, defines how many excluded points will be specified",
-        ge=0  # Can have 0 excluded points
+        ge=0,  # Can have 0 excluded points
     )
     n_body: Optional[int] = Field(
         default=None,
         description="Number of excluded bodies, defines how many closed bodies will be removed from the grid",
-        ge=0  # Can have 0 excluded bodies
+        ge=0,  # Can have 0 excluded bodies
     )
 
-    @field_validator('n_point', 'n_body')
+    @field_validator("n_point", "n_body")
     @classmethod
     def validate_counts(cls, v):
         """Validate counts are non-negative."""
@@ -115,31 +115,33 @@ class ExcludedPointList(NamelistBaseModel):
 
     The EXCL_POINT_NML namelist defines the excluded points for WAVEWATCH III grids.
     Each point is specified by its grid indices (x_index, y_index) and a connect flag.
-    
+
     If no mask is defined, EXCL can be used to specify excluded areas.
     NOTE: If a mask is defined, EXCL cannot be used.
-    
-    The excluded points are specified as segments of points that define areas to be 
-    excluded from the simulation. The connect flag determines if intermediate points 
+
+    The excluded points are specified as segments of points that define areas to be
+    excluded from the simulation. The connect flag determines if intermediate points
     between consecutive points are also excluded.
     """
 
     points: List[ExcludedPoint] = Field(
         default_factory=list,
-        description="List of excluded points, each specifying x_index, y_index, and connect flag"
+        description="List of excluded points, each specifying x_index, y_index, and connect flag",
     )
 
-    @field_validator('points')
+    @field_validator("points")
     @classmethod
     def validate_points_list(cls, v):
         """Validate the points list."""
         if v is not None:
             for i, point in enumerate(v):
                 if not isinstance(point, ExcludedPoint):
-                    raise ValueError(f"Point at index {i} must be of type ExcludedPoint, got {type(point)}")
+                    raise ValueError(
+                        f"Point at index {i} must be of type ExcludedPoint, got {type(point)}"
+                    )
         return v
 
-    def render(self) -> str:
+    def render(self, *args, **kwargs) -> str:
         """Render the namelist content with unindexed parameters."""
         lines = ["&EXCL_POINT_NML"]
 
@@ -168,31 +170,33 @@ class ExcludedBodyList(NamelistBaseModel):
 
     The EXCL_BODY_NML namelist defines the excluded bodies for WAVEWATCH III grids.
     Each body is specified by a point inside the closed body to be removed.
-    
+
     If no mask is defined, EXCL can be used to specify excluded areas.
     NOTE: If a mask is defined, EXCL cannot be used.
-    
+
     The excluded bodies are specified as points inside closed bodies of sea points.
-    Each specified point will result in the entire closed body of sea points 
+    Each specified point will result in the entire closed body of sea points
     containing that point to be removed from the simulation.
     """
 
     bodies: List[ExcludedBody] = Field(
         default_factory=list,
-        description="List of excluded bodies, each specified by a point inside the closed body to be removed"
+        description="List of excluded bodies, each specified by a point inside the closed body to be removed",
     )
 
-    @field_validator('bodies')
+    @field_validator("bodies")
     @classmethod
     def validate_bodies_list(cls, v):
         """Validate the bodies list."""
         if v is not None:
             for i, body in enumerate(v):
                 if not isinstance(body, ExcludedBody):
-                    raise ValueError(f"Body at index {i} must be of type ExcludedBody, got {type(body)}")
+                    raise ValueError(
+                        f"Body at index {i} must be of type ExcludedBody, got {type(body)}"
+                    )
         return v
 
-    def render(self) -> str:
+    def render(self, *args, **kwargs) -> str:
         """Render the namelist content with unindexed parameters."""
         lines = ["&EXCL_BODY_NML"]
 

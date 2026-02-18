@@ -16,22 +16,22 @@ class InboundPoint(BaseModel):
     x_index: Optional[int] = Field(
         default=None,
         description="X grid index of the included point, defines the discrete x-coordinate counter",
-        ge=1  # Assuming grid indices start at 1
+        ge=1,  # Assuming grid indices start at 1
     )
     y_index: Optional[int] = Field(
         default=None,
         description="Y grid index of the included point, defines the discrete y-coordinate counter",
-        ge=1  # Assuming grid indices start at 1
+        ge=1,  # Assuming grid indices start at 1
     )
     connect: Optional[bool] = Field(
         default=None,
         description=(
             "Connect flag for the point. If true and the present and previous point are on a grid line "
             "or diagonal, all intermediate points are also defined as boundary points."
-        )
+        ),
     )
 
-    @field_validator('x_index', 'y_index')
+    @field_validator("x_index", "y_index")
     @classmethod
     def validate_grid_index(cls, v):
         """Validate grid index is positive."""
@@ -40,7 +40,7 @@ class InboundPoint(BaseModel):
                 raise ValueError(f"Grid index must be positive, got {v}")
         return v
 
-    @field_validator('connect')
+    @field_validator("connect")
     @classmethod
     def validate_connect_flag(cls, v):
         """Validate connect flag is a boolean."""
@@ -55,11 +55,11 @@ class InboundCount(NamelistBaseModel):
     The INBND_COUNT_NML namelist defines the number of input boundary points
     for WAVEWATCH III grids. This namelist sets up how many boundary points
     will be specified in the corresponding INBND_POINT_NML.
-    
+
     If no mask is defined, INBOUND can be used to specify active boundaries.
     If the actual input data is not defined in the actual wave model run,
     the initial conditions will be applied as constant boundary conditions.
-    
+
     The points must start from index 1 to N and define grid points from segment data
     identifying points at which input boundary conditions are to be defined.
     """
@@ -67,10 +67,10 @@ class InboundCount(NamelistBaseModel):
     n_point: Optional[int] = Field(
         default=None,
         description="Number of boundary points, defines how many boundary points will be specified",
-        ge=0  # Can have 0 boundary points
+        ge=0,  # Can have 0 boundary points
     )
 
-    @field_validator('n_point')
+    @field_validator("n_point")
     @classmethod
     def validate_n_point(cls, v):
         """Validate number of points is non-negative."""
@@ -85,11 +85,11 @@ class InboundPointList(NamelistBaseModel):
 
     The INBND_POINT_NML namelist defines the input boundary points for WAVEWATCH III grids.
     Each point is specified by its grid indices (x_index, y_index) and a connect flag.
-    
+
     If no mask is defined, INBOUND can be used to specify active boundaries.
     If the actual input data is not defined in the actual wave model run,
     the initial conditions will be applied as constant boundary conditions.
-    
+
     The points must start from index 1 to N and define grid points from segment data
     identifying points at which input boundary conditions are to be defined.
     The connect flag determines if intermediate points between consecutive points
@@ -98,20 +98,22 @@ class InboundPointList(NamelistBaseModel):
 
     points: List[InboundPoint] = Field(
         default_factory=list,
-        description="List of inbound boundary points, each specifying x_index, y_index, and connect flag"
+        description="List of inbound boundary points, each specifying x_index, y_index, and connect flag",
     )
 
-    @field_validator('points')
+    @field_validator("points")
     @classmethod
     def validate_points_list(cls, v):
         """Validate the points list."""
         if v is not None:
             for i, point in enumerate(v):
                 if not isinstance(point, InboundPoint):
-                    raise ValueError(f"Point at index {i} must be of type InboundPoint, got {type(point)}")
+                    raise ValueError(
+                        f"Point at index {i} must be of type InboundPoint, got {type(point)}"
+                    )
         return v
 
-    def render(self) -> str:
+    def render(self, *args, **kwargs) -> str:
         """Render the namelist content with unindexed parameters."""
         lines = ["&INBND_POINT_NML"]
 

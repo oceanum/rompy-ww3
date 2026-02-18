@@ -1,0 +1,196 @@
+# WW3 mww3_test_09 Multi-Grid Regression Test Configuration
+#
+# Test: SMC multi-grid for Great Lakes
+# Purpose: Validate multi-grid with Spherical Multiple-Cell (SMC) grids
+#          Three lakes on 4-level SMC grids
+# Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/mww3_test_09
+
+run_id: "ww3_mww3_test_09_regression"
+output_dir: "rompy_runs"
+
+period:
+    start: "2020-01-01T00:00:00"
+    duration: "12H"
+    interval: "1H"
+
+config:
+    model_type: multi
+
+    multi:
+        domain:
+            start: "20200101 000000"
+            stop: "20200101 120000"
+            iostyp: 1
+            nrinp: 0
+            nrgrd: 3
+
+        model_grids:
+            # Lake Michigan
+            - name: "Michi"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "no"
+                  ice_conc: "no"
+
+              resource:
+                  rank_id: 1
+                  group_id: 1
+                  comm_frac_start: 0.00
+                  comm_frac_end: 0.33
+
+            # Lake Huron
+            - name: "Huron"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "no"
+                  ice_conc: "no"
+
+              resource:
+                  rank_id: 2
+                  group_id: 1
+                  comm_frac_start: 0.33
+                  comm_frac_end: 0.67
+
+            # Lake Superior
+            - name: "Super"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "no"
+                  ice_conc: "no"
+
+              resource:
+                  rank_id: 3
+                  group_id: 1
+                  comm_frac_start: 0.67
+                  comm_frac_end: 1.00
+
+        output_type:
+            field:
+                list: "HS FP DP DIR"
+
+        output_date:
+            field:
+                start: "20200101 000000"
+                stride: "3600"
+                stop: "20200101 120000"
+
+    grids:
+        - name: "Michi"
+          grid:
+            spectrum:
+                xfr: 1.1
+                freq1: 0.04177
+                nk: 25
+                nth: 24
+            run:
+                flcx: true
+                flcy: true
+                flcth: true
+                flsou: true
+            timesteps:
+                dtmax: 600
+                dtxy: 200
+                dtkth: 300
+                dtmin: 20
+            grid:
+                name: "Lake Michigan SMC grid"
+                type: "SMC"
+                coord: "SPHE"
+                clos: "NONE"
+                zlim: -0.1
+                dmin: 0.25
+            smc:
+                mcel:
+                    filename: "../input/Michi.mcels"
+                    idla: 3
+                iside:
+                    filename: "../input/Michi.iside"
+                    idla: 3
+                jside:
+                    filename: "../input/Michi.jside"
+                    idla: 3
+            depth:
+                sf: -1
+                filename: "../input/Michi.depth"
+                idla: 3
+
+        - name: "Huron"
+          grid:
+            spectrum:
+                xfr: 1.1
+                freq1: 0.04177
+                nk: 25
+                nth: 24
+            run:
+                flcx: true
+                flcy: true
+                flcth: true
+                flsou: true
+            timesteps:
+                dtmax: 600
+                dtxy: 200
+                dtkth: 300
+                dtmin: 20
+            grid:
+                name: "Lake Huron SMC grid"
+                type: "SMC"
+                coord: "SPHE"
+                clos: "NONE"
+                zlim: -0.1
+                dmin: 0.25
+            smc:
+                mcel:
+                    filename: "../input/Huron.mcels"
+                    idla: 3
+                iside:
+                    filename: "../input/Huron.iside"
+                    idla: 3
+                jside:
+                    filename: "../input/Huron.jside"
+                    idla: 3
+            depth:
+                sf: -1
+                filename: "../input/Huron.depth"
+                idla: 3
+
+        - name: "Super"
+          grid:
+            spectrum:
+                xfr: 1.1
+                freq1: 0.04177
+                nk: 25
+                nth: 24
+            run:
+                flcx: true
+                flcy: true
+                flcth: true
+                flsou: true
+            timesteps:
+                dtmax: 600
+                dtxy: 200
+                dtkth: 300
+                dtmin: 20
+            grid:
+                name: "Lake Superior SMC grid"
+                type: "SMC"
+                coord: "SPHE"
+                clos: "NONE"
+                zlim: -0.1
+                dmin: 0.25
+            smc:
+                mcel:
+                    filename: "../input/Super.mcels"
+                    idla: 3
+                iside:
+                    filename: "../input/Super.iside"
+                    idla: 3
+                jside:
+                    filename: "../input/Super.jside"
+                    idla: 3
+            depth:
+                sf: -1
+                filename: "../input/Super.depth"
+                idla: 3

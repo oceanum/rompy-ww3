@@ -1,0 +1,8 @@
+&SIN4 /
+&SNL4 /
+&SDS4 /
+&SBT /
+&PRO2 DTIME = 0. /
+&PRO3 WDTHCG = 0., WDTHTH = 0. /
+&PRO4 RNFAC = 0., RSFAC = 0. /
+END OF NAMELISTS
