@@ -175,6 +175,7 @@ class NamelistBaseModel(RompyBaseModel):
             "Domain": "DOMAIN_NML",
             "Input": "INPUT_NML",
             "OutputType": "OUTPUT_TYPE_NML",
+            "AllType": "OUTPUT_TYPE_NML",
             "OutputDate": "OUTPUT_DATE_NML",
             "HomogCount": "HOMOG_COUNT_NML",
             "HomogInput": "HOMOG_INPUT_NML",

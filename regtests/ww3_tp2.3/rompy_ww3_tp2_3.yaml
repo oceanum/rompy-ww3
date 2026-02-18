@@ -1,0 +1,101 @@
+# WW3 ModelRun configuration for ww3_tp2.3 regression test
+# Auto-generated from rompy_ww3_tp2_3.py
+
+run_id: ww3_tp2.3_regression
+output_dir: rompy_runs
+period:
+    start: '1968-06-06T00:00:00'
+    duration: 5D
+    interval: 1H
+config:
+    model_type: nml
+    ww3_shel:
+        domain:
+            start: 19680606 000000
+            stop: 19680611 000000
+            iostyp: 0
+        input_nml: {}
+        output_type:
+            field:
+                list: HS DIR SPR DP EF TH1M STH1M TH2M STH2M
+        output_date:
+            field:
+                start: 19680606 000000
+                stride: '86400'
+                stop: 19680611 000000
+        homog_count:
+            n_lev: 0
+            n_cur: 0
+            n_wnd: 0
+            n_ice: 0
+        homog_input: []
+    ww3_grid:
+        grid_type: base
+        spectrum:
+            xfr: 1.1
+            freq1: 0.04665
+            nk: 3
+            nth: 24
+            thoff: 0.0
+        run:
+            fldry: false
+            flcx: true
+            flcy: true
+            flcth: false
+            flck: false
+            flsou: false
+        timesteps:
+            dtmax: 900.0
+            dtxy: 300.0
+            dtkth: 450.0
+            dtmin: 10.0
+        depth:
+            sf: -2500.0
+            filename:
+                model_type: data_blob
+                id: data
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.3/input/GARDEN.depth"
+                link: false
+            idf: 50
+            idla: 2
+        grid:
+            name: '2-D PROPAGATION TEST #3'
+            type: RECT
+            coord: CART
+            clos: NONE
+            zlim: -5.0
+            dmin: 5.75
+        rect:
+            nx: 48
+            ny: 38
+            sx: 100000.0
+            sy: 100000.0
+            sf: 1.0
+            x0: -600000.0
+            y0: -600000.0
+            sf0: 1.0
+    namelists:
+        pro2:
+            dtime: 0.0
+        pro3:
+            wdthcg: 0.0
+            wdthth: 0.0
+        pro4:
+            rnfac: 0.0
+            rsfac: 0.0
+    ww3_ounf:
+        field:
+            timestart: 19680606 000000
+            timestride: '86400'
+            timecount: '999'
+            list: HS DIR SPR DP EF TH1M STH1M TH2M STH2M
+            partition: 0 1 2
+            samefile: true
+            type: 4
+        file:
+            prefix: ww3.
+            netcdf: 3
+            ix0: 1
+            ixn: 1000000000
+            iy0: 1
+            iyn: 1000000000

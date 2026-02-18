@@ -1,0 +1,88 @@
+# WW3 ModelRun configuration for ww3_tp2.13 regression test
+# Auto-generated from rompy_ww3_tp2_13.py
+
+run_id: ww3_tp2.13_regression
+output_dir: rompy_runs
+period:
+    start: '2008-05-22T00:00:00'
+    duration: 9H
+    interval: 1H
+config:
+    model_type: nml
+    ww3_shel:
+        domain:
+            start: 20080522 000000
+            stop: 20080522 090000
+            iostyp: 1
+        input_nml: {}
+        output_type:
+            field:
+                list: DPT HS FP DIR SPR
+            point:
+                file:
+                    model_type: data_blob
+                    id: data
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.13/input/points.list"
+                    link: false
+        output_date:
+            field:
+                start: 20080522 000000
+                stride: '3600'
+                stop: 20080525 000000
+            point:
+                start: 20090522 000000
+                stride: '3600'
+                stop: 20090525 000000
+        homog_count: {}
+    ww3_grid:
+        grid_type: base
+        spectrum:
+            xfr: 1.1
+            freq1: 0.03679
+            nk: 3
+            nth: 72
+            thoff: 0.0
+        run:
+            fldry: false
+            flcx: true
+            flcy: true
+            flcth: true
+            flck: false
+            flsou: false
+        timesteps:
+            dtmax: 900.0
+            dtxy: 300.0
+            dtkth: 300.0
+            dtmin: 60.0
+        depth:
+            sf: -1.0
+            filename: ./../input/depth.1500x200
+        mask:
+            filename: ../input/mask1.1500x200
+        curv:
+            nx: 1500
+            ny: 200
+            xcoord:
+                sf: 1.0
+                'off': 0.0
+                filename: ./../input/lon.1500x200
+                idf: 21
+                idla: 1
+                idfm: 1
+                format: (....)
+            ycoord:
+                sf: 1.0
+                'off': 0.0
+                filename: ./../input/lat.1500x200
+                idf: 21
+                idla: 1
+                idfm: 1
+                format: (....)
+        grid:
+            name: 2-D PROPAGATION TEST 2.13
+            nml: ../input/namelists_2-D.nml
+            type: CURV
+            coord: SPHE
+            clos: NONE
+            zlim: -0.1
+            dmin: 7.5

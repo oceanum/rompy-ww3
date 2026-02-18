@@ -1,0 +1,140 @@
+# WW3 mww3_test_08 Multi-Grid Regression Test Configuration
+#
+# Test: ww3_multi with wind and ice input
+# Purpose: Validate multi-grid with atmospheric and ice forcing
+# Reference: https://github.com/NOAA-EMC/WW3/tree/develop/regtests/mww3_test_08
+
+run_id: "ww3_mww3_test_08_regression"
+output_dir: "rompy_runs"
+
+period:
+    start: "2020-01-01T00:00:00"
+    duration: "24H"
+    interval: "1H"
+
+config:
+    model_type: multi
+
+    multi:
+        domain:
+            start: "20200101 000000"
+            stop: "20200102 000000"
+            iostyp: 1
+            nrinp: 0
+            nrgrd: 2
+
+        model_grids:
+            # Grid A - lower resolution
+            - name: "grd_a"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "T"
+                  ice_conc: "T"
+
+              resource:
+                  rank_id: 1
+                  group_id: 1
+                  comm_frac_start: 0.00
+                  comm_frac_end: 0.50
+
+            # Grid B - higher resolution
+            - name: "grd_b"
+              forcing:
+                  water_levels: "no"
+                  currents: "no"
+                  winds: "T"
+                  ice_conc: "T"
+
+              resource:
+                  rank_id: 2
+                  group_id: 1
+                  comm_frac_start: 0.50
+                  comm_frac_end: 1.00
+
+        output_type:
+            field:
+                list: "HS FP DP DIR ICE WND"
+
+        output_date:
+            field:
+                start: "20200101 000000"
+                stride: "3600"
+                stop: "20200102 000000"
+
+    grids:
+        # Grid A configuration
+        - name: grd_a
+          grid:
+              spectrum:
+                  xfr: 1.1
+                  freq1: 0.04177
+                  nk: 25
+                  nth: 24
+              run:
+                  flcx: true
+                  flcy: true
+                  flcth: true
+              timesteps:
+                  dtmax: 900.0
+                  dtxy: 300.0
+                  dtkth: 450.0
+                  dtmin: 15.0
+              grid:
+                  name: "Grid A with ice"
+                  type: "RECT"
+                  coord: "CART"
+                  clos: "NONE"
+                  zlim: -0.1
+                  dmin: 0.25
+              rect:
+                  nx: 23
+                  ny: 23
+                  sx: 10000.0
+                  sy: 10000.0
+                  x0: -10000.0
+                  y0: -10000.0
+              depth:
+                  sf: -1.0
+                  filename: "../input/Status.depth"
+                  idla: 3
+              mask:
+                  filename: "../input/Status.mask"
+
+        # Grid B configuration
+        - name: grd_b
+          grid:
+              spectrum:
+                  xfr: 1.1
+                  freq1: 0.04177
+                  nk: 25
+                  nth: 24
+              run:
+                  flcx: true
+                  flcy: true
+                  flcth: true
+              timesteps:
+                  dtmax: 450.0
+                  dtxy: 150.0
+                  dtkth: 225.0
+                  dtmin: 15.0
+              grid:
+                  name: "Grid B with ice"
+                  type: "RECT"
+                  coord: "CART"
+                  clos: "NONE"
+                  zlim: -0.1
+                  dmin: 0.25
+              rect:
+                  nx: 23
+                  ny: 23
+                  sx: 10000.0
+                  sy: 10000.0
+                  x0: -10000.0
+                  y0: -10000.0
+              depth:
+                  sf: -1.0
+                  filename: "../input/Status.depth"
+                  idla: 3
+              mask:
+                  filename: "../input/Status.mask"

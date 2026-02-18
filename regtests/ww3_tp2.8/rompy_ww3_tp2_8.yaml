@@ -1,0 +1,138 @@
+# WW3 ModelRun configuration for ww3_tp2.8 regression test
+# Auto-generated from rompy_ww3_tp2_8.py
+
+run_id: ww3_tp2.8_regression
+output_dir: rompy_runs
+period:
+    start: '2008-03-10T06:30:00'
+    duration: 0H
+    interval: 1H
+config:
+    model_type: nml
+    ww3_shel:
+        domain:
+            start: 20080310 063000
+            stop: 20080310 071000
+            iostyp: 1
+        input_nml:
+            forcing:
+                currents: T
+                winds: H
+        output_type:
+            field:
+                list: DPT CUR HS FP DIR SPR
+            point:
+                file:
+                    model_type: data_blob
+                    id: data
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.8/input/points.list"
+                    link: false
+        output_date:
+            field:
+                start: 20080310 000000
+                stride: '600'
+                stop: 20080525 000000
+            point:
+                start: 20080310 000000
+                stride: '600'
+                stop: 20080523 000000
+        homog_count:
+            n_wnd: 1
+        homog_input:
+        -   name: WND
+            date: 20080310 063000
+            value1: 2.0
+            value2: 270.0
+            value3: -10.0
+    ww3_grid:
+        grid_type: base
+        spectrum:
+            xfr: 1.1
+            freq1: 0.0373
+            nk: 32
+            nth: 24
+            thoff: 0.0
+        run:
+            fldry: false
+            flcx: true
+            flcy: true
+            flcth: true
+            flck: true
+            flsou: false
+        timesteps:
+            dtmax: 135.0
+            dtxy: 45.0
+            dtkth: 45.0
+            dtmin: 10.0
+        depth:
+            sf: -1.0
+            filename:
+                model_type: data_blob
+                id: data
+                source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.8/input/iro_1p5k.bot"
+                link: false
+            idf: 50
+            idla: 1
+        inbound_count:
+            n_point: 6
+        inbound_points:
+            points:
+            -   x_index: 102
+                y_index: 86
+                connect: false
+            -   x_index: 102
+                y_index: 118
+                connect: true
+            -   x_index: 2
+                y_index: 118
+                connect: true
+            -   x_index: 2
+                y_index: 2
+                connect: true
+            -   x_index: 102
+                y_index: 2
+                connect: true
+            -   x_index: 102
+                y_index: 11
+                connect: true
+        grid:
+            name: IROISE 1.5KM
+            type: RECT
+            coord: SPHE
+            clos: NONE
+            zlim: -0.1
+            dmin: 1.0
+        rect:
+            nx: 103
+            ny: 119
+            sx: 0.019
+            sy: 0.0125
+            sf: 1.0
+            x0: -6.119
+            y0: 47.6375
+            sf0: 1.0
+    namelists:
+        pro2:
+            dtime: 64800.0
+        pro3:
+            wdthcg: 1.5
+            wdthth: 1.5
+        pro4:
+            rnfac: 0.0
+            rsfac: 0.0
+    ww3_ounf:
+        field:
+            timestart: 20080310 063000
+            timestride: '600'
+            timecount: '999'
+            list: HS CUR
+            partition: 0 1 2
+            samefile: true
+            type: 4
+        file:
+            prefix: ww3.
+            netcdf: 3
+            ix0: 1
+            ixn: 1000000000
+            iy0: 1
+            iyn: 1000000000
