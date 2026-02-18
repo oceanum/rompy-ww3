@@ -15,7 +15,7 @@ period:
 
 # Model configuration (equivalent to NMLConfig)
 config:
-    model_type: nml
+    model_type: shel
 
     ww3_prnc:
         - forcing:
