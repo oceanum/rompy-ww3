@@ -24,6 +24,9 @@ rompy_ww3 = "rompy_ww3.cli:app"
 [project.entry-points."rompy.config"]
 ww3nml = "rompy_ww3.config:NMLConfig"
 
+ [project.entry-points."rompy.postprocess"]
+ ww3_transfer = "rompy_ww3.postprocess.processor:WW3TransferPostprocessor"
+
 [project.entry-points."rompy.source"]
 # Register here any new source. For example:
 # ww3_source_type = "rompy_ww3.source:WW3Source"
