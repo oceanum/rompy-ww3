@@ -1,12 +1,12 @@
-"""WW3 post-processing transfer post-processor.
+"""WW3 post-processing transfer postprocessor.
 
-This module provides a lightweight wrapper that, given a WW3 model_run
-object, discovers the relevant output files, computes target names, and
+This module provides a postprocessor that, given a WW3 model_run object,
+discovers the relevant output files, computes datestamped target names, and
 delegates the actual file transfers to the rompy TransferManager.
 
-The implementation follows the contract described in the task: a
-single, well-tested entry point that can be composed with the WW3
-post-processing pipeline.
+The postprocessor follows the rompy postprocessor framework pattern where
+configuration parameters are passed via the process() method rather than
+__init__(), enabling standalone postprocessor configuration files.
 """
 
 from __future__ import annotations
@@ -22,40 +22,24 @@ from rompy_ww3.postprocess.naming import compute_target_name
 class WW3TransferPostprocessor:
     """Post-process WW3 run results by transferring output files.
 
-    Parameters
-    - destinations: List of destination identifiers/paths understood by
-      TransferManager.
-    - output_types: Manifest filter describing which WW3 output types to include
-      (as accepted by generate_manifest).
-    - failure_policy: How to react to transfer failures. Accepts "CONTINUE"
-      or "FAIL_FAST". Other values raise ValueError.
-    - start_date: Optional date string used for generating target names.
-    - output_stride: Optional stride used by compute_target_name to generate
-      versioned/rotated target names.
+    This postprocessor follows the rompy postprocessor framework pattern,
+    accepting configuration parameters via the process() method rather than
+    __init__(). All configuration is provided by WW3TransferConfig.
+
+    The postprocessor:
+    - Discovers WW3 output files based on output_types filter
+    - Generates datestamped target names for each file
+    - Transfers files to multiple destinations using rompy TransferManager
+    - Handles failures according to the specified policy
     """
 
-    def __init__(
-        self,
-        destinations: List[str],
-        output_types: Dict[str, Any],
-        failure_policy: str = "CONTINUE",
-        start_date: Optional[str] = None,
-        output_stride: Optional[int] = None,
-    ) -> None:
-        if not destinations:
-            raise ValueError("destinations must be a non-empty list of strings")
-        self.destinations: List[str] = list(destinations)
-        self.output_types: Dict[str, Any] = dict(output_types or {})
-        self.start_date: Optional[str] = start_date
-        self.output_stride: Optional[int] = output_stride
+    def __init__(self) -> None:
+        """Initialize the postprocessor.
 
-        # Convert string policy to enum understood by the transfer backend
-        if failure_policy == "CONTINUE":
-            self.policy = TransferFailurePolicy.CONTINUE
-        elif failure_policy == "FAIL_FAST":
-            self.policy = TransferFailurePolicy.FAIL_FAST
-        else:
-            raise ValueError(f"Invalid failure_policy: {failure_policy}")
+        Note: This follows the new rompy postprocessor pattern where
+        configuration parameters are passed via process(), not __init__().
+        """
+        pass
 
     def _get_output_dir(self, model_run: Any) -> Path:
         """Resolve the output directory from a model_run object.
@@ -78,8 +62,33 @@ class WW3TransferPostprocessor:
 
         raise AttributeError("Cannot determine output directory from model_run")
 
-    def process(self, model_run: Any, **kwargs) -> Dict[str, object]:
+    def process(
+        self,
+        model_run: Any,
+        destinations: List[str],
+        output_types: Dict[str, Any],
+        failure_policy: str = "CONTINUE",
+        start_date: Optional[str] = None,
+        output_stride: Optional[int] = None,
+        **kwargs,
+    ) -> Dict[str, object]:
         """Execute the transfer post-processing for a given model_run.
+
+        Args:
+            model_run: The model run object containing output directory information
+            destinations: List of destination URIs for file transfers
+            output_types: Manifest filter describing which WW3 output types to include
+            failure_policy: How to react to transfer failures ("CONTINUE" or "FAIL_FAST")
+            start_date: Optional date string (YYYYMMDD HHMMSS) for generating target names
+            output_stride: Optional stride in seconds for restart file naming
+            **kwargs: Additional parameters (ignored)
+
+        Returns:
+            Dictionary with transfer results:
+            - success: bool indicating if all transfers succeeded
+            - transferred_count: number of successful transfers
+            - failed_count: number of failed transfers
+            - results: list of per-file transfer results
 
         Steps:
         1. Resolve the output directory from the model_run
@@ -89,11 +98,23 @@ class WW3TransferPostprocessor:
         5. Return a structured summary of the transfer results
         """
 
+        # Validate destinations
+        if not destinations:
+            raise ValueError("destinations must be a non-empty list of strings")
+
+        # Convert string policy to enum understood by the transfer backend
+        if failure_policy == "CONTINUE":
+            policy = TransferFailurePolicy.CONTINUE
+        elif failure_policy == "FAIL_FAST":
+            policy = TransferFailurePolicy.FAIL_FAST
+        else:
+            raise ValueError(f"Invalid failure_policy: {failure_policy}")
+
         # 1) Determine where WW3 outputs live
         output_dir = self._get_output_dir(model_run)
 
         # 2) Build manifest of files to transfer
-        files = generate_manifest(output_dir, self.output_types)
+        files = generate_manifest(output_dir, output_types)
         files = [Path(p) if not isinstance(p, Path) else p for p in files]
 
         # 3) Build mapping from source file to target name
@@ -106,26 +127,26 @@ class WW3TransferPostprocessor:
                 # If restart-specific params are available, compute a proper
                 # restart target name. Otherwise, fall back to a stable name
                 # based on the file name to avoid raising during tests.
-                if self.start_date is not None and self.output_stride is not None:
+                if start_date is not None and output_stride is not None:
                     target_name = compute_target_name(
                         f,
                         is_restart=True,
-                        start_date=self.start_date,
-                        output_stride=self.output_stride,
+                        start_date=start_date,
+                        output_stride=output_stride,
                     )
                 else:
                     target_name = f.name
             else:
-                target_name = compute_target_name(f, date_str=self.start_date)
+                target_name = compute_target_name(f, date_str=start_date)
             name_map[f] = target_name
 
         # 4) Perform the transfers
         manager = TransferManager()
         result = manager.transfer_files(
             files=files,
-            destinations=self.destinations,
+            destinations=destinations,
             name_map=name_map,
-            policy=self.policy,
+            policy=policy,
         )
 
         # 5) Normalize the result into a predictable dict

@@ -25,8 +25,8 @@ rompy_ww3 = "rompy_ww3.cli:app"
 ww3shel = "rompy_ww3.config:ShelConfig"
 ww3multi = "rompy_ww3.config:MultiConfig"
 
- [project.entry-points."rompy.postprocess"]
- ww3_transfer = "rompy_ww3.postprocess.processor:WW3TransferPostprocessor"
+ [project.entry-points."rompy.postprocess.config"]
+ ww3_transfer = "rompy_ww3.postprocess.config:WW3TransferConfig"
 
 [project.entry-points."rompy.source"]
 # Register here any new source. For example:
