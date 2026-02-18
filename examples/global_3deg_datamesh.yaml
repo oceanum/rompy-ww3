@@ -1,0 +1,141 @@
+# Complete WW3 ModelRun configuration for ww3_tp2.4 regression test
+#
+# This YAML configuration defines a complete ModelRun that can be executed
+# directly with the rompy CLI for the WW3 tp2.4 regression test.
+
+# ModelRun parameters
+run_id: glob3"
+output_dir: "rompy_runs"
+
+# Time configuration
+period:
+    start: "2008-05-22T00:00:00"
+    duration: "1d" # 3 hours duration
+    interval: "1H" # 1 hour time interval
+
+# Model configuration (equivalent to NMLConfig)
+config:
+    model_type: nml
+
+    ww3_prnc:
+        - forcing:
+              field:
+                  winds: "T"
+          file:
+              var1: "u10" # U-component of wind
+              var2: "v10" # V-component of wind
+              filename:
+                  # For datamesh source, uncomment the structure below:
+                  model_type: data_grid
+                  variables:
+                      - "u10"
+                      - "v10"
+                  source:
+                      model_type: datamesh
+                      datasource: "era5_wind10m"
+                  filter:
+                      sort:
+                          coords:
+                              - latitude
+                  #
+                  # For local file source (currently configured):
+                  # model_type: data_blob
+                  # source: "global_u10_v10.nc"
+        - forcing:
+              field:
+                  ice_conc: "T"
+          file:
+              var1: "siconc" # U-component of wind
+              filename:
+                  model_type: data_grid
+                  variables:
+                      - "siconc"
+                  source:
+                      model_type: datamesh
+                      datasource: "era5_seaicecon"
+                  filter:
+                      sort:
+                          coords:
+                              - latitude
+
+    ww3_shel:
+        domain:
+            iostyp: 1 # Output server type from reference
+        output_type:
+            field:
+                list: "DPT HS ICE FP DIR SPR WND" # Output fields from reference
+            point:
+                file:
+                    model_type: data_blob
+                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/points.list"
+
+    # Grid component for ww3_grid.nml (grid preprocessing configuration)
+    ww3_grid:
+        spectrum:
+            xfr: 1.1 # Frequency increment from reference
+            freq1: 0.03679 # First frequency (Hz) from reference for tp2.4
+            nk: 29 # Number of frequencies from reference for tp2.4
+            nth: 24 # Number of direction bins from reference for tp2.4
+            thoff: 0.0 # Relative offset of first direction
+        run:
+            fldry: false # Not a dry run
+            flcx: true # X-component of propagation from reference
+            flcy: true # Y-component of propagation from reference
+            flcth: true # Direction shift from reference
+            flck: false # Wavenumber shift from reference
+            flsou: true # No source terms for this test case (LN0 ST0 NL0 BT0 DB0 TR0 BS0 XX0)
+        timesteps:
+            dtmax: 3600.0 # Maximum CFL timestep (should be ~3 times dtxy)
+            dtxy: 1200 # Propagation timestep from reference
+            dtkth: 1200 # Refraction timestep (should be between dtmax/10 and dtmax/2)
+            dtmin: 10.0 # Minimum time step for source terms
+        grid:
+            name: "Gobal 3 degree test case" # Grid name from reference
+            type: "RECT" # Rectilinear grid from reference
+            coord: "SPHE" # Spherical coordinates from reference
+            clos: "NONE" # No closure from reference
+            zlim: -0.1 # Minimum depth from reference
+            dmin: 7.50 # Minimum water depth from reference
+        rect:
+            nx: 120 # Number of points along x-axis from reference
+            ny: 50 # Number of points along y-axis from reference
+            sx: 3 # Grid increment along x-axis from reference
+            sy: 3 # Grid increment along y-axis from reference
+            x0: 0 # Western boundary from reference
+            y0: -75 # Southern boundary from reference
+        depth:
+            filename:
+                model_type: data_blob
+                source: "gs://oceanum-static/ww3/glob3/glob3.depth_ascii"
+            sf: 1.0 # Scale factor from reference
+            idf: 50 # IDF
+            idla: 1 # IDLA
+
+    # Parameters component for namelists.nml (model parameters configuration)
+    namelists:
+        pro2:
+            dtime: 64800.0 # From namelists_2-D.nml
+        pro3:
+            wdthcg: 1.5
+            wdthth: 1.5 # From namelists_2-D.nml
+        pro4:
+            rnfac: 0.0
+            rsfac: 0.0 # From namelists_2-D.nml
+
+    # Field output component for ww3_ounf.nml (field output post-processing)
+    ww3_ounf:
+        field:
+            # timestart: "20080522 000000" # Start time from reference
+            timestride: "3600" # Time stride from reference (1 hour)
+            timecount: "999" # Number of time steps from reference
+            partition: "0 1 2" # Wave partitions from reference
+            type: 4 # Data type: REAL from reference
+            samefile: true # All variables in same file from reference
+        file:
+            prefix: "ww3."
+            netcdf: 3 # NetCDF version from reference
+            ix0: 1 # First X-axis index
+            ixn: 1000000000 # Last X-axis index (default large value)
+            iy0: 1 # First Y-axis index
+            iyn: 1000000000 # Last Y-axis index (default large value)
+
