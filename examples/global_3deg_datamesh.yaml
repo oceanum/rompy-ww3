@@ -60,13 +60,22 @@ config:
     ww3_shel:
         domain:
             iostyp: 1 # Output server type from reference
+            start: "20080522 000000"
+            stop: "20080523 000000"
         output_type:
+            restart:
+                extra: DW # Extra output (D=daily, W=weekly)
             field:
                 list: "DPT HS ICE FP DIR SPR WND" # Output fields from reference
             point:
                 file:
                     model_type: data_blob
                     source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/points.list"
+        output_date:
+            restart:
+                start: "20080522 000000"
+                stride: 21600 # 6 hours in seconds
+                stop: "20080523 000000"
 
     # Grid component for ww3_grid.nml (grid preprocessing configuration)
     ww3_grid:
@@ -138,32 +147,14 @@ config:
             iy0: 1 # First Y-axis index
             iyn: 1000000000 # Last Y-axis index (default large value)
 
-# Postprocessor configuration for ww3_transfer
-# This is used when running: rompy postprocess <config> --processor ww3_transfer
+# Postprocessor configuration to test auto-extraction of timing parameters
+# The start_date and output_stride are now automatically extracted from
+# ww3_shel.domain.start and ww3_shel.output_date.restart.stride above
 postprocessor:
     ww3_transfer:
-        # Destination prefixes (can be file://, s3://, etc.)
         destinations:
-            - "file:///tmp/ww3_backup/"
-            - "file:///tmp/ww3_archive/"
-
-        # Output types to transfer (must match output_type configuration above)
+            - "file:///tmp/ww3_glob3_backup/"
         output_types:
             restart:
                 extra: DW
-            field:
-                list: [1, 2, 3, 4] # Index-based reference to field outputs
-
-        # Failure policy: "CONTINUE" or "FAIL_FAST"
         failure_policy: "CONTINUE"
-
-        # Start date for restart valid-date computation (WW3 format: "YYYYMMDD HHMMSS")
-        start_date: "20230101 000000"
-
-        # Output stride in seconds (used for restart valid-date computation)
-        output_stride: 21600
-
-# Backend configuration (optional - defaults to local)
-backend:
-    backend_type: local
-    model_dir: ./ww3_model
