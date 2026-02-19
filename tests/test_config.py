@@ -139,7 +139,9 @@ def test_config_stride_functionality():
     # Call the method that should set the stride
     config._set_default_dates(runtime)
 
-    # After calling, stride values should be set to interval in seconds
+    # After calling, stride values should be set to interval in seconds (as int)
+    assert isinstance(config.ww3_ounf.field.timestride, int)
+    assert isinstance(config.ww3_ounp.point_nml.timestride, int)
     assert config.ww3_ounf.field.timestride == expected_stride
     assert config.ww3_ounp.point_nml.timestride == expected_stride
 
@@ -184,15 +186,15 @@ def test_config_stride_preserves_existing_values():
     runtime = MockRuntime(period)
 
     # Before calling _set_default_dates
-    assert config.ww3_ounf.field.timestride == existing_stride
-    assert config.ww3_ounp.point_nml.timestride == existing_stride
+    assert config.ww3_ounf.field.timestride == int(existing_stride)
+    assert config.ww3_ounp.point_nml.timestride == int(existing_stride)
 
     # Call the method that should preserve existing stride values
     config._set_default_dates(runtime)
 
     # After calling, existing stride values should be preserved
-    assert config.ww3_ounf.field.timestride == existing_stride
-    assert config.ww3_ounp.point_nml.timestride == existing_stride
+    assert config.ww3_ounf.field.timestride == int(existing_stride)
+    assert config.ww3_ounp.point_nml.timestride == int(existing_stride)
 
 
 def test_output_date_initialization_when_output_type_active():
