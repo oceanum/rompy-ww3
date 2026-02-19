@@ -1,0 +1,15 @@
+warning: No `requires-python` value found in the workspace. Defaulting to `>=3.11`.
+Testing Date fields in Domain...
+Domain start: 2023-01-01 00:00:00 (type: <class 'datetime.datetime'>)
+
+Testing Integer fields in Field...
+Field timestride: 3600 (type: <class 'int'>)
+
+Testing Float fields in Timesteps...
+Timesteps dtmax: 1800.0 (type: <class 'float'>)
+
+Testing Date fields in OutputDateField...
+OutputDateField start: 2023-01-01 00:00:00 (type: <class 'datetime.datetime'>)
+OutputDateField stride: 3600 (type: <class 'int'>)
+
+All backward compatibility tests passed!

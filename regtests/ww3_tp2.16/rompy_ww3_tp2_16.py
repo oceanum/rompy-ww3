@@ -168,7 +168,7 @@ def create_ww3_tp2_16_config():
     field_output_component = Ounf(
         field=Field(
             timestart="20100101 000000",
-            timestride="3600",  # 1 hour output
+            timestride=3600,  # 1 hour output
             timecount="1000000000",
             list="HS T02 DP DIR FP WND",
             partition="0 1 2",

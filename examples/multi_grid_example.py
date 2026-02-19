@@ -8,6 +8,7 @@ This example demonstrates:
 - Configuring coupling between grids
 """
 
+from datetime import datetime
 from pathlib import Path
 
 from rompy_ww3.config import Config
@@ -39,12 +40,13 @@ def main():
 
     # Domain for multi-grid setup
     domain = Domain(
-        start="20230101 000000",
-        stop="20230102 000000",
+        start=datetime(2023, 1, 1, 0, 0, 0),
+        stop=datetime(2023, 1, 2, 0, 0, 0),
         iostyp=1,
-        ngrd=2,  # 2 grids
+        nrgrd=2,  # 2 model grids
         nrinp=1,  # 1 input grid
     )
+
     print(
         f"   Domain: {domain.start} to {domain.stop}, {domain.nrgrd} model grids, {domain.nrinp} input grid"
     )
@@ -70,12 +72,10 @@ def main():
     model_grid1 = ModelGrid(
         name="region1",
         forcing=ModelGridForcing(
-            water_levels="F",
-            currents="F",
-            winds="T",
-            ice_conc="F",
-            air_density="F",
-            atm_momentum="F",
+            winds="global",
+            currents="no",
+            water_levels="no",
+            ice_conc="no",
         ),
         resource=ModelGridResource(
             rank_id=0,
@@ -89,12 +89,10 @@ def main():
     model_grid2 = ModelGrid(
         name="region2",
         forcing=ModelGridForcing(
-            water_levels="F",
-            currents="F",
-            winds="T",
-            ice_conc="F",
-            air_density="F",
-            atm_momentum="F",
+            winds="global",
+            currents="no",
+            water_levels="no",
+            ice_conc="no",
         ),
         resource=ModelGridResource(
             rank_id=1,
@@ -154,13 +152,19 @@ def main():
 
     output_date = OutputDate(
         field=OutputDateField(
-            start="20230101 000000", stride="3600", stop="20230102 000000"
+            start=datetime(2023, 1, 1, 0, 0, 0),
+            stride=3600,
+            stop=datetime(2023, 1, 2, 0, 0, 0),
         ),
         point=OutputDatePoint(
-            start="20230101 000000", stride="3600", stop="20230102 000000"
+            start=datetime(2023, 1, 1, 0, 0, 0),
+            stride=3600,
+            stop=datetime(2023, 1, 2, 0, 0, 0),
         ),
         restart=OutputDateRestart(
-            start="20230101 120000", stride="43200", stop="20230102 000000"
+            start=datetime(2023, 1, 1, 12, 0, 0),
+            stride=43200,
+            stop=datetime(2023, 1, 2, 0, 0, 0),
         ),
     )
     print(

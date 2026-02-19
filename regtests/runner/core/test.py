@@ -7,7 +7,6 @@ import yaml
 
 from dataclasses import dataclass
 
-
 logger = logging.getLogger(__name__)
 
 

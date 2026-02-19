@@ -57,7 +57,9 @@ def create_ww3_tp1_1_components():
         output_type=OutputType(
             field={"list": "HS"},  # Output significant wave height only
             point={
-                "file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.1/input/points.list")
+                "file": WW3DataBlob(
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.1/input/points.list"
+                )
             },  # Point output file
         ),
         output_date=OutputDate(
@@ -140,7 +142,7 @@ def create_ww3_tp1_1_components():
     field_output_component = Ounf(
         field=Field(
             timestart="19680600 000000",  # Start time from reference
-            timestride="86400",  # Time stride (1 day = 86400 seconds) from reference
+            timestride=86400,  # Time stride (1 day = 86400 seconds) from reference
             timecount="999",  # Number of time steps
             list="HS",  # Output significant wave height
             partition="0 1 2",  # Wave partitions

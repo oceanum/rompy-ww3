@@ -83,14 +83,20 @@ def create_ww3_tp2_12_config():
             y0=-77.5,
         ),
         depth=Depth(
-            filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.12/input/glo_30m.bot"),
+            filename=WW3DataBlob(
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.12/input/glo_30m.bot"
+            ),
             sf=0.001,
         ),
         mask=Mask(
-            filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.12/input/glo_30m.mask"),
+            filename=WW3DataBlob(
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.12/input/glo_30m.mask"
+            ),
         ),
         obstacle=Obstacle(
-            filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.12/input/glo_30m.obst"),
+            filename=WW3DataBlob(
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.12/input/glo_30m.obst"
+            ),
             sf=0.01,
         ),
     )

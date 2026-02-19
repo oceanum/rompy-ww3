@@ -10,6 +10,7 @@ from rompy_ww3.namelists import Domain, HomogInput, Timesteps
 from rompy_ww3.components import Shel, Grid
 from rompy_ww3.namelists.field import Field
 from rompy_ww3.namelists.point import Point
+from datetime import datetime
 
 
 def test_config_with_namelists():
@@ -19,7 +20,11 @@ def test_config_with_namelists():
     from rompy_ww3.namelists.input import Input
 
     shell_component = Shel(
-        domain=Domain(start="20230101 000000", stop="20230102 000000", iostyp=1),
+        domain=Domain(
+            start=datetime(2023, 1, 1, 0, 0, 0),
+            stop=datetime(2023, 1, 2, 0, 0, 0),
+            iostyp=1,
+        ),
         input_nml=Input(),
         homog_input=[
             HomogInput(name="WND", date="20230101 000000", value1=10.0, value2=90.0),
@@ -49,7 +54,11 @@ def test_nml_config_integration():
     from rompy_ww3.namelists.input import Input
 
     shell_component = Shel(
-        domain=Domain(start="20230101 000000", stop="20230102 000000", iostyp=1),
+        domain=Domain(
+            start=datetime(2023, 1, 1, 0, 0, 0),
+            stop=datetime(2023, 1, 2, 0, 0, 0),
+            iostyp=1,
+        ),
         input_nml=Input(),
         homog_input=[
             HomogInput(name="WND", date="20230101 000000", value1=10.0, value2=90.0),
@@ -95,9 +104,7 @@ def test_config_stride_functionality():
     """Test that stride values are set to period.interval when not already set."""
     # Create a TimeRange with a specific interval
     period = TimeRange(start="2023-01-01", end="2023-01-10", interval="6h")
-    expected_stride = str(
-        int(period.interval.total_seconds())
-    )  # 21600 seconds (6 hours)
+    expected_stride = int(period.interval.total_seconds())  # 21600 seconds (6 hours)
 
     from rompy_ww3.components import Ounf, Ounp
 
@@ -139,7 +146,9 @@ def test_config_stride_functionality():
     # Call the method that should set the stride
     config._set_default_dates(runtime)
 
-    # After calling, stride values should be set to interval in seconds
+    # After calling, stride values should be set to interval in seconds (as int)
+    assert isinstance(config.ww3_ounf.field.timestride, int)
+    assert isinstance(config.ww3_ounp.point_nml.timestride, int)
     assert config.ww3_ounf.field.timestride == expected_stride
     assert config.ww3_ounp.point_nml.timestride == expected_stride
 
@@ -184,15 +193,15 @@ def test_config_stride_preserves_existing_values():
     runtime = MockRuntime(period)
 
     # Before calling _set_default_dates
-    assert config.ww3_ounf.field.timestride == existing_stride
-    assert config.ww3_ounp.point_nml.timestride == existing_stride
+    assert config.ww3_ounf.field.timestride == int(existing_stride)
+    assert config.ww3_ounp.point_nml.timestride == int(existing_stride)
 
     # Call the method that should preserve existing stride values
     config._set_default_dates(runtime)
 
     # After calling, existing stride values should be preserved
-    assert config.ww3_ounf.field.timestride == existing_stride
-    assert config.ww3_ounp.point_nml.timestride == existing_stride
+    assert config.ww3_ounf.field.timestride == int(existing_stride)
+    assert config.ww3_ounp.point_nml.timestride == int(existing_stride)
 
 
 def test_output_date_initialization_when_output_type_active():

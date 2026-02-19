@@ -11,11 +11,11 @@ class Sediment(NamelistBaseModel):
 
     The SED_NML namelist defines the sedimentary bottom map for WAVEWATCH III grids.
     This map is used only if &SBT4 SEDMAPD50 = T is defined in param.nml.
-    
+
     The sediment values represent the median grain size (D50) of the sediment, which
-    affects bottom friction and wave dissipation. The scale factor converts the input 
+    affects bottom friction and wave dissipation. The scale factor converts the input
     values to the appropriate sediment values needed by WW3's sediment calculations.
-    
+
     In the case of unstructured grids, no sedimentary bottom file can be added.
     """
 
@@ -26,14 +26,14 @@ class Sediment(NamelistBaseModel):
             "The final sediment value is calculated as: value = value_read * scale_factor. "
             "This factor is used to convert the values from the input file to appropriate "
             "sediment values (typically median grain size in mm) for WW3's sediment calculations."
-        )
+        ),
     )
     filename: Optional[Union[str, WW3DataBlob]] = Field(
         default=None,
         description=(
             "Filename or data blob containing the sedimentary bottom data for the grid. This file should contain "
             "the sediment median grain size (D50) values in the format specified by the idfm and format parameters."
-        )
+        ),
     )
     idf: Optional[int] = Field(
         default=None,
@@ -41,7 +41,7 @@ class Sediment(NamelistBaseModel):
             "File unit number for the sediment file. Each file in WW3 is assigned a unique "
             "unit number to distinguish between different input files during processing."
         ),
-        ge=1  # Must be positive file unit number
+        ge=1,  # Must be positive file unit number
     )
     idla: Optional[int] = Field(
         default=None,
@@ -53,7 +53,7 @@ class Sediment(NamelistBaseModel):
             "  4: Like 3, but with a single read statement"
         ),
         ge=1,
-        le=4
+        le=4,
     )
     idfm: Optional[int] = Field(
         default=None,
@@ -64,7 +64,7 @@ class Sediment(NamelistBaseModel):
             "  3: Unformatted"
         ),
         ge=1,
-        le=3
+        le=3,
     )
     format: Optional[str] = Field(
         default=None,
@@ -72,10 +72,10 @@ class Sediment(NamelistBaseModel):
             "Formatted read format specification, like '(f10.6)' for float type. "
             "Use '(....)' for auto detection of the format. This specifies how the "
             "sediment values should be read from the file."
-        )
+        ),
     )
 
-    @field_validator('sf')
+    @field_validator("sf")
     @classmethod
     def validate_scale_factor(cls, v):
         """Validate scale factor is not zero."""
@@ -84,7 +84,7 @@ class Sediment(NamelistBaseModel):
                 raise ValueError(f"Scale factor must not be zero, got {v}")
         return v
 
-    @field_validator('idf')
+    @field_validator("idf")
     @classmethod
     def validate_file_unit(cls, v):
         """Validate file unit number."""
@@ -93,15 +93,17 @@ class Sediment(NamelistBaseModel):
                 raise ValueError(f"File unit number must be positive, got {v}")
         return v
 
-    @field_validator('idla')
+    @field_validator("idla")
     @classmethod
     def validate_idla(cls, v):
         """Validate layout indicator."""
         if v is not None and v not in [1, 2, 3, 4]:
-            raise ValueError(f"Layout indicator (idla) must be between 1 and 4, got {v}")
+            raise ValueError(
+                f"Layout indicator (idla) must be between 1 and 4, got {v}"
+            )
         return v
 
-    @field_validator('idfm')
+    @field_validator("idfm")
     @classmethod
     def validate_idfm(cls, v):
         """Validate format indicator."""

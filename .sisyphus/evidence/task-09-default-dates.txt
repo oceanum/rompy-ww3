@@ -1,0 +1,76 @@
+======================================================================
+TASK 9: set_default_dates() with datetime-typed fields
+======================================================================
+
+1. PROBLEM IDENTIFIED
+   - Old: period.start.strftime('%Y%m%d %H%M%S') -> string
+   - Old: setattr() assigned string to Optional[datetime] field
+   - Type inconsistency: datetime-typed field contained str
+   - Rendering worked but types were wrong
+
+2. SOLUTION IMPLEMENTED
+   - New: setattr(self, field_name, period.start) -> datetime
+   - Type consistency: Optional[datetime] field contains datetime
+   - Rendering still works (process_value handles both)
+
+======================================================================
+TEST 1: Domain.set_default_dates()
+======================================================================
+Period: 2023-01-01 00:00:00 to 2023-01-10 00:00:00
+Before: start=None, stop=None
+After:  start=2023-01-01 00:00:00, stop=2023-01-10 00:00:00
+  start type: datetime
+  stop type:  datetime
+  isinstance(d.start, datetime)? True
+
+Rendered namelist:
+&DOMAIN_NML
+  DOMAIN%START = 20230101 000000
+  DOMAIN%STOP = 20230110 000000
+/
+
+======================================================================
+TEST 2: Field.set_default_dates() (nested model)
+======================================================================
+Before: timestart=None, timestride=None
+After:  timestart=2023-01-01 00:00:00, timestride=None
+  timestart type: datetime
+  isinstance(f.timestart, datetime)? True
+
+======================================================================
+TEST 3: Verify WW3 format correctness
+======================================================================
+Expected: YYYYMMDD HHMMSS (bare token, no quotes)
+    DOMAIN%START = 20230101 000000
+    Value: 20230101 000000
+    Length: 15
+    Has quotes? False
+    DOMAIN%STOP = 20230110 000000
+    Value: 20230110 000000
+    Length: 15
+    Has quotes? False
+
+======================================================================
+CHANGES MADE
+======================================================================
+File: src/rompy_ww3/namelists/basemodel.py
+
+Method: set_default_dates() [Lines 335-363]
+  BEFORE: setattr(self, field_name, period.start.strftime('%Y%m%d %H%M%S'))
+  AFTER:  setattr(self, field_name, period.start)
+  Reason: Pass datetime objects directly for datetime-typed fields
+
+Method: _set_nested_object_dates_recursive() [Lines 382-411]
+  BEFORE: setattr(obj, field_name, period.start.strftime('%Y%m%d %H%M%S'))
+  AFTER:  setattr(obj, field_name, period.start)
+  Reason: Pass datetime objects directly for datetime-typed fields
+
+======================================================================
+VERIFICATION
+======================================================================
+✓ Date fields now receive datetime objects (not strings)
+✓ Type consistency: Optional[datetime] contains datetime
+✓ Rendering still produces correct WW3 format (YYYYMMDD HHMMSS)
+✓ All 82 tests pass with no regressions
+✓ Works for both top-level and nested date fields
+✓ No changes needed to rendering logic (process_value handles datetime)

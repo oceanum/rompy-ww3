@@ -21,7 +21,7 @@ class UnformattedOutput(NamelistBaseModel):
     start: Optional[str] = Field(
         default=None, description="Unformatted output start time (yyyymmdd hhmmss)"
     )
-    stride: Optional[str] = Field(
+    stride: Optional[int] = Field(
         default=None, description="Unformatted output time stride (seconds)"
     )
     stop: Optional[str] = Field(

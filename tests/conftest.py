@@ -20,7 +20,6 @@ import requests
 # Import test utilities for logging
 from .test_utils.logging import configure_test_logging
 
-
 DATA_REPO = "rom-py/rompy-test-data"
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 GITHUB_API_RELEASES = f"https://api.github.com/repos/{DATA_REPO}/releases/latest"

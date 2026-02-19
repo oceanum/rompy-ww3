@@ -58,7 +58,9 @@ def create_ww3_tp1_4_components():
         output_type=OutputType(
             field={"list": "HS T01 DIR"},  # Output HS, mean period, direction
             point={
-                "file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.4/input/points.list")
+                "file": WW3DataBlob(
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.4/input/points.list"
+                )
             },  # Point output file
         ),
         output_date=OutputDate(
@@ -151,7 +153,7 @@ def create_ww3_tp1_4_components():
     field_output_component = Ounf(
         field=Field(
             timestart="19680606 000000",
-            timestride="900",  # Time stride (15 minutes = 900 seconds)
+            timestride=900,  # Time stride (15 minutes = 900 seconds)
             timecount="999",  # Number of time steps
             list="HS T01 DIR",  # Output HS, mean period, direction
             partition="0 1 2",  # Wave partitions

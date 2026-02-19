@@ -9,7 +9,6 @@ from .base import Backend
 from ..core.test import TestCase
 from ..core.result import TestResult, TestStatus
 
-
 logger = logging.getLogger(__name__)
 
 

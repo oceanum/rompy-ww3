@@ -69,9 +69,11 @@ def generate_report():
                 mismatches[diff.namelist_name].append(
                     {
                         "test": test_name,
-                        "diff": diff.diff_content[:500]
-                        if diff.diff_content
-                        else "No reference",
+                        "diff": (
+                            diff.diff_content[:500]
+                            if diff.diff_content
+                            else "No reference"
+                        ),
                     }
                 )
 

@@ -8,13 +8,18 @@ from rompy_ww3.config import ShelConfig
 from rompy_ww3.namelists import Domain
 from rompy_ww3.components import Shel as ShellComponent
 from rompy_ww3.namelists.input import Input
+from datetime import datetime
 
 
 def test_template_context_generation():
     """Test template context generation."""
     # Create shell component
     shell_component = ShellComponent(
-        domain=Domain(start="20230101 000000", stop="20230102 000000", iostyp=1),
+        domain=Domain(
+            start=datetime(2023, 1, 1, 0, 0, 0),
+            stop=datetime(2023, 1, 2, 0, 0, 0),
+            iostyp=1,
+        ),
         input_nml=Input(),
     )
 
@@ -46,7 +51,9 @@ def test_run_script_generation():
         config = ShelConfig(
             ww3_shel=ShellComponent(
                 domain=Domain(
-                    start="20230101 000000", stop="20230102 000000", iostyp=0
+                    start=datetime(2023, 1, 1, 0, 0, 0),
+                    stop=datetime(2023, 1, 2, 0, 0, 0),
+                    iostyp=0,
                 ),
                 input_nml=Input(),
             ),

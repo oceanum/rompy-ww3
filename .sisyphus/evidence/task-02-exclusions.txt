@@ -1,0 +1,85 @@
+# Exclusion List for Type Conversion
+
+## DO NOT CONVERT - Legitimate String Fields (18 fields + 9 additional)
+
+### Format Specifiers (9 fields)
+curv.py:69:format
+depth.py:72:format
+mask.py:65:format
+obstacle.py:75:format
+sediment.py:69:format
+slope.py:69:format
+smc.py:55:format
+unformatted.py:32:file_format
+unst.py:67:format
+
+### File Paths and Names (11 fields)
+grid.py:19:name
+grid.py:26:nml
+homogeneous.py:105:name
+input.py:266:name
+input.py:393:name
+output_file.py:19:prefix
+output_type.py:65:name
+point.py:154:prefix
+restartupdate.py:39:input_restart
+restartupdate.py:47:output_restart
+track.py:71:prefix
+unst.py:75:ugobcfile
+
+### Variable Name Arrays (5 fields)
+file.py:46:longitude
+file.py:54:latitude
+file.py:62:var1
+file.py:70:var2
+file.py:78:var3
+
+### List/Partition Strings (4 fields)
+field.py:57:list
+field.py:65:partition
+point.py:56:list
+unformatted.py:15:field_list
+
+### Special Case - NetCDF Epoch (1 field)
+field.py:134:timeepoch  # Different date format: 'YYYY-MM-DD HH:MM:SS'
+
+### Method Return Types (2 fields - not actual model fields)
+forcing.py:196:ww3_var_name
+forcing.py:353:ww3_var_name
+
+### Commented Out Fields (1 field)
+forcing.py:37:variable
+
+---
+
+## DEFER - Needs Investigation (5 fields)
+
+bound.py:20:mode                    # Unknown allowed values
+forcing.py:320:tidal                # Unclear if numeric or flag
+output_type.py:154:sent             # Unclear usage context
+output_type.py:164:received         # Unclear usage context
+output_type.py:193:extra            # Unclear usage context
+restartupdate.py:78:update_method   # Already validated, low priority
+
+---
+
+## Summary
+- **Total Excluded:** 32 fields
+- **To Investigate:** 5 fields
+- **Conversion Candidates:** 81 fields (from original 118)
+  - High confidence: 35 fields (14 int + 21 dates)
+  - Keep as str: 36 fields (WW3 boolean F/T/H/C flags)
+  - Enum candidates: 4 fields
+  - Special cases: 6 fields
+
+---
+
+## Rationale for Exclusions
+
+1. **Format strings** are WW3-specific file format specifiers, not type-convertible
+2. **File paths/names** are legitimate user-provided strings
+3. **Variable names** reference NetCDF variable identifiers
+4. **Lists** are space-separated strings parsed by WW3
+5. **timeepoch** uses different date format than other date fields
+6. **Methods** are return types, not model fields
+7. **Commented fields** are not active in the codebase

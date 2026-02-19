@@ -1,9 +1,10 @@
 """DOMAIN_NML namelist implementation for WW3."""
 
+from datetime import datetime
 from typing import Optional
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
-from .validation import validate_date_format, validate_io_type
+from .validation import validate_io_type
 
 
 class Domain(NamelistBaseModel):
@@ -23,20 +24,20 @@ class Domain(NamelistBaseModel):
     """
 
     # Single-grid parameters
-    start: Optional[str] = Field(
+    start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Start date for the entire model in format 'YYYYMMDD HHMMSS'. "
+            "Start date for the entire model. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
             "This sets the starting time for the wave model simulation. "
-            "Example: '20100101 120000' for January 1, 2010 at 12:00:00 UTC."
+            "Example: datetime(2010, 1, 1, 12, 0, 0) or '20100101 120000' for January 1, 2010 at 12:00:00 UTC."
         ),
     )
-    stop: Optional[str] = Field(
+    stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Stop date for the entire model in format 'YYYYMMDD HHMMSS'. "
+            "Stop date for the entire model. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
             "This sets the ending time for the wave model simulation. "
-            "Example: '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 12, 31, 0, 0, 0) or '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
         ),
     )
     iostyp: Optional[int] = Field(
@@ -48,7 +49,7 @@ class Domain(NamelistBaseModel):
             "  1: No data server process. All output for each type performed by process "
             "that performs computations too\n"
             "  2: Last process is reserved for all output, and does no computing\n"
-            "  3: Multiple dedicated output processes"
+            "  3: Multiple dedicated output processes. This field can be supplied as a string as part of backward-compatible input parsing."
         ),
         ge=0,
         le=3,
@@ -88,10 +89,12 @@ class Domain(NamelistBaseModel):
 
     @field_validator("start", "stop")
     @classmethod
-    def validate_date_fields(cls, v):
-        """Validate date format for start and stop fields."""
-        if v is not None:
-            return validate_date_format(v)
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
         return v
 
     @field_validator("iostyp")

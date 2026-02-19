@@ -32,7 +32,7 @@ class Grid(WW3ComponentBaseModel, BaseGrid):
     The Grid component represents the grid preprocessing configuration for WW3.
     It contains all the namelist objects needed for configuring the WW3 grid preprocessing
     program (ww3_grid.nml).
-    
+
     This component manages:
     - SPECTRUM_NML: Spectral parameterization including frequency and direction discretization
     - RUN_NML: Run parameterization including propagation and source term flags
@@ -46,10 +46,10 @@ class Grid(WW3ComponentBaseModel, BaseGrid):
     - INBOUND_NML: Input boundary point configuration
     - EXCLUDED_NML: Excluded point and body configuration
     - OUTBOUND_NML: Output boundary line configuration
-    
+
     The Grid component is used for grid preprocessing runs and provides a clean interface
     for configuring all aspects of the WW3 grid preprocessing program.
-    
+
     Key Features:
     - **Spectral Configuration**: Frequency and direction discretization
     - **Run Parameters**: Propagation and source term control
@@ -66,153 +66,153 @@ class Grid(WW3ComponentBaseModel, BaseGrid):
             "SPECTRUM_NML configuration defining spectral parameterization. "
             "Includes frequency increment, first frequency, number of frequencies and directions, "
             "and direction offset for wave spectrum discretization."
-        )
+        ),
     )
     run: Optional[Run] = PydanticField(
         default=None,
         description=(
             "RUN_NML configuration defining run parameterization. "
             "Includes flags for propagation components (X, Y, theta, k) and source terms."
-        )
+        ),
     )
     timesteps: Optional[Timesteps] = PydanticField(
         default=None,
         description=(
             "TIMESTEPS_NML configuration defining time step parameters. "
             "Includes CFL-constrained time steps for propagation and source terms."
-        )
+        ),
     )
     depth: Optional[Depth] = PydanticField(
         default=None,
         description=(
             "DEPTH_NML configuration defining bathymetry depth data. "
             "Includes scale factor and filename for depth data input."
-        )
+        ),
     )
     mask: Optional[Mask] = PydanticField(
         default=None,
         description=(
             "MASK_NML configuration defining point status map. "
             "Includes filename for point status map data input."
-        )
+        ),
     )
     obstacle: Optional[Obstacle] = PydanticField(
         default=None,
         description=(
             "OBSTACLE_NML configuration defining obstruction map. "
             "Includes scale factor and filename for obstruction data input."
-        )
+        ),
     )
     slope: Optional[Slope] = PydanticField(
         default=None,
         description=(
             "SLOPE_NML configuration defining reflection slope map. "
             "Includes scale factor and filename for reflection slope data input."
-        )
+        ),
     )
     sediment: Optional[Sediment] = PydanticField(
         default=None,
         description=(
             "SEDIMENT_NML configuration defining sedimentary bottom map. "
             "Includes scale factor and filename for sediment data input."
-        )
+        ),
     )
     inbound_count: Optional[InboundCount] = PydanticField(
         default=None,
         description=(
             "INBOUND_COUNT_NML configuration defining number of input boundary points. "
             "Specifies how many input boundary segments and bodies are defined."
-        )
+        ),
     )
     inbound_points: Optional[InboundPointList] = PydanticField(
         default=None,
         description=(
             "INBOUND_POINT_NML configuration defining input boundary points. "
             "Specifies the list of input boundary points and connection flags."
-        )
+        ),
     )
     excluded_count: Optional[ExcludedCount] = PydanticField(
         default=None,
         description=(
             "EXCLUDED_COUNT_NML configuration defining number of excluded points and bodies. "
             "Specifies how many excluded segments and bodies are defined."
-        )
+        ),
     )
     excluded_points: Optional[ExcludedPointList] = PydanticField(
         default=None,
         description=(
             "EXCLUDED_POINT_NML configuration defining excluded points. "
             "Specifies the list of excluded points and connection flags."
-        )
+        ),
     )
     excluded_bodies: Optional[ExcludedBodyList] = PydanticField(
         default=None,
         description=(
             "EXCLUDED_BODY_NML configuration defining excluded bodies. "
             "Specifies the list of excluded bodies (closed sea point regions)."
-        )
+        ),
     )
     outbound_count: Optional[OutboundCount] = PydanticField(
         default=None,
         description=(
             "OUTBOUND_COUNT_NML configuration defining number of output boundary lines. "
             "Specifies how many output boundary lines are defined."
-        )
+        ),
     )
     outbound_lines: Optional[OutboundLineList] = PydanticField(
         default=None,
         description=(
             "OUTBOUND_LINE_NML configuration defining output boundary lines. "
             "Specifies the list of output boundary lines with start points, increments, and counts."
-        )
+        ),
     )
     curv: Optional[Curv] = PydanticField(
         default=None,
         description=(
             "CURV_NML configuration defining curvilinear grid parameters. "
             "Includes coordinate data specifications for curvilinear grids."
-        )
+        ),
     )
     unst: Optional[Unst] = PydanticField(
         default=None,
         description=(
             "UNST_NML configuration defining unstructured grid parameters. "
             "Includes filename and format specifications for unstructured grids."
-        )
+        ),
     )
     smc: Optional[Smc] = PydanticField(
         default=None,
         description=(
             "SMC_NML configuration defining spherical multiple-cell grid parameters. "
             "Includes file specifications for SMC grid components."
-        )
+        ),
     )
     grid: Optional[GridNML] = PydanticField(
         default=None,
         description=(
             "GRID_NML configuration defining general grid parameters. "
             "Includes grid name, type, coordinate system, closure, and depth limits."
-        )
+        ),
     )
     rect: Optional[Rect] = PydanticField(
         default=None,
         description=(
             "RECT_NML configuration defining rectilinear grid parameters. "
             "Includes grid dimensions, increments, and corner coordinates."
-        )
+        ),
     )
 
     @model_validator(mode="after")
     def validate_grid_closure(self) -> "Grid":
         """Validate grid closure consistency.
-        
+
         This validator checks for grid closure consistency:
         - If grid.rect is not None and grid.rect.nx * grid.rect.sx = 360,
           then grid.grid.clos (GRID_NML%clos) should be set to 'SMPL'.
-          
+
         Returns:
             Grid: The validated Grid component instance
-            
+
         Raises:
             ValueError: If grid closure inconsistency is detected
         """
@@ -246,7 +246,7 @@ class Grid(WW3ComponentBaseModel, BaseGrid):
     @property
     def x(self) -> np.ndarray:
         """Get the x-coordinate array for the grid.
-        
+
         Returns:
             np.ndarray: The x-coordinate array for the grid points
         """
@@ -256,7 +256,7 @@ class Grid(WW3ComponentBaseModel, BaseGrid):
     @property
     def y(self) -> np.ndarray:
         """Get the y-coordinate array for the grid.
-        
+
         Returns:
             np.ndarray: The y-coordinate array for the grid points
         """
@@ -266,7 +266,7 @@ class Grid(WW3ComponentBaseModel, BaseGrid):
     @property
     def meshgrid(self) -> np.ndarray:
         """Get the meshgrid for the grid.
-        
+
         Returns:
             np.ndarray: The meshgrid (x, y) arrays for the grid points
         """

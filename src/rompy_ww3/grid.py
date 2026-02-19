@@ -22,7 +22,6 @@ from rompy_ww3.namelists.slope import Slope
 from rompy_ww3.namelists.smc import Smc
 from rompy_ww3.namelists.unst import Unst
 
-
 logger = logging.getLogger(__name__)
 
 HERE = Path(__file__).parent

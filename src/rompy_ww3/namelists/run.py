@@ -20,7 +20,7 @@ class Run(NamelistBaseModel):
             "This is useful for testing file operations and namelist parsing without "
             "executing the full model simulation. When enabled, the model will go through "
             "the motions of reading and writing files but will not perform wave calculations."
-        )
+        ),
     )
     flcx: Optional[bool] = Field(
         default=None,
@@ -28,7 +28,7 @@ class Run(NamelistBaseModel):
             "X-component of propagation flag. If true, enables propagation in the X direction. "
             "This controls the spatial advection of wave energy in the X (typically longitudinal) "
             "direction. Disabling this would prevent wave energy from moving in the X direction."
-        )
+        ),
     )
     flcy: Optional[bool] = Field(
         default=None,
@@ -36,7 +36,7 @@ class Run(NamelistBaseModel):
             "Y-component of propagation flag. If true, enables propagation in the Y direction. "
             "This controls the spatial advection of wave energy in the Y (typically latitudinal) "
             "direction. Disabling this would prevent wave energy from moving in the Y direction."
-        )
+        ),
     )
     flcth: Optional[bool] = Field(
         default=None,
@@ -44,7 +44,7 @@ class Run(NamelistBaseModel):
             "Direction shift flag. If true, enables directional shifting of the wave spectrum. "
             "This controls the propagation of wave energy in directional space (theta-advection). "
             "This process accounts for changes in wave direction due to refraction, current effects, etc."
-        )
+        ),
     )
     flck: Optional[bool] = Field(
         default=None,
@@ -52,7 +52,7 @@ class Run(NamelistBaseModel):
             "Wavenumber shift flag. If true, enables wavenumber shifting of the wave spectrum. "
             "This controls the propagation of wave energy in wavenumber space (k-advection). "
             "This process accounts for changes in wave frequency due to current and depth variations."
-        )
+        ),
     )
     flsou: Optional[bool] = Field(
         default=None,
@@ -61,10 +61,10 @@ class Run(NamelistBaseModel):
             "interactions, and dissipation). This controls the energy input and output processes "
             "that affect the wave spectrum. Disabling this would result in wave energy being "
             "only advected without any gain or loss of energy."
-        )
+        ),
     )
 
-    @field_validator('fldry', 'flcx', 'flcy', 'flcth', 'flck', 'flsou')
+    @field_validator("fldry", "flcx", "flcy", "flcth", "flck", "flsou")
     @classmethod
     def validate_boolean_flags(cls, v):
         """Validate that all flags are boolean values."""

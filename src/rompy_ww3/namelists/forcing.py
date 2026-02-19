@@ -1,7 +1,8 @@
 """FORCING_NML namelist implementation for WW3."""
 
+from datetime import datetime
 from typing import Optional
-from pydantic import Field, model_validator
+from pydantic import Field, model_validator, field_validator
 from .basemodel import NamelistBaseModel
 
 FIELD_VARIABLE_CHOICES = [
@@ -305,11 +306,11 @@ class Forcing(NamelistBaseModel):
     Defines the forcing fields to preprocess.
     """
 
-    timestart: Optional[str] = Field(
-        default=None, description="Start date for the forcing field (yyyymmdd hhmmss)"
+    timestart: Optional[datetime] = Field(
+        default=None, description="Start date for the forcing field"
     )
-    timestop: Optional[str] = Field(
-        default=None, description="Stop date for the forcing field (yyyymmdd hhmmss)"
+    timestop: Optional[datetime] = Field(
+        default=None, description="Stop date for the forcing field"
     )
     field: Optional[ForcingField] = Field(
         default=None, description="Forcing field parameters"
@@ -320,6 +321,16 @@ class Forcing(NamelistBaseModel):
     tidal: Optional[str] = Field(
         default=None, description="Tidal constituents [FAST | VFAST | 'M2 S2 N2']"
     )
+
+    @field_validator("timestart", "timestop")
+    @classmethod
+    def validate_timezone(cls, v):
+        """Ensure datetime fields are timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
+        return v
 
     @model_validator(mode="after")
     def validate_tidal_requirements(self):

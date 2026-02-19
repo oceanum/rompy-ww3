@@ -10,9 +10,9 @@ class Param(NamelistBaseModel):
 
     The PARAM_NML namelist defines the type 2 (mean parameter) output configuration for point output in WAVEWATCH III.
     This namelist controls how mean wave parameters are output for specific points in the model domain.
-    
+
     Type 2 output provides statistical wave parameters derived from the spectra, such as
-    significant wave height (HS), mean periods (T01, T02, Tp), mean direction (DIR), 
+    significant wave height (HS), mean periods (T01, T02, Tp), mean direction (DIR),
     directional spread (SPR), and peak direction (DP). This is the most commonly used output type
     for operational wave forecasting and model verification.
     """
@@ -30,10 +30,10 @@ class Param(NamelistBaseModel):
             "This determines the format and content of the mean parameter output."
         ),
         ge=1,
-        le=6
+        le=6,
     )
 
-    @field_validator('output')
+    @field_validator("output")
     @classmethod
     def validate_output_type(cls, v):
         """Validate output type."""
