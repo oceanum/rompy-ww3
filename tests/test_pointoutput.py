@@ -12,7 +12,7 @@ def test_point_nml():
     """Test POINT_NML namelist creation."""
     point = Point(
         timestart="20100101 000000",
-        timestride="3600",
+        timestride=3600,
         type=1,
         list="all",
         samefile=True,
@@ -21,7 +21,7 @@ def test_point_nml():
     content = point.render()
     assert "&POINT_NML" in content
     assert "POINT%TIMESTART = '20100101 000000'" in content
-    assert "POINT%TIMESTRIDE = '3600'" in content
+    assert "POINT%TIMESTRIDE = 3600" in content
     assert "POINT%TYPE = 1" in content
     assert "/" in content
 
@@ -68,7 +68,7 @@ def test_source_nml():
 def test_ounp_component():
     """Test Ounp component with all sub-namelists directly."""
     ounp = Ounp(
-        point_nml=Point(timestart="20100101 000000", timestride="3600"),
+        point_nml=Point(timestart="20100101 000000", timestride=3600),
         file_nml=PointFile(netcdf=4),
         spectra_nml=Spectra(output=3),
         param_nml=Param(output=4),
@@ -85,7 +85,7 @@ def test_ounp_component():
 def test_ounp_component_render():
     """Test that Ounp component can render all namelist sections."""
     ounp = Ounp(
-        point_nml=Point(timestart="20100101 000000", timestride="3600"),
+        point_nml=Point(timestart="20100101 000000", timestride=3600),
         file_nml=PointFile(netcdf=4),
         spectra_nml=Spectra(output=3),
         param_nml=Param(output=4),
