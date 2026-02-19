@@ -833,3 +833,8 @@ class ShelConfig(BaseWW3Config):
         context["namelists"] = self.render_namelists()
 
         return context
+
+
+# Alias for backward compatibility (Config remains the entry point for users
+# transitioning from older Rompy versions to the Shel-based configuration).
+Config = ShelConfig
