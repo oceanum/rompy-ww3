@@ -108,6 +108,16 @@ def validate_io_type(value: int) -> int:
 class NamelistBaseModel(RompyBaseModel):
     """Base model for WW3 namelists with render capabilities and validation utilities."""
 
+    @staticmethod
+    def render_datetime(dt: datetime) -> str:
+        """Render a datetime object into WW3's expected string format.
+
+        WW3 expects datetimes to be rendered as 'YYYYMMDD HHMMSS'.
+        This helper centralizes that formatting for consistent usage
+        across namelist rendering and tests.
+        """
+        return dt.strftime("%Y%m%d %H%M%S")
+
     @model_serializer
     def serialize_model(self) -> Dict[str, Any]:
         """Serialize model excluding None and private fields."""
@@ -140,6 +150,9 @@ class NamelistBaseModel(RompyBaseModel):
         """Process value for namelist formatting."""
         if isinstance(value, bool):
             return boolean_to_string(value)
+        elif isinstance(value, datetime):
+            # Render datetime as WW3 format: YYYYMMDD HHMMSS (bare token, no quotes)
+            return value.strftime("%Y%m%d %H%M%S")
         elif isinstance(value, str):
             # Don't quote Fortran booleans
             # if value in ["T", "F"]:
