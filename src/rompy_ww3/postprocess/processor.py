@@ -19,6 +19,71 @@ from rompy_ww3.postprocess.discovery import generate_manifest
 from rompy_ww3.postprocess.naming import compute_target_name
 
 
+class TransferResult:
+    """Container for transfer results with pretty-printing support."""
+
+    def __init__(
+        self,
+        success: bool,
+        transferred_count: int,
+        failed_count: int,
+        results: list,
+    ):
+        self.success = success
+        self.transferred_count = transferred_count
+        self.failed_count = failed_count
+        self.results = results
+
+    def __str__(self) -> str:
+        """Format results into a human-readable summary."""
+        lines = []
+        lines.append("")
+        lines.append("=" * 60)
+        lines.append("📦 WW3 Transfer Postprocessor Results")
+        lines.append("=" * 60)
+
+        # Summary section
+        status_icon = "✅" if self.success else "❌"
+        lines.append(
+            f"\n{status_icon} Status: {'SUCCESS' if self.success else 'FAILED'}"
+        )
+        lines.append(f"📊 Transferred: {self.transferred_count} files")
+        lines.append(f"❌ Failed: {self.failed_count} files")
+
+        # Results details
+        if self.results:
+            lines.append("\n" + "-" * 60)
+            lines.append("📋 Transfer Details:")
+            lines.append("-" * 60)
+
+            for i, item in enumerate(self.results, 1):
+                icon = "✅" if getattr(item, "ok", False) else "❌"
+                local_path = getattr(item, "local_path", None)
+                target_name = getattr(item, "target_name", None)
+                dest_uri = getattr(item, "dest_uri", None)
+                error = getattr(item, "error", None)
+
+                lines.append(
+                    f"\n  {i}. {icon} {local_path.name if local_path else 'Unknown'}"
+                )
+                lines.append(f"     Target: {target_name}")
+                lines.append(f"     Destination: {dest_uri}")
+                if error:
+                    lines.append(f"     Error: {error}")
+
+        lines.append("\n" + "=" * 60)
+        return "\n".join(lines)
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for serialization."""
+        return {
+            "success": self.success,
+            "transferred_count": self.transferred_count,
+            "failed_count": self.failed_count,
+            "results": self.results,
+        }
+
+
 class WW3TransferPostprocessor:
     """Post-process WW3 run results by transferring output files.
 
@@ -255,10 +320,10 @@ class WW3TransferPostprocessor:
             policy=policy,
         )
 
-        # 6) Normalize the result into a predictable dict
-        return {
-            "success": bool(result.all_succeeded()),
-            "transferred_count": int(result.succeeded),
-            "failed_count": int(result.failed),
-            "results": result.items,
-        }
+        # 6) Return structured result object with pretty-printing
+        return TransferResult(
+            success=bool(result.all_succeeded()),
+            transferred_count=int(result.succeeded),
+            failed_count=int(result.failed),
+            results=result.items,
+        )
