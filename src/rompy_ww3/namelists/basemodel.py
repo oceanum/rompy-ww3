@@ -8,7 +8,6 @@ from typing import Any, Dict, Union
 from pydantic import model_serializer, model_validator
 from rompy.core.types import RompyBaseModel
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -31,60 +30,7 @@ def camel_to_snake(name: str) -> str:
     return s2.upper()
 
 
-def validate_date_format(date_str: str) -> str:
-    """Validate and convert date string to WW3 format (YYYYMMDD HHMMSS)."""
-    if not date_str:
-        return date_str
-
-    # Check if it's already in the right format
-    if re.match(r"^\d{8}\s\d{6}$", date_str.strip()):
-        return date_str
-
-    # Try to parse the date string
-    try:
-        # Attempt to parse different date formats
-        if len(date_str) == 15:  # 'YYYYMMDD HHMMSS' format
-            datetime.strptime(date_str, "%Y%m%d %H%M%S")
-            return date_str
-        elif len(date_str) == 17:  # 'YYYYMMDD HHMMSSSSS' format (with extra chars)
-            datetime.strptime(date_str[:15], "%Y%m%d %H%M%S")
-            return date_str[:15]
-        elif "-" in date_str and ":" in date_str:  # 'YYYY-MM-DD HH:MM:SS' format
-            date_obj = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-            return date_obj.strftime("%Y%m%d %H%M%S")
-        else:
-            # Try parsing as basic date with time
-            possible_formats = [
-                "%Y/%m/%d %H:%M:%S",
-                "%Y-%m-%d %H:%M",
-                "%Y/%m/%d %H:%M",
-                "%Y-%m-%d",
-                "%Y/%m/%d",
-            ]
-            for fmt in possible_formats:
-                try:
-                    date_obj = datetime.strptime(date_str, fmt)
-                    return date_obj.strftime("%Y%m%d %H%M%S")
-                except ValueError:
-                    continue
-    except ValueError:
-        pass
-
-    raise ValueError(
-        f"Invalid date format: '{date_str}'. Expected format: 'YYYYMMDD HHMMSS'"
-    )
-
-
-def validate_ww3_boolean(value: str) -> str:
-    """Validate WW3 boolean value ('T' or 'F')."""
-    if not isinstance(value, str):
-        raise ValueError(f"Expected string, got {type(value)}")
-
-    upper_value = value.upper()
-    if upper_value not in ["T", "F"]:
-        raise ValueError(f"Invalid WW3 boolean value: '{value}'. Must be 'T' or 'F'")
-
-    return upper_value
+"""Removed duplicate WW3 boolean validator. Use centralized validation in validation.py."""
 
 
 def validate_range(
@@ -337,7 +283,7 @@ class NamelistBaseModel(RompyBaseModel):
         Set default start and end dates for date fields in this namelist if they are None.
 
         Args:
-            period: The time period to use for default dates
+            period: The time period to use for default dates (expects datetime attributes)
         """
         # Get attributes of Pydantic models
         if hasattr(self, "model_fields"):
@@ -346,21 +292,18 @@ class NamelistBaseModel(RompyBaseModel):
                 if self._is_date_field(field_name):
                     current_value = getattr(self, field_name)
                     if current_value is None:
-                        # Set default date value
+                        # Set default date value as datetime object
+                        # Fields are typed as Optional[datetime], so we pass datetime directly
                         if (
                             "start" in field_name.lower()
                             or "timestart" in field_name.lower()
                         ):
-                            setattr(
-                                self, field_name, period.start.strftime("%Y%m%d %H%M%S")
-                            )
+                            setattr(self, field_name, period.start)
                         elif (
                             "stop" in field_name.lower()
                             or "timestop" in field_name.lower()
                         ):
-                            setattr(
-                                self, field_name, period.end.strftime("%Y%m%d %H%M%S")
-                            )
+                            setattr(self, field_name, period.end)
                 else:
                     # If not a date field, check if it's a nested object that might have date fields
                     field_value = getattr(self, field_name)
@@ -385,7 +328,7 @@ class NamelistBaseModel(RompyBaseModel):
 
         Args:
             obj: The nested object to process
-            period: The time period to use for default dates
+            period: The time period to use for default dates (expects datetime attributes)
         """
         # Get attributes of Pydantic models
         if hasattr(obj, "model_fields"):
@@ -394,21 +337,18 @@ class NamelistBaseModel(RompyBaseModel):
                 if self._is_date_field(field_name):
                     current_value = getattr(obj, field_name)
                     if current_value is None:
-                        # Set default date value
+                        # Set default date value as datetime object
+                        # Fields are typed as Optional[datetime], so we pass datetime directly
                         if (
                             "start" in field_name.lower()
                             or "timestart" in field_name.lower()
                         ):
-                            setattr(
-                                obj, field_name, period.start.strftime("%Y%m%d %H%M%S")
-                            )
+                            setattr(obj, field_name, period.start)
                         elif (
                             "stop" in field_name.lower()
                             or "timestop" in field_name.lower()
                         ):
-                            setattr(
-                                obj, field_name, period.end.strftime("%Y%m%d %H%M%S")
-                            )
+                            setattr(obj, field_name, period.end)
                 else:
                     # If not a date field, check if it's a nested object that might have date fields
                     field_value = getattr(obj, field_name)
