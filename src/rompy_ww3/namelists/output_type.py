@@ -35,15 +35,17 @@ class OutputTypeField(NamelistBaseModel):
             "This specifies which wave model parameters to write to the output files. "
             "Examples include: 'HS DIR SPR WND ICE CUR LEV' for significant wave height, "
             "direction, spread, wind speed, ice concentration, current velocity, and water levels."
-        )
+        ),
     )
 
-    @field_validator('list')
+    @field_validator("list")
     @classmethod
     def validate_field_list(cls, v):
         """Validate field list is a string if provided."""
         if v is not None and not isinstance(v, (str, WW3DataBlob)):
-            raise ValueError(f"Field list must be a string or WW3DataBlob, got {type(v)}")
+            raise ValueError(
+                f"Field list must be a string or WW3DataBlob, got {type(v)}"
+            )
         return v
 
 
@@ -60,11 +62,11 @@ class OutputTypePoint(NamelistBaseModel):
             "Point output file specification containing space-separated values: "
             "longitude latitude 'name'. This file defines the specific points "
             "where output will be written during the simulation."
-        )
+        ),
     )
     name: Optional[str] = Field(
         default=None,
-        description="Point output name, used to identify this point output configuration"
+        description="Point output name, used to identify this point output configuration",
     )
 
 
@@ -80,10 +82,10 @@ class OutputTypeTrack(NamelistBaseModel):
             "Track file format flag. If true, output track file is formatted (human-readable text). "
             "If false, output track file is unformatted (binary format). "
             "Formatted files are easier to read but take more disk space."
-        )
+        ),
     )
 
-    @field_validator('format')
+    @field_validator("format")
     @classmethod
     def validate_format_flag(cls, v):
         """Validate format flag is a boolean value."""
@@ -101,42 +103,42 @@ class OutputTypePartition(NamelistBaseModel):
     x0: Optional[int] = Field(
         default=None,
         description="Partition start X index, defines the starting X coordinate of the partition region",
-        ge=0
+        ge=0,
     )
     xn: Optional[int] = Field(
         default=None,
         description="Partition end X index, defines the ending X coordinate of the partition region",
-        ge=0
+        ge=0,
     )
     nx: Optional[int] = Field(
         default=None,
         description="Partition X resolution, defines the number of X cells in the partition",
-        ge=0
+        ge=0,
     )
     y0: Optional[int] = Field(
         default=None,
         description="Partition start Y index, defines the starting Y coordinate of the partition region",
-        ge=0
+        ge=0,
     )
     yn: Optional[int] = Field(
         default=None,
         description="Partition end Y index, defines the ending Y coordinate of the partition region",
-        ge=0
+        ge=0,
     )
     ny: Optional[int] = Field(
         default=None,
         description="Partition Y resolution, defines the number of Y cells in the partition",
-        ge=0
+        ge=0,
     )
     format: Optional[bool] = Field(
         default=None,
         description=(
             "Partition file format flag. If true, partition output file is formatted (human-readable text). "
             "If false, partition output file is unformatted (binary format)."
-        )
+        ),
     )
 
-    @field_validator('format')
+    @field_validator("format")
     @classmethod
     def validate_format_flag(cls, v):
         """Validate format flag is a boolean value."""
@@ -159,7 +161,7 @@ class OutputTypeCoupling(NamelistBaseModel):
             "T0M1 OCHA OHS DIR BHD TWO UBR FOC TAW TUS USS LM DRY to ocean models, "
             "ACHA AHS TP (or FP) FWS to atmospheric models, "
             "IC5 TWI to ice models."
-        )
+        ),
     )
     received: Optional[str] = Field(
         default=None,
@@ -168,14 +170,14 @@ class OutputTypeCoupling(NamelistBaseModel):
             "are received by WW3 from the coupled model. Commonly received fields include: "
             "SSH CUR from ocean models, WND from atmospheric models, "
             "ICE IC1 IC5 from ice models."
-        )
+        ),
     )
     couplet0: Optional[bool] = Field(
         default=None,
-        description="Coupling at T+0 flag, controls whether coupling occurs at initial time step"
+        description="Coupling at T+0 flag, controls whether coupling occurs at initial time step",
     )
 
-    @field_validator('couplet0')
+    @field_validator("couplet0")
     @classmethod
     def validate_couplet0_flag(cls, v):
         """Validate couplet0 flag is a boolean value."""
@@ -184,25 +186,10 @@ class OutputTypeCoupling(NamelistBaseModel):
         return v
 
 
-class OutputTypeRestart(NamelistBaseModel):
-    """Restart output parameters for WW3.
-
-    The TYPE%RESTART section of the namelist defines parameters for restart output in WW3.
-    """
-
-    extra: Optional[str] = Field(
-        default=None,
-        description=(
-            "Extra fields to write to restart file. This specifies additional fields "
-            "beyond the standard restart fields that should be included in restart output."
-        )
-    )
-
-
 class OutputType(NamelistBaseModel):
     """TYPE section of OUTPUT_TYPE_NML for WW3 (single-grid).
 
-    The OUTPUT_TYPE_NML namelist defines the output types and parameters for 
+    The OUTPUT_TYPE_NML namelist defines the output types and parameters for
     single-grid WAVEWATCH III runs. This namelist is read by the ww3_shel program.
 
     The namelist contains:
@@ -211,26 +198,27 @@ class OutputType(NamelistBaseModel):
     - TRACK: Track output format parameters
     - PARTITION: Partitioned output region parameters
     - COUPLING: Coupling exchange parameters for coupled models
-    - RESTART: Restart output parameters
     """
 
     field: Optional[OutputTypeField] = Field(
-        default=None, description="Field output parameters specifying which wave model parameters to output"
+        default=None,
+        description="Field output parameters specifying which wave model parameters to output",
     )
     point: Optional[OutputTypePoint] = Field(
-        default=None, description="Point output parameters defining specific point locations for output"
+        default=None,
+        description="Point output parameters defining specific point locations for output",
     )
     track: Optional[OutputTypeTrack] = Field(
-        default=None, description="Track output format parameters (formatted/unformatted)"
+        default=None,
+        description="Track output format parameters (formatted/unformatted)",
     )
     partition: Optional[OutputTypePartition] = Field(
-        default=None, description="Partitioned output region parameters defining sub-regions for output"
+        default=None,
+        description="Partitioned output region parameters defining sub-regions for output",
     )
     coupling: Optional[OutputTypeCoupling] = Field(
-        default=None, description="Coupling exchange parameters for coupled model interactions"
-    )
-    restart: Optional[OutputTypeRestart] = Field(
-        default=None, description="Restart output parameters specifying additional fields for restart files"
+        default=None,
+        description="Coupling exchange parameters for coupled model interactions",
     )
 
 
@@ -241,16 +229,20 @@ class AllType(NamelistBaseModel):
     """
 
     field: Optional[OutputTypeField] = Field(
-        default=None, description="Field output parameters applied to all grids in multi-grid runs"
+        default=None,
+        description="Field output parameters applied to all grids in multi-grid runs",
     )
     point: Optional[OutputTypePoint] = Field(
-        default=None, description="Point output parameters applied to all grids in multi-grid runs"
+        default=None,
+        description="Point output parameters applied to all grids in multi-grid runs",
     )
     track: Optional[OutputTypeTrack] = Field(
-        default=None, description="Track output parameters applied to all grids in multi-grid runs"
+        default=None,
+        description="Track output parameters applied to all grids in multi-grid runs",
     )
     partition: Optional[OutputTypePartition] = Field(
-        default=None, description="Partition output parameters applied to all grids in multi-grid runs"
+        default=None,
+        description="Partition output parameters applied to all grids in multi-grid runs",
     )
 
 
@@ -261,14 +253,18 @@ class IType(NamelistBaseModel):
     """
 
     field: Optional[OutputTypeField] = Field(
-        default=None, description="Field output parameters for specific grid I in multi-grid runs"
+        default=None,
+        description="Field output parameters for specific grid I in multi-grid runs",
     )
     point: Optional[OutputTypePoint] = Field(
-        default=None, description="Point output parameters for specific grid I in multi-grid runs"
+        default=None,
+        description="Point output parameters for specific grid I in multi-grid runs",
     )
     track: Optional[OutputTypeTrack] = Field(
-        default=None, description="Track output parameters for specific grid I in multi-grid runs"
+        default=None,
+        description="Track output parameters for specific grid I in multi-grid runs",
     )
     partition: Optional[OutputTypePartition] = Field(
-        default=None, description="Partition output parameters for specific grid I in multi-grid runs"
+        default=None,
+        description="Partition output parameters for specific grid I in multi-grid runs",
     )

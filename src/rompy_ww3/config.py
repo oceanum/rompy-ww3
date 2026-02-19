@@ -625,7 +625,6 @@ class ShelConfig(BaseWW3Config):
                 OutputDateField,
                 OutputDatePoint,
                 OutputDateTrack,
-                OutputDateRestart,
                 OutputDatePartition,
                 OutputDateCoupling,
             )
@@ -637,7 +636,6 @@ class ShelConfig(BaseWW3Config):
                 or self.ww3_shel.output_type.track
                 or self.ww3_shel.output_type.partition
                 or self.ww3_shel.output_type.coupling
-                or self.ww3_shel.output_type.restart
             )
 
             if needs_output_date:
@@ -661,11 +659,6 @@ class ShelConfig(BaseWW3Config):
                     and self.ww3_shel.output_date.track is None
                 ):
                     self.ww3_shel.output_date.track = OutputDateTrack()
-                if (
-                    self.ww3_shel.output_type.restart
-                    and self.ww3_shel.output_date.restart is None
-                ):
-                    self.ww3_shel.output_date.restart = OutputDateRestart()
                 if (
                     self.ww3_shel.output_type.partition
                     and self.ww3_shel.output_date.partition is None

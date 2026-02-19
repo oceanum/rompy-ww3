@@ -82,12 +82,6 @@ def parse_output_type(output_type: OutputType) -> Dict[str, Any]:
             "couplet0": output_type.coupling.couplet0,
         }
 
-    # Parse restart output configuration
-    if output_type.restart is not None:
-        result["restart"] = {
-            "extra": output_type.restart.extra,
-        }
-
     return result
 
 

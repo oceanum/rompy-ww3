@@ -111,6 +111,19 @@ class NamelistBaseModel(RompyBaseModel):
     @model_serializer
     def serialize_model(self) -> Dict[str, Any]:
         """Serialize model excluding None and private fields."""
+        # Allow subclasses to opt-out to a scalar/list representation by
+        # providing a custom `_serialize_as_value(info)` method. This is used
+        # for cases like TYPE%RESTART where WW3 expects a scalar rather than a
+        # nested namelist object.
+        if hasattr(self, "_serialize_as_value") and callable(
+            getattr(self, "_serialize_as_value")
+        ):
+            try:
+                return getattr(self, "_serialize_as_value")(None)
+            except TypeError:
+                # Some serializers expect no args; try calling without
+                return getattr(self, "_serialize_as_value")()
+
         serialized = {}
         for field_name, field_info in self.__class__.model_fields.items():
             value = getattr(self, field_name)
