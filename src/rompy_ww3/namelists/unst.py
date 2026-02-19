@@ -12,7 +12,7 @@ class Unst(NamelistBaseModel):
     The UNST_NML namelist defines the parameters for unstructured grids in WAVEWATCH III.
     Unstructured grids use triangular elements to represent the domain, allowing for
     flexible resolution that can be refined in areas of interest.
-    
+
     The unstructured grid file must be a GMESH grid file containing node and element lists.
     The depth values must have negative values under the mean sea level, and the map values
     define different types of grid points as documented below.
@@ -24,14 +24,14 @@ class Unst(NamelistBaseModel):
             "Unstructured grid scale factor used to convert from file values to model coordinates. "
             "The final coordinate value is calculated as: scale_factor * value_read. "
             "For depth files, use a negative value to ensure depths are negative (below sea level)."
-        )
+        ),
     )
     filename: Optional[Union[str, WW3DataBlob]] = Field(
         default="unset",
         description=(
             "Filename or data blob containing the unstructured grid data. This file should be "
             "a GMESH grid file format containing the node and element lists for the triangular mesh."
-        )
+        ),
     )
     idf: Optional[int] = Field(
         default=20,
@@ -39,7 +39,7 @@ class Unst(NamelistBaseModel):
             "File unit number for the unstructured grid file. Each file in WW3 is assigned a unique "
             "unit number to distinguish between different input files during processing."
         ),
-        ge=1  # Must be positive file unit number
+        ge=1,  # Must be positive file unit number
     )
     idla: Optional[int] = Field(
         default=1,
@@ -51,7 +51,7 @@ class Unst(NamelistBaseModel):
             "  4: Like 3, with a single read statement"
         ),
         ge=1,
-        le=4
+        le=4,
     )
     idfm: Optional[int] = Field(
         default=1,
@@ -62,7 +62,7 @@ class Unst(NamelistBaseModel):
             "  3: Unformatted"
         ),
         ge=1,
-        le=3
+        le=3,
     )
     format: Optional[str] = Field(
         default="(....)",
@@ -70,7 +70,7 @@ class Unst(NamelistBaseModel):
             "Formatted read format specification, like '(20f10.2)' for float type. "
             "Use '(....)' for auto detection of the format. This specifies how the "
             "unstructured grid values should be read from the file."
-        )
+        ),
     )
     ugobcfile: Optional[str] = Field(
         default="unset",
@@ -78,10 +78,10 @@ class Unst(NamelistBaseModel):
             "Additional boundary list file with UGOBCFILE in namelist. This file contains "
             "extra open boundary information for the unstructured grid. An example is given "
             "in the WW3 regression test ww3_tp2.7."
-        )
+        ),
     )
 
-    @field_validator('sf')
+    @field_validator("sf")
     @classmethod
     def validate_scale_factor(cls, v):
         """Validate scale factor is not zero."""
@@ -90,7 +90,7 @@ class Unst(NamelistBaseModel):
                 raise ValueError(f"Scale factor must not be zero, got {v}")
         return v
 
-    @field_validator('idf')
+    @field_validator("idf")
     @classmethod
     def validate_file_unit(cls, v):
         """Validate file unit number."""
@@ -99,15 +99,17 @@ class Unst(NamelistBaseModel):
                 raise ValueError(f"File unit number must be positive, got {v}")
         return v
 
-    @field_validator('idla')
+    @field_validator("idla")
     @classmethod
     def validate_idla(cls, v):
         """Validate layout indicator."""
         if v is not None and v not in [1, 2, 3, 4]:
-            raise ValueError(f"Layout indicator (idla) must be between 1 and 4, got {v}")
+            raise ValueError(
+                f"Layout indicator (idla) must be between 1 and 4, got {v}"
+            )
         return v
 
-    @field_validator('idfm')
+    @field_validator("idfm")
     @classmethod
     def validate_idfm(cls, v):
         """Validate format indicator."""

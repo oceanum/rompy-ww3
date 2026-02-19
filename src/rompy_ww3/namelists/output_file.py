@@ -10,7 +10,7 @@ class File(NamelistBaseModel):
 
     The FILE_NML namelist defines the output file parameters for WAVEWATCH III field output post-processing.
     This namelist controls the naming and format of output files, as well as spatial subsetting options.
-    
+
     The output files use the specified prefix for naming, and NetCDF format for data storage.
     Spatial subsetting is controlled by index ranges (ix0, ixn, iy0, iyn) to output only portions of the grid.
     """
@@ -23,7 +23,7 @@ class File(NamelistBaseModel):
             "for the field data. The actual output files will use this prefix followed by "
             "applicable extensions, timestamps, and numerical identifiers. "
             "Example: 'ww3.' produces files like 'ww3.20100101.nc'"
-        )
+        ),
     )
     netcdf: Optional[int] = Field(
         default=3,
@@ -34,7 +34,7 @@ class File(NamelistBaseModel):
             "This specifies the version of NetCDF format to use for the output files."
         ),
         ge=3,
-        le=4
+        le=4,
     )
     ix0: Optional[int] = Field(
         default=1,
@@ -43,7 +43,7 @@ class File(NamelistBaseModel):
             "This defines the starting X-coordinate index for output. "
             "Values of 1 or higher are valid. Default is 1 for the first grid point."
         ),
-        ge=1
+        ge=1,
     )
     ixn: Optional[int] = Field(
         default=1000000000,
@@ -52,7 +52,7 @@ class File(NamelistBaseModel):
             "This defines the ending X-coordinate index for output. "
             "Should be greater than or equal to IX0. Default is a very large number to include all points."
         ),
-        ge=1
+        ge=1,
     )
     iy0: Optional[int] = Field(
         default=1,
@@ -61,7 +61,7 @@ class File(NamelistBaseModel):
             "This defines the starting Y-coordinate index for output. "
             "Values of 1 or higher are valid. Default is 1 for the first grid point."
         ),
-        ge=1
+        ge=1,
     )
     iyn: Optional[int] = Field(
         default=1000000000,
@@ -70,14 +70,14 @@ class File(NamelistBaseModel):
             "This defines the ending Y-coordinate index for output. "
             "Should be greater than or equal to IY0. Default is a very large number to include all points."
         ),
-        ge=1
+        ge=1,
     )
 
     def get_namelist_name(self) -> str:
         """Return the specific namelist name for FILE_NML."""
         return "FILE_NML"
 
-    @field_validator('prefix')
+    @field_validator("prefix")
     @classmethod
     def validate_prefix(cls, v):
         """Validate prefix is not empty."""
@@ -85,7 +85,7 @@ class File(NamelistBaseModel):
             raise ValueError("Output file prefix cannot be empty")
         return v
 
-    @field_validator('netcdf')
+    @field_validator("netcdf")
     @classmethod
     def validate_netcdf_version(cls, v):
         """Validate NetCDF version."""
@@ -93,22 +93,26 @@ class File(NamelistBaseModel):
             raise ValueError(f"NetCDF version must be 3 or 4, got {v}")
         return v
 
-    @field_validator('ixn')
+    @field_validator("ixn")
     @classmethod
     def validate_ixn_greater_than_ix0(cls, v, info):
         """Validate IXN is greater than or equal to IX0."""
         if v is not None:
-            ix0 = info.data.get('ix0')
+            ix0 = info.data.get("ix0")
             if ix0 is not None and v < ix0:
-                raise ValueError(f"IXN ({v}) must be greater than or equal to IX0 ({ix0})")
+                raise ValueError(
+                    f"IXN ({v}) must be greater than or equal to IX0 ({ix0})"
+                )
         return v
 
-    @field_validator('iyn')
+    @field_validator("iyn")
     @classmethod
     def validate_iyn_greater_than_iy0(cls, v, info):
         """Validate IYN is greater than or equal to IY0."""
         if v is not None:
-            iy0 = info.data.get('iy0')
+            iy0 = info.data.get("iy0")
             if iy0 is not None and v < iy0:
-                raise ValueError(f"IYN ({v}) must be greater than or equal to IY0 ({iy0})")
+                raise ValueError(
+                    f"IYN ({v}) must be greater than or equal to IY0 ({iy0})"
+                )
         return v

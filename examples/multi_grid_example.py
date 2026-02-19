@@ -42,9 +42,10 @@ def main():
         start="20230101 000000",
         stop="20230102 000000",
         iostyp=1,
-        ngrd=2,  # 2 grids
+        nrgrd=2,  # 2 model grids
         nrinp=1,  # 1 input grid
     )
+
     print(
         f"   Domain: {domain.start} to {domain.stop}, {domain.nrgrd} model grids, {domain.nrinp} input grid"
     )
@@ -70,12 +71,10 @@ def main():
     model_grid1 = ModelGrid(
         name="region1",
         forcing=ModelGridForcing(
-            water_levels="F",
-            currents="F",
-            winds="T",
-            ice_conc="F",
-            air_density="F",
-            atm_momentum="F",
+            winds="global",
+            currents="no",
+            water_levels="no",
+            ice_conc="no",
         ),
         resource=ModelGridResource(
             rank_id=0,
@@ -89,12 +88,10 @@ def main():
     model_grid2 = ModelGrid(
         name="region2",
         forcing=ModelGridForcing(
-            water_levels="F",
-            currents="F",
-            winds="T",
-            ice_conc="F",
-            air_density="F",
-            atm_momentum="F",
+            winds="global",
+            currents="no",
+            water_levels="no",
+            ice_conc="no",
         ),
         resource=ModelGridResource(
             rank_id=1,

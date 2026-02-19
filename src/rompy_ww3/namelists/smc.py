@@ -19,7 +19,7 @@ class SMCFile(NamelistBaseModel):
             "Filename or data blob containing the SMC grid data. This file contains "
             "the specific SMC grid information (cells, sides, obstructions, etc.) "
             "required for the spherical multiple-cell grid configuration."
-        )
+        ),
     )
     idf: Optional[int] = Field(
         default=None,
@@ -27,7 +27,7 @@ class SMCFile(NamelistBaseModel):
             "File unit number for the SMC data file. Each file in WW3 is assigned a unique "
             "unit number to distinguish between different input files during processing."
         ),
-        ge=1  # Must be positive file unit number
+        ge=1,  # Must be positive file unit number
     )
     idla: Optional[int] = Field(
         default=1,
@@ -39,7 +39,7 @@ class SMCFile(NamelistBaseModel):
             "  4: Like 3, but with a single read statement"
         ),
         ge=1,
-        le=4
+        le=4,
     )
     idfm: Optional[int] = Field(
         default=1,
@@ -50,7 +50,7 @@ class SMCFile(NamelistBaseModel):
             "  3: Unformatted"
         ),
         ge=1,
-        le=3
+        le=3,
     )
     format: Optional[str] = Field(
         default="(....)",
@@ -58,10 +58,10 @@ class SMCFile(NamelistBaseModel):
             "Formatted read format specification, like '(f10.6)' for float type. "
             "Use '(....)' for auto detection of the format. This specifies how the "
             "SMC grid values should be read from the file."
-        )
+        ),
     )
 
-    @field_validator('idf')
+    @field_validator("idf")
     @classmethod
     def validate_file_unit(cls, v):
         """Validate file unit number."""
@@ -70,15 +70,17 @@ class SMCFile(NamelistBaseModel):
                 raise ValueError(f"File unit number (idf) must be positive, got {v}")
         return v
 
-    @field_validator('idla')
+    @field_validator("idla")
     @classmethod
     def validate_idla(cls, v):
         """Validate layout indicator."""
         if v is not None and v not in [1, 2, 3, 4]:
-            raise ValueError(f"Layout indicator (idla) must be between 1 and 4, got {v}")
+            raise ValueError(
+                f"Layout indicator (idla) must be between 1 and 4, got {v}"
+            )
         return v
 
-    @field_validator('idfm')
+    @field_validator("idfm")
     @classmethod
     def validate_idfm(cls, v):
         """Validate format indicator."""
@@ -92,7 +94,7 @@ class Smc(NamelistBaseModel):
 
     The SMC_NML namelist defines the parameters for spherical multiple-cell (SMC) grids in WAVEWATCH III.
     SMC grids use a multi-resolution approach with nested grids for different regions.
-    
+
     The SMC grid configuration involves multiple files containing:
     - MCELS: SMC cell arrays (MCels.dat)
     - ISIDE & JSIDE: Face arrays (ISide.dat, JSide.dat)
@@ -100,8 +102,8 @@ class Smc(NamelistBaseModel):
     - BUNDY: Boundary cell list file (Bundy.dat) - only needed when NBISMC > 0
     - MBArc: Extra cell arrays for Arctic part (MBArc.dat) - if ARC switch selected
     - AISid & AJSid: Extra face arrays for Arctic part (AISid.dat, AJSid.dat)
-    
-    These grids are especially useful for global applications where higher resolution is 
+
+    These grids are especially useful for global applications where higher resolution is
     needed in certain areas while maintaining coarser resolution elsewhere.
     """
 
@@ -111,7 +113,7 @@ class Smc(NamelistBaseModel):
             "MCels (Multiple-Cell elements) data file containing the SMC cell array information. "
             "This file (typically 'S6125MCels.dat') contains the basic grid cell definitions "
             "for the SMC grid structure."
-        )
+        ),
     )
     iside: Optional[SMCFile] = Field(
         default=None,
@@ -119,7 +121,7 @@ class Smc(NamelistBaseModel):
             "ISide data file containing the I-direction face information for the SMC grid. "
             "This file (typically 'S6125ISide.dat') contains the face connections in the I-direction "
             "for the spherical multiple-cell grid."
-        )
+        ),
     )
     jside: Optional[SMCFile] = Field(
         default=None,
@@ -127,7 +129,7 @@ class Smc(NamelistBaseModel):
             "JSide data file containing the J-direction face information for the SMC grid. "
             "This file (typically 'S6125JSide.dat') contains the face connections in the J-direction "
             "for the spherical multiple-cell grid."
-        )
+        ),
     )
     subtr: Optional[SMCFile] = Field(
         default=None,
@@ -135,7 +137,7 @@ class Smc(NamelistBaseModel):
             "Subtr (Subtraction) data file containing the obstruction ratio information. "
             "This file (typically 'SMC25Subtr.dat') contains the data for handling "
             "obstructions at cell boundaries or centers in the SMC grid."
-        )
+        ),
     )
     bundy: Optional[SMCFile] = Field(
         default=None,
@@ -144,7 +146,7 @@ class Smc(NamelistBaseModel):
             "This file (typically 'S6125Bundy.dat') is only needed when NBISMC > 0. "
             "The boundary cell ID numbers should be the sequential numbers in the "
             "cell array (unit 31) of the SMC cell file."
-        )
+        ),
     )
     mbarc: Optional[SMCFile] = Field(
         default=None,
@@ -152,7 +154,7 @@ class Smc(NamelistBaseModel):
             "MBArc (Multiple-Cell Arctic) data file containing extra cell arrays for Arctic regions. "
             "This file (typically 'S6125MBArc.dat') is used when Arctic part switches are selected "
             "to provide additional grid information for the Arctic region."
-        )
+        ),
     )
     aisid: Optional[SMCFile] = Field(
         default=None,
@@ -160,7 +162,7 @@ class Smc(NamelistBaseModel):
             "AISid (Arctic I-Side) data file containing extra face arrays for Arctic I-direction. "
             "This file (typically 'S6125AISid.dat') is used when Arctic part switches are selected "
             "to provide additional face information for the Arctic region."
-        )
+        ),
     )
     ajsid: Optional[SMCFile] = Field(
         default=None,
@@ -168,14 +170,18 @@ class Smc(NamelistBaseModel):
             "AJSid (Arctic J-Side) data file containing extra face arrays for Arctic J-direction. "
             "This file (typically 'S6125AJSid.dat') is used when Arctic part switches are selected "
             "to provide additional face information for the Arctic region."
-        )
+        ),
     )
 
-    @field_validator('mcel', 'iside', 'jside', 'subtr', 'bundy', 'mbarc', 'aisid', 'ajsid')
+    @field_validator(
+        "mcel", "iside", "jside", "subtr", "bundy", "mbarc", "aisid", "ajsid"
+    )
     @classmethod
     def validate_smc_files(cls, v):
         """Validate SMC file specifications."""
         if v is not None:
             if not isinstance(v, SMCFile):
-                raise ValueError(f"SMC file data must be of type SMCFile, got {type(v)}")
+                raise ValueError(
+                    f"SMC file data must be of type SMCFile, got {type(v)}"
+                )
         return v

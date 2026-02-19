@@ -11,11 +11,11 @@ class Slope(NamelistBaseModel):
 
     The SLOPE_NML namelist defines the reflection slope map for WAVEWATCH III grids.
     This map is used only if &REF1 REFMAP = 2 is defined in param.nml.
-    
-    The reflection slope values represent the characteristics of coastal slopes that 
-    affect wave reflection and dissipation. The scale factor converts the input values 
+
+    The reflection slope values represent the characteristics of coastal slopes that
+    affect wave reflection and dissipation. The scale factor converts the input values
     to the appropriate slope values needed by WW3's reflection calculations.
-    
+
     In the case of unstructured grids, no reflection slope file can be added.
     """
 
@@ -26,14 +26,14 @@ class Slope(NamelistBaseModel):
             "The final slope value is calculated as: value = value_read * scale_factor. "
             "This factor is used to convert the values from the input file to appropriate "
             "slope values for WW3's reflection calculations."
-        )
+        ),
     )
     filename: Optional[Union[str, WW3DataBlob]] = Field(
         default=None,
         description=(
             "Filename or data blob containing the reflection slope data for the grid. This file should contain "
             "the slope values in the format specified by the idfm and format parameters."
-        )
+        ),
     )
     idf: Optional[int] = Field(
         default=None,
@@ -41,7 +41,7 @@ class Slope(NamelistBaseModel):
             "File unit number for the slope file. Each file in WW3 is assigned a unique "
             "unit number to distinguish between different input files during processing."
         ),
-        ge=1  # Must be positive file unit number
+        ge=1,  # Must be positive file unit number
     )
     idla: Optional[int] = Field(
         default=None,
@@ -53,7 +53,7 @@ class Slope(NamelistBaseModel):
             "  4: Like 3, but with a single read statement"
         ),
         ge=1,
-        le=4
+        le=4,
     )
     idfm: Optional[int] = Field(
         default=None,
@@ -64,7 +64,7 @@ class Slope(NamelistBaseModel):
             "  3: Unformatted"
         ),
         ge=1,
-        le=3
+        le=3,
     )
     format: Optional[str] = Field(
         default=None,
@@ -72,10 +72,10 @@ class Slope(NamelistBaseModel):
             "Formatted read format specification, like '(f10.6)' for float type. "
             "Use '(....)' for auto detection of the format. This specifies how the "
             "slope values should be read from the file."
-        )
+        ),
     )
 
-    @field_validator('sf')
+    @field_validator("sf")
     @classmethod
     def validate_scale_factor(cls, v):
         """Validate scale factor is not zero."""
@@ -84,7 +84,7 @@ class Slope(NamelistBaseModel):
                 raise ValueError(f"Scale factor must not be zero, got {v}")
         return v
 
-    @field_validator('idf')
+    @field_validator("idf")
     @classmethod
     def validate_file_unit(cls, v):
         """Validate file unit number."""
@@ -93,15 +93,17 @@ class Slope(NamelistBaseModel):
                 raise ValueError(f"File unit number must be positive, got {v}")
         return v
 
-    @field_validator('idla')
+    @field_validator("idla")
     @classmethod
     def validate_idla(cls, v):
         """Validate layout indicator."""
         if v is not None and v not in [1, 2, 3, 4]:
-            raise ValueError(f"Layout indicator (idla) must be between 1 and 4, got {v}")
+            raise ValueError(
+                f"Layout indicator (idla) must be between 1 and 4, got {v}"
+            )
         return v
 
-    @field_validator('idfm')
+    @field_validator("idfm")
     @classmethod
     def validate_idfm(cls, v):
         """Validate format indicator."""

@@ -10,7 +10,7 @@ class Source(NamelistBaseModel):
 
     The SOURCE_NML namelist defines the type 3 (source terms) output configuration for point output in WAVEWATCH III.
     This namelist controls how source term information is output for specific points in the model domain.
-    
+
     Type 3 output provides detailed information about the various source terms that contribute to
     wave growth and decay, including wind input, nonlinear wave-wave interactions, whitecapping
     dissipation, bottom friction, and ice effects. This output is valuable for process studies
@@ -28,7 +28,7 @@ class Source(NamelistBaseModel):
             "This determines the format and content of the source term output."
         ),
         ge=1,
-        le=4
+        le=4,
     )
     scale_fac: Optional[int] = Field(
         default=None,
@@ -37,7 +37,7 @@ class Source(NamelistBaseModel):
             "  -1: Disabled (no scaling applied)\n"
             "  Other values: Scaling factor applied to source terms\n"
             "This is used to adjust units or magnitudes of source term values in output."
-        )
+        ),
     )
     output_fac: Optional[int] = Field(
         default=None,
@@ -46,7 +46,7 @@ class Source(NamelistBaseModel):
             "  0: Normalized source terms (energy normalized to 1)\n"
             "  Other values: Non-normalized source terms with specified factor\n"
             "This controls whether source terms are normalized or output with original magnitudes."
-        )
+        ),
     )
     table_fac: Optional[int] = Field(
         default=None,
@@ -59,59 +59,59 @@ class Source(NamelistBaseModel):
             "This controls the normalization scheme used for tabular source term output."
         ),
         ge=0,
-        le=5
+        le=5,
     )
     spectrum: Optional[bool] = Field(
         default=None,
         description=(
             "Flag to include spectrum in source term output (T) or not (F). "
             "When True, the wave spectrum is included alongside source term data."
-        )
+        ),
     )
     input: Optional[bool] = Field(
         default=None,
         description=(
             "Flag to include input source term in output (T) or not (F). "
             "When True, wind input source term information is included in the output."
-        )
+        ),
     )
     interactions: Optional[bool] = Field(
         default=None,
         description=(
             "Flag to include nonlinear interactions in output (T) or not (F). "
             "When True, nonlinear wave-wave interaction source term information is included."
-        )
+        ),
     )
     dissipation: Optional[bool] = Field(
         default=None,
         description=(
             "Flag to include dissipation source term in output (T) or not (F). "
             "When True, whitecapping and other dissipation source term information is included."
-        )
+        ),
     )
     bottom: Optional[bool] = Field(
         default=None,
         description=(
             "Flag to include bottom source term in output (T) or not (F). "
             "When True, bottom friction source term information is included in the output."
-        )
+        ),
     )
     ice: Optional[bool] = Field(
         default=None,
         description=(
             "Flag to include ice source term in output (T) or not (F). "
             "When True, ice-related source term information is included in the output."
-        )
+        ),
     )
     total: Optional[bool] = Field(
         default=None,
         description=(
             "Flag to include total source term in output (T) or not (F). "
             "When True, the sum of all source terms is included in the output."
-        )
+        ),
     )
 
-    @field_validator('output')
+    @field_validator("output")
     @classmethod
     def validate_output_type(cls, v):
         """Validate output type."""
@@ -119,7 +119,7 @@ class Source(NamelistBaseModel):
             raise ValueError(f"Output type must be 1, 2, 3, or 4, got {v}")
         return v
 
-    @field_validator('scale_fac')
+    @field_validator("scale_fac")
     @classmethod
     def validate_scale_factor(cls, v):
         """Validate scale factor."""
@@ -130,7 +130,7 @@ class Source(NamelistBaseModel):
             raise ValueError(f"Scale factor must be an integer, got {type(v)}")
         return v
 
-    @field_validator('output_fac')
+    @field_validator("output_fac")
     @classmethod
     def validate_output_factor(cls, v):
         """Validate output factor."""
@@ -138,7 +138,7 @@ class Source(NamelistBaseModel):
             raise ValueError(f"Output factor must be an integer, got {type(v)}")
         return v
 
-    @field_validator('table_fac')
+    @field_validator("table_fac")
     @classmethod
     def validate_table_factor(cls, v):
         """Validate table factor."""
@@ -146,7 +146,9 @@ class Source(NamelistBaseModel):
             raise ValueError(f"Table factor must be 0-5, got {v}")
         return v
 
-    @field_validator('spectrum', 'input', 'interactions', 'dissipation', 'bottom', 'ice', 'total')
+    @field_validator(
+        "spectrum", "input", "interactions", "dissipation", "bottom", "ice", "total"
+    )
     @classmethod
     def validate_boolean_flags(cls, v):
         """Validate boolean flags are actually boolean."""
