@@ -1,7 +1,7 @@
 """OUNF_NML namelist implementation for WW3."""
 
 from typing import Optional
-from pydantic import Field, field_validator
+from pydantic import Field
 from .basemodel import NamelistBaseModel
 
 
@@ -49,20 +49,3 @@ class UnformattedOutput(NamelistBaseModel):
     y_last: Optional[int] = Field(
         default=None, description="Last Y index for spatial subset"
     )
-
-    @field_validator("stride", mode="before")
-    @classmethod
-    def parse_stride(cls, v):
-        """Parse string inputs to integers (backward-compatible)."""
-        if v is None:
-            return v
-        if isinstance(v, str):
-            try:
-                return int(v)
-            except ValueError as e:
-                raise ValueError(
-                    f"Invalid integer format for 'stride': {v}. Error: {e}"
-                )
-        if isinstance(v, int):
-            return v
-        return v

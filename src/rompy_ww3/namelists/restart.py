@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Optional
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
-from .validation import validate_date_format
 
 
 class Restart(NamelistBaseModel):
@@ -22,41 +21,22 @@ class Restart(NamelistBaseModel):
     restarttime: Optional[datetime] = Field(
         default=None,
         description=(
-            "Restart time for model initialization. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Restart time for model initialization. "
             "This specifies the time at which the model should initialize from restart files. "
             "The model will look for restart files corresponding to this time to initialize "
             "the wave spectra and other state variables. "
-            "Example: datetime(2010, 1, 1, 0, 0, 0) or '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
         ),
     )
 
-    @field_validator("restarttime", mode="before")
+    @field_validator("restarttime")
     @classmethod
-    def parse_restarttime(cls, v):
-        """Parse date string to datetime object (backward-compatible)."""
-        if v is None:
-            return v
-        if isinstance(v, str):
-            # Validate format first (reuse existing validation)
-            validate_date_format(v)
-            # Parse WW3 format: YYYYMMDD HHMMSS
-            try:
-                parsed = datetime.strptime(v, "%Y%m%d %H%M%S")
-                if parsed.tzinfo is not None:
-                    raise ValueError(
-                        "Timezone-aware datetimes not supported - use naive datetimes only"
-                    )
-                return parsed
-            except ValueError as e:
-                raise ValueError(
-                    f"Invalid date format for 'restarttime': {v}. Expected 'YYYYMMDD HHMMSS'. Error: {e}"
-                )
-        if isinstance(v, datetime):
-            if v.tzinfo is not None:
-                raise ValueError(
-                    "Timezone-aware datetimes not supported - use naive datetimes only"
-                )
-            return v
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
         return v
 
 

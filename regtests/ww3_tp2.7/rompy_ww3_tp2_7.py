@@ -53,7 +53,11 @@ def create_ww3_tp2_7_config():
         input_nml=Input(forcing={"winds": "H"}),
         output_type=OutputType(
             field={"list": "HS T02 T01 ABR UBR"},
-            point={"file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.7/input/points.list")},
+            point={
+                "file": WW3DataBlob(
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.7/input/points.list"
+                )
+            },
         ),
         output_date=OutputDate(
             field={
@@ -111,7 +115,9 @@ def create_ww3_tp2_7_config():
         ),
         unst=Unst(
             sf=-1.0,
-            filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.7/input/ref1.msh"),
+            filename=WW3DataBlob(
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.7/input/ref1.msh"
+            ),
             idf=20,
             idla=4,
             idfm=1,
@@ -153,7 +159,7 @@ def create_ww3_tp2_7_config():
     field_output_component = Ounf(
         field=Field(
             timestart="20030101 000000",
-            timestride="3600",
+            timestride=3600,
             timecount="999",
             list="HS ABR UBR",
             partition="0 1 2",

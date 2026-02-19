@@ -10,6 +10,7 @@ from rompy_ww3.namelists import Domain, HomogInput, Timesteps
 from rompy_ww3.components import Shel, Grid
 from rompy_ww3.namelists.field import Field
 from rompy_ww3.namelists.point import Point
+from datetime import datetime
 
 
 def test_config_with_namelists():
@@ -19,7 +20,11 @@ def test_config_with_namelists():
     from rompy_ww3.namelists.input import Input
 
     shell_component = Shel(
-        domain=Domain(start="20230101 000000", stop="20230102 000000", iostyp=1),
+        domain=Domain(
+            start=datetime(2023, 1, 1, 0, 0, 0),
+            stop=datetime(2023, 1, 2, 0, 0, 0),
+            iostyp=1,
+        ),
         input_nml=Input(),
         homog_input=[
             HomogInput(name="WND", date="20230101 000000", value1=10.0, value2=90.0),
@@ -49,7 +54,11 @@ def test_nml_config_integration():
     from rompy_ww3.namelists.input import Input
 
     shell_component = Shel(
-        domain=Domain(start="20230101 000000", stop="20230102 000000", iostyp=1),
+        domain=Domain(
+            start=datetime(2023, 1, 1, 0, 0, 0),
+            stop=datetime(2023, 1, 2, 0, 0, 0),
+            iostyp=1,
+        ),
         input_nml=Input(),
         homog_input=[
             HomogInput(name="WND", date="20230101 000000", value1=10.0, value2=90.0),

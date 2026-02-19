@@ -140,16 +140,24 @@ def create_ww3_tp2_10_config():
         smc=Smc(
             # SMC-specific grid files
             mcel=SMCFile(
-                filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.10/input/ErieSMCel.dat"),
+                filename=WW3DataBlob(
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.10/input/ErieSMCel.dat"
+                ),
             ),
             iside=SMCFile(
-                filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.10/input/ErieISide.dat"),
+                filename=WW3DataBlob(
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.10/input/ErieISide.dat"
+                ),
             ),
             jside=SMCFile(
-                filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.10/input/ErieJSide.dat"),
+                filename=WW3DataBlob(
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.10/input/ErieJSide.dat"
+                ),
             ),
             subtr=SMCFile(
-                filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.10/input/ErieObstr.dat"),
+                filename=WW3DataBlob(
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.10/input/ErieObstr.dat"
+                ),
             ),
         ),
         depth=Depth(
@@ -168,7 +176,7 @@ def create_ww3_tp2_10_config():
     field_output_component = Ounf(
         field=Field(
             timestart="19680606 000000",
-            timestride="3600",  # 1 hour output
+            timestride=3600,  # 1 hour output
             timecount="1000000000",
             list="WND HS T01",
             partition="0 1 2",

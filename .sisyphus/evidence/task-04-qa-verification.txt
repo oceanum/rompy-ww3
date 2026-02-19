@@ -1,0 +1,66 @@
+QA SCENARIO: Draft conversion policy
+=====================================
+
+Date: 2026-02-19
+Task: Task 4 - Decide and document conversion rules + backward compatibility policy
+
+VERIFICATION STEPS:
+
+1. Policy document created: ✓
+   Location: .sisyphus/evidence/task-04-conversion-policy.md
+   
+2. Conversion rules defined with examples:
+   - Date → datetime: ✓ (with parsing from WW3 string)
+   - T/F → bool: ✓ (with parsing from string)
+   - Numeric strings → int: ✓
+   - Multi-valued flags: ✓ (explicitly deferred)
+
+3. Accepted inputs documented: ✓
+   - Date: WW3 format, ISO 8601, Python datetime objects, alternative formats
+   - Integer: Numeric strings, integer values
+   - Boolean: 'T'/'F' strings, Python bool values
+
+4. Rendered outputs documented: ✓
+   - Date: YYYYMMDD HHMMSS (WW3 Fortran format)
+   - Integer: Unquoted integer literals
+   - Boolean: Bare T/F tokens
+
+5. Timezone policy documented: ✓
+   - Policy: Naive datetimes only
+   - Rationale: WW3 namelists do not support timezone information
+   - Validation: Reject timezone-aware datetimes
+
+6. Enum conversion scope clarified: ✓
+   - Decision: Defer to later work
+   - Rationale: Optimal representation unclear, existing validation functional
+   - Explicitly deferred fields: Forcing flags (F/T/H/C)
+
+7. Explicit exclusions documented: ✓
+   - File paths and names
+   - Format identifiers and codes
+   - Mixed-content fields (keywords + dates)
+   - Multi-valued flags
+
+8. Backward compatibility policy defined: ✓
+   - Input: All existing string inputs must continue to parse
+   - Output: Byte-for-byte identical or functionally equivalent
+   - Verification: Golden output comparison
+
+9. Examples provided: ✓
+   - Date field conversion example
+   - Integer field conversion example
+   - Boolean field conversion example
+   - Before/after code snippets
+   - Rendered output examples
+
+RESULT: PASS
+
+The conversion policy document is complete and unambiguous. All required elements are documented:
+- Explicit criteria for each type conversion
+- Timezone policy for datetime (naive only)
+- Enum conversion scope (deferred)
+- Accepted inputs and rendered outputs with examples
+- Explicit exclusions and deferrals
+- Backward compatibility guarantees
+
+No ambiguities or missing information detected.

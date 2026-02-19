@@ -1,0 +1,46 @@
+======================================================================
+QA Evidence: Integer Rendering Without Quotes
+======================================================================
+
+Test 1: Field with string input '3600'
+----------------------------------------------------------------------
+Input: timestride='3600', timecount='100'
+Stored as: timestride=3600, timecount=100
+Types: timestride=int, timecount=int
+
+Rendered output:
+    FIELD%TIMESTRIDE = 3600
+    FIELD%TIMECOUNT = 100
+
+Test 2: Field with int input 3600
+----------------------------------------------------------------------
+Input: timestride=3600, timecount=100
+Stored as: timestride=3600, timecount=100
+Types: timestride=int, timecount=int
+
+Rendered output:
+    FIELD%TIMESTRIDE = 3600
+    FIELD%TIMECOUNT = 100
+
+Test 3: OutputDateField with stride='1800'
+----------------------------------------------------------------------
+Input: stride='1800'
+Stored as: stride=1800
+Type: stride=int
+
+Rendered output:
+    DATE_FIELD%STRIDE = 1800
+
+Test 4: Point with timestride='3600'
+----------------------------------------------------------------------
+Input: timestride='3600', timecount='999'
+Stored as: timestride=3600, timecount=999
+Types: timestride=int, timecount=int
+
+Rendered output:
+    POINT%TIMESTRIDE = 3600
+    POINT%TIMECOUNT = 999
+
+======================================================================
+Summary: All stride/count fields render as unquoted integers
+======================================================================

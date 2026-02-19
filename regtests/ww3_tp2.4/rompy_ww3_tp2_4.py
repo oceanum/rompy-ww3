@@ -56,7 +56,9 @@ def create_ww3_tp2_4_components():
         output_type=OutputType(
             field={"list": "DPT HS FP DIR SPR"},  # Output fields from reference
             point={
-                "file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.4/input/points.list")
+                "file": WW3DataBlob(
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.4/input/points.list"
+                )
             },  # Point output file
         ),
         output_date=OutputDate(
@@ -142,7 +144,7 @@ def create_ww3_tp2_4_components():
     field_output_component = Ounf(
         field=Field(
             timestart="20080522 000000",  # Start time from reference
-            timestride="3600",  # Time stride from reference (1 hour)
+            timestride=3600,  # Time stride from reference (1 hour)
             timecount="999",  # Number of time steps from reference
             list="DPT HS",  # Output fields from reference: water depth and wave height
             partition="0 1 2",  # Wave partitions from reference

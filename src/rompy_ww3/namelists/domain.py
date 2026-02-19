@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
-from .validation import validate_date_format, validate_io_type
+from .validation import validate_io_type
 
 
 class Domain(NamelistBaseModel):
@@ -87,33 +87,14 @@ class Domain(NamelistBaseModel):
         description="Flag for masking at printout time (for multi-grid runs).",
     )
 
-    @field_validator("start", "stop", mode="before")
+    @field_validator("start", "stop")
     @classmethod
-    def parse_date_fields(cls, v):
-        """Parse date strings to datetime objects (backward-compatible)."""
-        if v is None:
-            return v
-        if isinstance(v, str):
-            # Validate format first (reuse existing validation)
-            validate_date_format(v)
-            # Parse WW3 format: YYYYMMDD HHMMSS
-            try:
-                parsed = datetime.strptime(v, "%Y%m%d %H%M%S")
-                if parsed.tzinfo is not None:
-                    raise ValueError(
-                        "Timezone-aware datetimes not supported - use naive datetimes only"
-                    )
-                return parsed
-            except ValueError as e:
-                raise ValueError(
-                    f"Invalid date format: {v}. Expected 'YYYYMMDD HHMMSS'. Error: {e}"
-                )
-        if isinstance(v, datetime):
-            if v.tzinfo is not None:
-                raise ValueError(
-                    "Timezone-aware datetimes not supported - use naive datetimes only"
-                )
-            return v
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
         return v
 
     @field_validator("iostyp")

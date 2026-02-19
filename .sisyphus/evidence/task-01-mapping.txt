@@ -1,0 +1,8 @@
+- Entry points and rendering flow (high-level):
+  - WW3ComponentBaseModel.render() provides the core rendering surface for all components.
+  - Per-component render() overrides (e.g., domain.py, input.py, output_type.py, output_date.py, homog_count.py, shel.py, bounc.py, prnc.py, ounp.py, ounf.py, uptstr.py, trnc.py) generate in-memory namelist blocks via their own render() implementations.
+  - Namelist composer wires render() outputs into a dict mapping names to content, e.g., domain.nml, input.nml, etc., through namelist_composer.py lines around 86-98.
+  - Final file emission occurs via write_nml() on sub-components and container components in config.py (e.g., self.multi.write_nml, self.ounf.write_nml, self.namelists.write_nml) and in nested components (sub_component.write_nml, component.write_nml).
+  - The actual output artifacts are: per-component .nml blocks and combined namelist files written to destination destdir (as used by WW3).
+- Output artifacts: generated *.nml strings in memory, and written .nml files in the filesystem under the WW3 namelist output paths.
+- Rationale: This mapping focuses on the exact call chains that translate model state into WW3 namelist strings/files without altering behavior.

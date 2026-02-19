@@ -18,9 +18,9 @@ class OutputDateField(NamelistBaseModel):
     start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Field output start time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Field output start time. "
             "This specifies when to begin writing field output during the simulation. "
-            "Example: datetime(2010, 1, 1, 0, 0, 0) or '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
         ),
     )
     stride: Optional[int] = Field(
@@ -35,56 +35,20 @@ class OutputDateField(NamelistBaseModel):
     stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Field output stop time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Field output stop time. "
             "This specifies when to stop writing field output during the simulation. "
-            "Example: datetime(2010, 12, 31, 0, 0, 0) or '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
         ),
     )
 
-    @field_validator("start", "stop", mode="before")
+    @field_validator("start", "stop")
     @classmethod
-    def parse_date_fields(cls, v):
-        """Parse date strings to datetime objects (backward-compatible)."""
-        if v is None:
-            return v
-        if isinstance(v, str):
-            # Validate format first (reuse existing validation)
-            validate_date_format(v)
-            # Parse WW3 format: YYYYMMDD HHMMSS
-            try:
-                parsed = datetime.strptime(v, "%Y%m%d %H%M%S")
-                if parsed.tzinfo is not None:
-                    raise ValueError(
-                        "Timezone-aware datetimes not supported - use naive datetimes only"
-                    )
-                return parsed
-            except ValueError as e:
-                raise ValueError(
-                    f"Invalid date format: {v}. Expected 'YYYYMMDD HHMMSS'. Error: {e}"
-                )
-        if isinstance(v, datetime):
-            if v.tzinfo is not None:
-                raise ValueError(
-                    "Timezone-aware datetimes not supported - use naive datetimes only"
-                )
-            return v
-        return v
-
-    @field_validator("stride", mode="before")
-    @classmethod
-    def parse_stride(cls, v):
-        """Parse string inputs to integers (backward-compatible)."""
-        if v is None:
-            return v
-        if isinstance(v, str):
-            try:
-                return int(v)
-            except ValueError as e:
-                raise ValueError(
-                    f"Invalid integer format for 'stride': {v}. Error: {e}"
-                )
-        if isinstance(v, int):
-            return v
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
         return v
 
 
@@ -99,9 +63,9 @@ class OutputDatePoint(NamelistBaseModel):
     start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Point output start time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Point output start time. "
             "This specifies when to begin writing point output during the simulation. "
-            "Example: datetime(2010, 1, 1, 0, 0, 0) or '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
         ),
     )
     stride: Optional[int] = Field(
@@ -116,18 +80,21 @@ class OutputDatePoint(NamelistBaseModel):
     stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Point output stop time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Point output stop time. "
             "This specifies when to stop writing point output during the simulation. "
-            "Example: datetime(2010, 12, 31, 0, 0, 0) or '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
         ),
     )
 
-    @field_validator("start", "stop", mode="before")
+    @field_validator("start", "stop")
     @classmethod
-    def parse_date_fields(cls, v):
-        """Parse date strings to datetime objects (backward-compatible)."""
-        if v is None:
-            return v
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
+        return v
         if isinstance(v, str):
             # Validate format first (reuse existing validation)
             validate_date_format(v)
@@ -151,12 +118,6 @@ class OutputDatePoint(NamelistBaseModel):
             return v
         return v
 
-    @field_validator("stride", mode="before")
-    @classmethod
-    def parse_stride(cls, v):
-        """Parse string inputs to integers (backward-compatible)."""
-        if v is None:
-            return v
         if isinstance(v, str):
             try:
                 return int(v)
@@ -180,9 +141,9 @@ class OutputDateTrack(NamelistBaseModel):
     start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Track output start time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Track output start time. "
             "This specifies when to begin writing track output during the simulation. "
-            "Example: datetime(2010, 1, 1, 0, 0, 0) or '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
         ),
     )
     stride: Optional[int] = Field(
@@ -197,18 +158,21 @@ class OutputDateTrack(NamelistBaseModel):
     stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Track output stop time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Track output stop time. "
             "This specifies when to stop writing track output during the simulation. "
-            "Example: datetime(2010, 12, 31, 0, 0, 0) or '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
         ),
     )
 
-    @field_validator("start", "stop", mode="before")
+    @field_validator("start", "stop")
     @classmethod
-    def parse_date_fields(cls, v):
-        """Parse date strings to datetime objects (backward-compatible)."""
-        if v is None:
-            return v
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
+        return v
         if isinstance(v, str):
             # Validate format first (reuse existing validation)
             validate_date_format(v)
@@ -232,12 +196,6 @@ class OutputDateTrack(NamelistBaseModel):
             return v
         return v
 
-    @field_validator("stride", mode="before")
-    @classmethod
-    def parse_stride(cls, v):
-        """Parse string inputs to integers (backward-compatible)."""
-        if v is None:
-            return v
         if isinstance(v, str):
             try:
                 return int(v)
@@ -261,9 +219,9 @@ class OutputDateRestart(NamelistBaseModel):
     start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Restart output start time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Restart output start time. "
             "This specifies when to begin writing restart output during the simulation. "
-            "Example: datetime(2010, 1, 1, 0, 0, 0) or '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
         ),
     )
     stride: Optional[int] = Field(
@@ -278,18 +236,21 @@ class OutputDateRestart(NamelistBaseModel):
     stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Restart output stop time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Restart output stop time. "
             "This specifies when to stop writing restart output during the simulation. "
-            "Example: datetime(2010, 12, 31, 0, 0, 0) or '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
         ),
     )
 
-    @field_validator("start", "stop", mode="before")
+    @field_validator("start", "stop")
     @classmethod
-    def parse_date_fields(cls, v):
-        """Parse date strings to datetime objects (backward-compatible)."""
-        if v is None:
-            return v
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
+        return v
         if isinstance(v, str):
             # Validate format first (reuse existing validation)
             validate_date_format(v)
@@ -313,12 +274,6 @@ class OutputDateRestart(NamelistBaseModel):
             return v
         return v
 
-    @field_validator("stride", mode="before")
-    @classmethod
-    def parse_stride(cls, v):
-        """Parse string inputs to integers (backward-compatible)."""
-        if v is None:
-            return v
         if isinstance(v, str):
             try:
                 return int(v)
@@ -342,9 +297,9 @@ class OutputDateBoundary(NamelistBaseModel):
     start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Boundary output start time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Boundary output start time. "
             "This specifies when to begin writing boundary output during the simulation. "
-            "Example: datetime(2010, 1, 1, 0, 0, 0) or '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
         ),
     )
     stride: Optional[int] = Field(
@@ -359,18 +314,21 @@ class OutputDateBoundary(NamelistBaseModel):
     stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Boundary output stop time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Boundary output stop time. "
             "This specifies when to stop writing boundary output during the simulation. "
-            "Example: datetime(2010, 12, 31, 0, 0, 0) or '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
         ),
     )
 
-    @field_validator("start", "stop", mode="before")
+    @field_validator("start", "stop")
     @classmethod
-    def parse_date_fields(cls, v):
-        """Parse date strings to datetime objects (backward-compatible)."""
-        if v is None:
-            return v
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
+        return v
         if isinstance(v, str):
             # Validate format first (reuse existing validation)
             validate_date_format(v)
@@ -394,12 +352,6 @@ class OutputDateBoundary(NamelistBaseModel):
             return v
         return v
 
-    @field_validator("stride", mode="before")
-    @classmethod
-    def parse_stride(cls, v):
-        """Parse string inputs to integers (backward-compatible)."""
-        if v is None:
-            return v
         if isinstance(v, str):
             try:
                 return int(v)
@@ -423,9 +375,9 @@ class OutputDatePartition(NamelistBaseModel):
     start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Partition output start time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Partition output start time. "
             "This specifies when to begin writing partition output during the simulation. "
-            "Example: datetime(2010, 1, 1, 0, 0, 0) or '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
         ),
     )
     stride: Optional[int] = Field(
@@ -440,18 +392,21 @@ class OutputDatePartition(NamelistBaseModel):
     stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Partition output stop time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Partition output stop time. "
             "This specifies when to stop writing partition output during the simulation. "
-            "Example: datetime(2010, 12, 31, 0, 0, 0) or '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
         ),
     )
 
-    @field_validator("start", "stop", mode="before")
+    @field_validator("start", "stop")
     @classmethod
-    def parse_date_fields(cls, v):
-        """Parse date strings to datetime objects (backward-compatible)."""
-        if v is None:
-            return v
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
+        return v
         if isinstance(v, str):
             # Validate format first (reuse existing validation)
             validate_date_format(v)
@@ -475,12 +430,6 @@ class OutputDatePartition(NamelistBaseModel):
             return v
         return v
 
-    @field_validator("stride", mode="before")
-    @classmethod
-    def parse_stride(cls, v):
-        """Parse string inputs to integers (backward-compatible)."""
-        if v is None:
-            return v
         if isinstance(v, str):
             try:
                 return int(v)
@@ -504,9 +453,9 @@ class OutputDateCoupling(NamelistBaseModel):
     start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Coupling output start time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Coupling output start time. "
             "This specifies when to begin writing coupling output during the simulation. "
-            "Example: datetime(2010, 1, 1, 0, 0, 0) or '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
         ),
     )
     stride: Optional[int] = Field(
@@ -521,18 +470,21 @@ class OutputDateCoupling(NamelistBaseModel):
     stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Coupling output stop time. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
+            "Coupling output stop time. "
             "This specifies when to stop writing coupling output during the simulation. "
-            "Example: datetime(2010, 12, 31, 0, 0, 0) or '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
         ),
     )
 
-    @field_validator("start", "stop", mode="before")
+    @field_validator("start", "stop")
     @classmethod
-    def parse_date_fields(cls, v):
-        """Parse date strings to datetime objects (backward-compatible)."""
-        if v is None:
-            return v
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
+        return v
         if isinstance(v, str):
             # Validate format first (reuse existing validation)
             validate_date_format(v)
@@ -556,12 +508,6 @@ class OutputDateCoupling(NamelistBaseModel):
             return v
         return v
 
-    @field_validator("stride", mode="before")
-    @classmethod
-    def parse_stride(cls, v):
-        """Parse string inputs to integers (backward-compatible)."""
-        if v is None:
-            return v
         if isinstance(v, str):
             try:
                 return int(v)

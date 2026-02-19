@@ -13,6 +13,7 @@ Tests cover:
 import tempfile
 from pathlib import Path
 import pytest
+from datetime import datetime
 
 from rompy_ww3.config import MultiConfig, GridSpec
 from rompy_ww3.components import Multi, Grid as GridComponent
@@ -101,8 +102,8 @@ class TestMultiConfig:
         """Test MultiConfig can be instantiated with multi and grids."""
         multi_component = Multi(
             domain=Domain(
-                start="20200101 000000",
-                stop="20200101 120000",
+                start=datetime(2020, 1, 1, 0, 0, 0),
+                stop=datetime(2020, 1, 1, 12, 0, 0),
                 iostyp=1,
                 nrinp=0,
                 nrgrd=1,
@@ -127,9 +128,9 @@ class TestMultiConfig:
             output_type={"field": {"list": "HS FP DP DIR"}},
             output_date={
                 "field": {
-                    "start": "20200101 000000",
+                    "start": datetime(2020, 1, 1, 0, 0, 0),
                     "stride": "3600",
-                    "stop": "20200101 120000",
+                    "stop": datetime(2020, 1, 1, 12, 0, 0),
                 }
             },
         )
@@ -163,8 +164,8 @@ class TestMultiConfig:
         """Test validation passes when grid names match."""
         multi_component = Multi(
             domain=Domain(
-                start="20200101 000000",
-                stop="20200101 120000",
+                start=datetime(2020, 1, 1, 0, 0, 0),
+                stop=datetime(2020, 1, 1, 12, 0, 0),
                 iostyp=1,
                 nrinp=0,
                 nrgrd=2,
@@ -249,8 +250,8 @@ class TestMultiConfig:
         """Test validation catches grids in GridSpec but not in Multi."""
         multi_component = Multi(
             domain=Domain(
-                start="20200101 000000",
-                stop="20200101 120000",
+                start=datetime(2020, 1, 1, 0, 0, 0),
+                stop=datetime(2020, 1, 1, 12, 0, 0),
                 iostyp=1,
                 nrinp=0,
                 nrgrd=1,
@@ -319,8 +320,8 @@ class TestMultiConfig:
         """Test validation catches grids in Multi but not in GridSpec."""
         multi_component = Multi(
             domain=Domain(
-                start="20200101 000000",
-                stop="20200101 120000",
+                start=datetime(2020, 1, 1, 0, 0, 0),
+                stop=datetime(2020, 1, 1, 12, 0, 0),
                 iostyp=1,
                 nrinp=0,
                 nrgrd=2,
@@ -386,8 +387,8 @@ class TestMultiConfig:
         """Test validation catches grid count mismatch."""
         multi_component = Multi(
             domain=Domain(
-                start="20200101 000000",
-                stop="20200101 120000",
+                start=datetime(2020, 1, 1, 0, 0, 0),
+                stop=datetime(2020, 1, 1, 12, 0, 0),
                 iostyp=1,
                 nrinp=0,
                 nrgrd=2,  # Declares 2 grids
@@ -438,8 +439,8 @@ class TestMultiConfig:
         """Test namelist generation produces correct files."""
         multi_component = Multi(
             domain=Domain(
-                start="20200101 000000",
-                stop="20200101 120000",
+                start=datetime(2020, 1, 1, 0, 0, 0),
+                stop=datetime(2020, 1, 1, 12, 0, 0),
                 iostyp=1,
                 nrinp=0,
                 nrgrd=1,
@@ -464,9 +465,9 @@ class TestMultiConfig:
             output_type={"field": {"list": "HS FP DP DIR"}},
             output_date={
                 "field": {
-                    "start": "20200101 000000",
+                    "start": datetime(2020, 1, 1, 0, 0, 0),
                     "stride": "3600",
-                    "stop": "20200101 120000",
+                    "stop": datetime(2020, 1, 1, 12, 0, 0),
                 }
             },
         )
@@ -522,8 +523,8 @@ class TestMultiConfig:
         """Test script generation produces executable scripts."""
         multi_component = Multi(
             domain=Domain(
-                start="20200101 000000",
-                stop="20200101 120000",
+                start=datetime(2020, 1, 1, 0, 0, 0),
+                stop=datetime(2020, 1, 1, 12, 0, 0),
                 iostyp=1,
                 nrinp=0,
                 nrgrd=1,
@@ -614,8 +615,8 @@ class TestMultiConfig:
             "model_type": "multi",
             "multi": {
                 "domain": {
-                    "start": "20200101 000000",
-                    "stop": "20200101 120000",
+                    "start": datetime(2020, 1, 1, 0, 0, 0),
+                    "stop": datetime(2020, 1, 1, 12, 0, 0),
                     "iostyp": 1,
                     "nrinp": 0,
                     "nrgrd": 1,
@@ -703,8 +704,8 @@ class TestMultiConfigIntegration:
             "model_type": "multi",
             "multi": {
                 "domain": {
-                    "start": "20200101 000000",
-                    "stop": "20200101 120000",
+                    "start": datetime(2020, 1, 1, 0, 0, 0),
+                    "stop": datetime(2020, 1, 1, 12, 0, 0),
                     "iostyp": 1,
                     "nrinp": 0,
                     "nrgrd": 2,
@@ -744,9 +745,9 @@ class TestMultiConfigIntegration:
                 "output_type": {"field": {"list": "HS FP DP DIR"}},
                 "output_date": {
                     "field": {
-                        "start": "20200101 000000",
+                        "start": datetime(2020, 1, 1, 0, 0, 0),
                         "stride": "3600",
-                        "stop": "20200101 120000",
+                        "stop": datetime(2020, 1, 1, 12, 0, 0),
                     }
                 },
             },

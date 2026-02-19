@@ -1,9 +1,9 @@
 """FIELD_NML namelist implementation for WW3."""
 
+from datetime import datetime
 from typing import Optional
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
-from .validation import validate_date_format
 
 
 class Field(NamelistBaseModel):
@@ -17,12 +17,12 @@ class Field(NamelistBaseModel):
     formatting and temporal options.
     """
 
-    timestart: Optional[str] = Field(
+    timestart: Optional[datetime] = Field(
         default=None,
         description=(
-            "Start date for the output field in format 'YYYYMMDD HHMMSS'. "
+            "Start date for the output field. "
             "This specifies when to begin writing field output during the post-processing. "
-            "Example: '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
         ),
     )
     timestride: Optional[int] = Field(
@@ -105,12 +105,12 @@ class Field(NamelistBaseModel):
             "When True, additional forecast-related variables are included in the output."
         ),
     )
-    timeref: Optional[str] = Field(
+    timeref: Optional[datetime] = Field(
         default=None,
         description=(
-            "Forecast reference time in format 'YYYYMMDD HHMMSS'. "
+            "Forecast reference time. "
             "This specifies the reference time for forecast variables in the output. "
-            "Example: '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
         ),
     )
     timevar: Optional[str] = Field(
@@ -157,25 +157,12 @@ class Field(NamelistBaseModel):
 
     @field_validator("timestart", "timeref")
     @classmethod
-    def validate_time_format(cls, v):
-        """Validate date format for time fields."""
-        if v is not None:
-            return validate_date_format(v)
-        return v
-
-    @field_validator("timestride", "timecount", mode="before")
-    @classmethod
-    def parse_integer_fields(cls, v):
-        """Parse string inputs to integers (backward-compatible)."""
-        if v is None:
-            return v
-        if isinstance(v, str):
-            try:
-                return int(v)
-            except ValueError as e:
-                raise ValueError(f"Invalid integer format: {v}. Error: {e}")
-        if isinstance(v, int):
-            return v
+    def validate_timezone(cls, v):
+        """Ensure datetime fields are timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
         return v
 
     @field_validator("timesplit")

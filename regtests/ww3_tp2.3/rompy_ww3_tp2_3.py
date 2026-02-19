@@ -123,7 +123,7 @@ def create_ww3_tp2_3_components():
     field_output_component = Ounf(
         field=Field(
             timestart="19680606 000000",
-            timestride="86400",
+            timestride=86400,
             timecount="999",
             list="HS DIR SPR DP EF TH1M STH1M TH2M STH2M",
             partition="0 1 2",

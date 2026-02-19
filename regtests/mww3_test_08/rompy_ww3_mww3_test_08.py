@@ -40,8 +40,6 @@ def create_ww3_mww3_test_08_component():
             currents="F",
             winds="T",
             ice_conc="T",
-            
-            
         ),
     )
 
@@ -52,8 +50,6 @@ def create_ww3_mww3_test_08_component():
             currents="F",
             winds="T",
             ice_conc="T",
-            
-            
         ),
         resource=ModelGridResource(
             rank_id=1,
@@ -70,8 +66,6 @@ def create_ww3_mww3_test_08_component():
             currents="F",
             winds="T",
             ice_conc="T",
-            
-            
         ),
         resource=ModelGridResource(
             rank_id=2,
@@ -88,7 +82,7 @@ def create_ww3_mww3_test_08_component():
     output_date = OutputDate(
         field=OutputDateField(
             start="20200101 000000",
-            stride="3600",
+            stride=3600,
             stop="20200102 000000",
         ),
     )

@@ -1,0 +1,83 @@
+=== Test 1: Domain with datetime objects ===
+start type: <class 'datetime.datetime'>
+start value: 2010-01-01 12:00:00
+Rendered output:
+&DOMAIN_NML
+  DOMAIN%START = 20100101 120000
+  DOMAIN%STOP = 20101231 000000
+/
+
+=== Test 2: Domain with string inputs (backward compatibility) ===
+start type: <class 'datetime.datetime'>
+start value: 2010-01-01 12:00:00
+Rendered output:
+&DOMAIN_NML
+  DOMAIN%START = 20100101 120000
+  DOMAIN%STOP = 20101231 000000
+/
+
+=== Test 3: OutputDateField with string input ===
+start type: <class 'datetime.datetime'>
+Rendered output:
+&OUTPUT_DATE_FIELD_NML
+  DATE_FIELD%START = 20100101 000000
+  DATE_FIELD%STRIDE = '3600'
+  DATE_FIELD%STOP = 20101231 000000
+/
+
+=== Test 4: Track with string input ===
+timestart type: <class 'datetime.datetime'>
+Rendered output:
+&TRACK_NML
+  TRACK%TIMESTART = 20100101 000000
+  TRACK%TIMESTRIDE = '3600'
+  TRACK%TIMECOUNT = '100'
+/
+
+=== Test 5: Restart with datetime object ===
+restarttime type: <class 'datetime.datetime'>
+Rendered output:
+&RESTART_NML
+  RESTART%RESTARTTIME = 20100101 000000
+/
+
+=== Test 6: RestartUpdate with string input ===
+update_time type: <class 'datetime.datetime'>
+Rendered output:
+&RESTART_UPDATE_NML
+  RESTART_UPDATE%UPDATE_TIME = 20100101 000000
+  RESTART_UPDATE%UPDATE_STRIDE = '3600'
+/
+
+=== All tests passed! ===
+=== Testing timezone-aware datetime rejection ===
+✓ Correctly rejected timezone-aware datetime: 1 validation error for Domain
+start
+  Value error, Timezone-aware datetimes not supported - use naive datetimes only [type=value_error, input_value=datetime.datetime(2010, 1...o=datetime.timezone.utc), input_type=datetime]
+    For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /home/tdurrant/source/rompy/rompy-meta/repos/rompy-ww3/fix-ww3-validation-errors/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/tdurrant/source/rompy/rompy-meta/repos/rompy-ww3/fix-ww3-validation-errors
+configfile: pyproject.toml
+collecting ... collected 6 items
+
+tests/test_namelists.py::test_domain_nml PASSED                          [ 16%]
+tests/test_namelists.py::test_input_nml PASSED                           [ 33%]
+tests/test_namelists.py::test_output_type_nml PASSED                     [ 50%]
+tests/test_namelists.py::test_output_date_nml PASSED                     [ 66%]
+tests/test_namelists.py::test_homog_count_nml PASSED                     [ 83%]
+tests/test_namelists.py::test_file_writing PASSED                        [100%]
+
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py:2249
+  /home/tdurrant/source/rompy/rompy-meta/repos/rompy-ww3/fix-ww3-validation-errors/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'default' attribute with value None was provided to the `Field()` function, which has no effect in the context it was used. 'default' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+    warnings.warn(
+
+src/rompy_ww3/namelists/outbound.py:33
+  /home/tdurrant/source/rompy/rompy-meta/repos/rompy-ww3/fix-ww3-validation-errors/src/rompy_ww3/namelists/outbound.py:33: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'ne'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    np: Optional[int] = Field(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 6 passed, 2 warnings in 1.65s =========================

@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Optional
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
-from .validation import validate_date_format
 
 
 class RestartUpdate(NamelistBaseModel):
@@ -86,50 +85,14 @@ class RestartUpdate(NamelistBaseModel):
         ),
     )
 
-    @field_validator("update_time", mode="before")
+    @field_validator("update_time")
     @classmethod
-    def parse_update_time(cls, v):
-        """Parse date string to datetime object (backward-compatible)."""
-        if v is None:
-            return v
-        if isinstance(v, str):
-            # Validate format first (reuse existing validation)
-            validate_date_format(v)
-            # Parse WW3 format: YYYYMMDD HHMMSS
-            try:
-                parsed = datetime.strptime(v, "%Y%m%d %H%M%S")
-                if parsed.tzinfo is not None:
-                    raise ValueError(
-                        "Timezone-aware datetimes not supported - use naive datetimes only"
-                    )
-                return parsed
-            except ValueError as e:
-                raise ValueError(
-                    f"Invalid date format for 'update_time': {v}. Expected 'YYYYMMDD HHMMSS'. Error: {e}"
-                )
-        if isinstance(v, datetime):
-            if v.tzinfo is not None:
-                raise ValueError(
-                    "Timezone-aware datetimes not supported - use naive datetimes only"
-                )
-            return v
-        return v
-
-    @field_validator("update_stride", mode="before")
-    @classmethod
-    def parse_update_stride(cls, v):
-        """Parse string inputs to integers (backward-compatible)."""
-        if v is None:
-            return v
-        if isinstance(v, str):
-            try:
-                return int(v)
-            except ValueError as e:
-                raise ValueError(
-                    f"Invalid integer format for 'update_stride': {v}. Error: {e}"
-                )
-        if isinstance(v, int):
-            return v
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
         return v
 
     @field_validator("update_method")

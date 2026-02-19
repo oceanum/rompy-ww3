@@ -82,7 +82,11 @@ def create_ww3_tp2_17_config():
             field={
                 "list": "HS T02 T01 FP DIR SPR DP PHS PTP PDIR WND CUR"
             },  # Comprehensive field output
-            point={"file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.17/input/points.list")},
+            point={
+                "file": WW3DataBlob(
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.17/input/points.list"
+                )
+            },
         ),
         output_date=OutputDate(
             field={
@@ -172,7 +176,7 @@ def create_ww3_tp2_17_config():
     field_output_component = Ounf(
         field=Field(
             timestart="20100101 000000",
-            timestride="3600",  # 1 hour output
+            timestride=3600,  # 1 hour output
             timecount="1000000000",
             list="HS T02 T01 FP DIR SPR DP PHS PTP PDIR WND CUR",  # All wave parameters
             partition="0 1 2 3",  # All partitions
@@ -194,7 +198,7 @@ def create_ww3_tp2_17_config():
     point_output_component = Ounp(
         point_nml=Point(
             timestart="20100101 000000",
-            timestride="1800",  # 30 minute output
+            timestride=1800,  # 30 minute output
             timecount="1000000000",
             list="all",  # All points from points.list
             samefile=True,  # All points in same file
