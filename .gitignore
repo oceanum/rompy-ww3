@@ -159,3 +159,5 @@ fort.10
 
 # Regression test compilation artifacts
 regtests/comp.Gnu
+.envrc
+uv.lock

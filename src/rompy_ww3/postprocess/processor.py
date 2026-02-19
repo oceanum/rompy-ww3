@@ -48,19 +48,33 @@ class WW3TransferPostprocessor:
         1) model_run.output_dir
         2) model_run.run_dir
         3) model_run.config.output_dir
+
+        If a run_id is present, it will be appended to form the actual
+        simulation output directory (e.g., simulations/glob3/).
         """
+        base_dir = None
         for attr in ("output_dir", "run_dir"):
             value = getattr(model_run, attr, None)
             if value:
-                return Path(value)
+                base_dir = Path(value)
+                break
 
-        config = getattr(model_run, "config", None)
-        if config is not None:
-            od = getattr(config, "output_dir", None)
-            if od:
-                return Path(od)
+        if base_dir is None:
+            config = getattr(model_run, "config", None)
+            if config is not None:
+                od = getattr(config, "output_dir", None)
+                if od:
+                    base_dir = Path(od)
 
-        raise AttributeError("Cannot determine output directory from model_run")
+        if base_dir is None:
+            raise AttributeError("Cannot determine output directory from model_run")
+
+        # Check for run_id and append it to form the actual output directory
+        run_id = getattr(model_run, "run_id", None)
+        if run_id:
+            base_dir = base_dir / run_id
+
+        return base_dir
 
     def _extract_start_date(self, model_run: Any) -> Optional[str]:
         """Extract start date from model_run configuration.
@@ -216,7 +230,8 @@ class WW3TransferPostprocessor:
         # 4) Build mapping from source file to target name
         name_map: Dict[Path, str] = {}
         for f in files:
-            is_restart = f.name == "restart.ww3"
+            # Check if it's a restart file (restart.ww3 or restart001.ww3, etc.)
+            is_restart = f.name.startswith("restart") and f.name.endswith(".ww3")
             if is_restart:
                 if start_date is not None and output_stride is not None:
                     target_name = compute_target_name(

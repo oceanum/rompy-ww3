@@ -86,24 +86,25 @@ def parse_output_type(output_type: OutputType) -> Dict[str, Any]:
 
 
 def generate_manifest(output_dir: Path, output_type_config: dict) -> list[Path]:
-    """Generate a manifest of expected WW3 output files (v1, restart-only).
+    """Generate a manifest of WW3 output files found in the output directory.
 
-    This minimal implementation is a proof-of-concept for Task 8. It only
-    handles the restart output type. When restart is configured in the input
-    dictionary, it returns a single Path for the restart file:
-    output_dir / "restart.ww3". If restart is not configured, an empty list is
-    returned.
+    This function discovers actual WW3 output files on disk based on the configured
+    output types. It uses glob patterns to find files since WW3 creates numbered
+    restart files (restart001.ww3, restart002.ww3, etc.).
 
-    Notes for future outputs (not implemented in v1):
-    - field, point, track, partition, coupling output types
-    - Timestamped filenames and additional fields need to be computed
-    - This function should leverage parse_output_type() once a proper OutputType
-      object can be constructed from the dict (for now we keep v1 simple).
+    Args:
+        output_dir: Directory where WW3 output files are located
+        output_type_config: Dictionary with output type configuration
+
+    Returns:
+        List of Path objects for discovered files
     """
     manifest: list[Path] = []
 
     # V1: only support restart output
     if output_type_config.get("restart") is not None:
-        manifest.append(output_dir / "restart.ww3")
+        # WW3 creates numbered restart files (restart001.ww3, restart002.ww3, etc.)
+        restart_files = sorted(output_dir.glob("restart*.ww3"))
+        manifest.extend(restart_files)
 
     return manifest
