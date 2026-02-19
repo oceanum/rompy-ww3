@@ -1,5 +1,6 @@
 """TRACK_NML and FILE_NML namelist implementation for WW3."""
 
+from datetime import datetime
 from typing import Optional
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
@@ -11,33 +12,33 @@ class Track(NamelistBaseModel):
 
     The TRACK_NML namelist defines the track output configuration for WAVEWATCH III.
     This namelist sets up the temporal parameters for track output processing.
-    
-    Track output is used to generate output for specific tracks or trajectories 
+
+    Track output is used to generate output for specific tracks or trajectories
     rather than regular grid points or points specified in a file.
     """
 
-    timestart: Optional[str] = Field(
+    timestart: Optional[datetime] = Field(
         default=None,
         description=(
-            "Start date for the track output in format 'YYYYMMDD HHMMSS'. "
+            "Start date for the track output. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
             "This specifies when to begin writing track output during the simulation. "
-            "Example: '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 1, 1, 0, 0, 0) or '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
+        ),
     )
-    timestride: Optional[str] = Field(
+    timestride: Optional[int] = Field(
         default=None,
         description=(
-            "Time stride for the track output in seconds as a string. "
+            "Time stride for the track output in seconds. "
             "This specifies the time interval between track output writes. "
-            "Example: '3600' for hourly output, '21600' for 6-hourly output."
-        )
+            "Example: 3600 for hourly output, 21600 for 6-hourly output."
+        ),
     )
-    timecount: Optional[str] = Field(
+    timecount: Optional[int] = Field(
         default=None,
         description=(
-            "Number of time steps for the track output as a string. "
+            "Number of time steps for the track output. "
             "This specifies the total number of time steps for which track output will be generated. "
-        )
+        ),
     )
     timesplit: Optional[int] = Field(
         default=None,
@@ -50,15 +51,51 @@ class Track(NamelistBaseModel):
             "This controls how output files are split over time periods."
         ),
         ge=4,
-        le=10
+        le=10,
     )
 
-    @field_validator('timestart')
+    @field_validator("timestart", mode="before")
     @classmethod
-    def validate_timestart_format(cls, v):
-        """Validate date format for timestart."""
-        if v is not None:
-            return validate_date_format(v)
+    def parse_timestart(cls, v):
+        """Parse date string to datetime object (backward-compatible)."""
+        if v is None:
+            return v
+        if isinstance(v, str):
+            # Validate format first (reuse existing validation)
+            validate_date_format(v)
+            # Parse WW3 format: YYYYMMDD HHMMSS
+            try:
+                parsed = datetime.strptime(v, "%Y%m%d %H%M%S")
+                if parsed.tzinfo is not None:
+                    raise ValueError(
+                        "Timezone-aware datetimes not supported - use naive datetimes only"
+                    )
+                return parsed
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid date format for 'timestart': {v}. Expected 'YYYYMMDD HHMMSS'. Error: {e}"
+                )
+        if isinstance(v, datetime):
+            if v.tzinfo is not None:
+                raise ValueError(
+                    "Timezone-aware datetimes not supported - use naive datetimes only"
+                )
+            return v
+        return v
+
+    @field_validator("timestride", "timecount", mode="before")
+    @classmethod
+    def parse_integer_fields(cls, v):
+        """Parse string inputs to integers (backward-compatible)."""
+        if v is None:
+            return v
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except ValueError as e:
+                raise ValueError(f"Invalid integer format: {v}. Error: {e}")
+        if isinstance(v, int):
+            return v
         return v
 
 
@@ -74,7 +111,7 @@ class TrackFile(NamelistBaseModel):
             "Prefix for the track output file name. This is used to create output file names "
             "for the track data. The actual output files will use this prefix followed by "
             "applicable extensions and numerical identifiers."
-        )
+        ),
     )
     netcdf: Optional[int] = Field(
         default=None,
@@ -85,10 +122,10 @@ class TrackFile(NamelistBaseModel):
             "This specifies the version of NetCDF format to use for the output files."
         ),
         ge=3,
-        le=4
+        le=4,
     )
 
-    @field_validator('prefix')
+    @field_validator("prefix")
     @classmethod
     def validate_prefix(cls, v):
         """Validate prefix is not empty if provided."""
@@ -96,7 +133,7 @@ class TrackFile(NamelistBaseModel):
             raise ValueError("Output file prefix cannot be empty")
         return v
 
-    @field_validator('netcdf')
+    @field_validator("netcdf")
     @classmethod
     def validate_netcdf_version(cls, v):
         """Validate NetCDF version."""

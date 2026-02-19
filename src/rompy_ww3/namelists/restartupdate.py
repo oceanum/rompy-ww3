@@ -1,5 +1,6 @@
 """UPRSTR_NML namelist implementation for WW3."""
 
+from datetime import datetime
 from typing import Optional
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
@@ -12,27 +13,27 @@ class RestartUpdate(NamelistBaseModel):
     The UPRSTR_NML namelist defines restart file update parameters for WAVEWATCH III.
     This namelist is used to update existing restart files with new data, allowing
     for adjustments to restart conditions without reinitializing the entire model state.
-    
+
     The namelist allows updating various components of the restart file using different
     methods (replace, add, multiply) and provides control over which fields to update.
     """
 
     # Update configuration
-    update_time: Optional[str] = Field(
+    update_time: Optional[datetime] = Field(
         default=None,
         description=(
-            "Time for restart file update in format 'YYYYMMDD HHMMSS'. "
+            "Time for restart file update. Accepts datetime objects or strings in format 'YYYYMMDD HHMMSS'. "
             "This specifies when to perform the restart file update during the simulation. "
-            "Example: '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 1, 1, 0, 0, 0) or '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
+        ),
     )
-    update_stride: Optional[str] = Field(
+    update_stride: Optional[int] = Field(
         default=None,
         description=(
-            "Time stride for restart file updates in seconds as a string. "
+            "Time stride for restart file updates in seconds. "
             "This specifies the time interval between restart file updates. "
-            "Example: '3600' for hourly updates, '21600' for 6-hourly updates."
-        )
+            "Example: 3600 for hourly updates, 21600 for 6-hourly updates."
+        ),
     )
 
     # File configuration
@@ -42,36 +43,36 @@ class RestartUpdate(NamelistBaseModel):
             "Path to the input restart file that will be updated. "
             "This should point to an existing restart file that will serve as the base "
             "for the update operation."
-        )
+        ),
     )
     output_restart: Optional[str] = Field(
         default=None,
         description=(
             "Path to the output restart file that will contain the updated data. "
             "The updated restart information will be written to this file."
-        )
+        ),
     )
 
     # Fields to update
     wave_field: Optional[bool] = Field(
         default=None,
-        description="Flag to update wave field (T/F). If true, the wave spectral data will be updated."
+        description="Flag to update wave field (T/F). If true, the wave spectral data will be updated.",
     )
     water_level: Optional[bool] = Field(
         default=None,
-        description="Flag to update water level (T/F). If true, the water level data will be updated."
+        description="Flag to update water level (T/F). If true, the water level data will be updated.",
     )
     current: Optional[bool] = Field(
         default=None,
-        description="Flag to update current (T/F). If true, the ocean current data will be updated."
+        description="Flag to update current (T/F). If true, the ocean current data will be updated.",
     )
     ice: Optional[bool] = Field(
         default=None,
-        description="Flag to update ice fields (T/F). If true, ice-related data will be updated."
+        description="Flag to update ice fields (T/F). If true, ice-related data will be updated.",
     )
     wind: Optional[bool] = Field(
         default=None,
-        description="Flag to update wind fields (T/F). If true, wind field data will be updated."
+        description="Flag to update wind fields (T/F). If true, wind field data will be updated.",
     )
 
     # Update method
@@ -82,28 +83,68 @@ class RestartUpdate(NamelistBaseModel):
             "  'replace': Replace the field values with new values\n"
             "  'add': Add the new values to the existing field values\n"
             "  'multiply': Multiply the existing field values by the new values"
-        )
+        ),
     )
 
-    @field_validator('update_time')
+    @field_validator("update_time", mode="before")
     @classmethod
-    def validate_update_time_format(cls, v):
-        """Validate date format for update_time."""
-        if v is not None:
-            return validate_date_format(v)
+    def parse_update_time(cls, v):
+        """Parse date string to datetime object (backward-compatible)."""
+        if v is None:
+            return v
+        if isinstance(v, str):
+            # Validate format first (reuse existing validation)
+            validate_date_format(v)
+            # Parse WW3 format: YYYYMMDD HHMMSS
+            try:
+                parsed = datetime.strptime(v, "%Y%m%d %H%M%S")
+                if parsed.tzinfo is not None:
+                    raise ValueError(
+                        "Timezone-aware datetimes not supported - use naive datetimes only"
+                    )
+                return parsed
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid date format for 'update_time': {v}. Expected 'YYYYMMDD HHMMSS'. Error: {e}"
+                )
+        if isinstance(v, datetime):
+            if v.tzinfo is not None:
+                raise ValueError(
+                    "Timezone-aware datetimes not supported - use naive datetimes only"
+                )
+            return v
         return v
 
-    @field_validator('update_method')
+    @field_validator("update_stride", mode="before")
+    @classmethod
+    def parse_update_stride(cls, v):
+        """Parse string inputs to integers (backward-compatible)."""
+        if v is None:
+            return v
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid integer format for 'update_stride': {v}. Error: {e}"
+                )
+        if isinstance(v, int):
+            return v
+        return v
+
+    @field_validator("update_method")
     @classmethod
     def validate_update_method(cls, v):
         """Validate update method is valid."""
         if v is not None:
-            valid_methods = {'replace', 'add', 'multiply', 'REPLACE', 'ADD', 'MULTIPLY'}
+            valid_methods = {"replace", "add", "multiply", "REPLACE", "ADD", "MULTIPLY"}
             if v.upper() not in valid_methods:
-                raise ValueError(f"Update method must be one of replace, add, multiply, got {v}")
+                raise ValueError(
+                    f"Update method must be one of replace, add, multiply, got {v}"
+                )
         return v.upper() if v is not None else v
 
-    @field_validator('wave_field', 'water_level', 'current', 'ice', 'wind')
+    @field_validator("wave_field", "water_level", "current", "ice", "wind")
     @classmethod
     def validate_boolean_flags(cls, v):
         """Validate boolean flags are actually boolean."""
