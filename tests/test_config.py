@@ -95,9 +95,7 @@ def test_config_stride_functionality():
     """Test that stride values are set to period.interval when not already set."""
     # Create a TimeRange with a specific interval
     period = TimeRange(start="2023-01-01", end="2023-01-10", interval="6h")
-    expected_stride = str(
-        int(period.interval.total_seconds())
-    )  # 21600 seconds (6 hours)
+    expected_stride = int(period.interval.total_seconds())  # 21600 seconds (6 hours)
 
     from rompy_ww3.components import Ounf, Ounp
 
