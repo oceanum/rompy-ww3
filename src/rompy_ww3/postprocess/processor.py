@@ -243,7 +243,7 @@ class WW3TransferPostprocessor:
         output_types: Dict[str, Any],
         failure_policy: str = "CONTINUE",
         **kwargs,
-    ) -> Dict[str, object]:
+    ) -> TransferResult:
         """Execute the transfer post-processing for a given model_run.
 
         Args:
@@ -304,6 +304,7 @@ class WW3TransferPostprocessor:
                         is_restart=True,
                         start_date=start_date,
                         output_stride=output_stride,
+                        restart_path=f,
                     )
                 else:
                     target_name = f.name
