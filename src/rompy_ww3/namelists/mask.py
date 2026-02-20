@@ -4,6 +4,7 @@ from typing import Optional, Union
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
 from ..core.data import WW3DataBlob
+from .enums import LAYOUT_INDICATOR, FORMAT_INDICATOR, parse_enum
 
 
 class Mask(NamelistBaseModel):
@@ -39,7 +40,7 @@ class Mask(NamelistBaseModel):
         ),
         ge=1,  # Must be positive file unit number
     )
-    idla: Optional[int] = Field(
+    idla: Optional[LAYOUT_INDICATOR] = Field(
         default=None,
         description=(
             "Layout indicator for reading mask data:\n"
@@ -48,10 +49,8 @@ class Mask(NamelistBaseModel):
             "  3: Read line-by-line from top to bottom\n"
             "  4: Like 3, but with a single read statement"
         ),
-        ge=1,
-        le=4,
     )
-    idfm: Optional[int] = Field(
+    idfm: Optional[FORMAT_INDICATOR] = Field(
         default=None,
         description=(
             "Format indicator for reading mask data:\n"
@@ -59,8 +58,6 @@ class Mask(NamelistBaseModel):
             "  2: Fixed format\n"
             "  3: Unformatted"
         ),
-        ge=1,
-        le=3,
     )
     format: Optional[str] = Field(
         default=None,
@@ -80,20 +77,18 @@ class Mask(NamelistBaseModel):
                 raise ValueError(f"File unit number must be positive, got {v}")
         return v
 
-    @field_validator("idla")
+    @field_validator("idla", mode="before")
     @classmethod
     def validate_idla(cls, v):
         """Validate layout indicator."""
-        if v is not None and v not in [1, 2, 3, 4]:
-            raise ValueError(
-                f"Layout indicator (idla) must be between 1 and 4, got {v}"
-            )
-        return v
+        if v is None:
+            return v
+        return parse_enum(LAYOUT_INDICATOR, v)
 
-    @field_validator("idfm")
+    @field_validator("idfm", mode="before")
     @classmethod
     def validate_idfm(cls, v):
         """Validate format indicator."""
-        if v is not None and v not in [1, 2, 3]:
-            raise ValueError(f"Format indicator (idfm) must be 1, 2, or 3, got {v}")
-        return v
+        if v is None:
+            return v
+        return parse_enum(FORMAT_INDICATOR, v)
