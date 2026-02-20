@@ -1,11 +1,13 @@
 """File discovery and pattern generation for WW3 output files.
 
 This module provides functions to parse WW3 output configuration from namelists
-and discover output files based on the configured output types.
+and deterministically calculate which output files will be created based on
+timing parameters (start, stop, stride).
 """
 
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from rompy_ww3.namelists.output_type import OutputType
 
@@ -82,29 +84,60 @@ def parse_output_type(output_type: OutputType) -> Dict[str, Any]:
             "couplet0": output_type.coupling.couplet0,
         }
 
+    # Parse restart output configuration
+    if output_type.restart is not None:
+        result["restart"] = {
+            "extra": output_type.restart.extra,
+        }
+
     return result
 
 
-def generate_manifest(output_dir: Path, output_type_config: dict) -> list[Path]:
-    """Generate a manifest of WW3 output files found in the output directory.
+def generate_manifest(
+    output_dir: Path,
+    output_type_config: dict,
+    start_date: Optional[str] = None,
+    stop_date: Optional[str] = None,
+    output_stride: Optional[int] = None,
+) -> List[Path]:
+    """Calculate manifest of WW3 output files based on timing configuration.
 
-    This function discovers actual WW3 output files on disk based on the configured
-    output types. It uses glob patterns to find files since WW3 creates numbered
-    restart files (restart001.ww3, restart002.ww3, etc.).
+    Deterministically calculates which output files WW3 will create based on
+    the configured output types and timing parameters. Does NOT scan filesystem.
 
     Args:
-        output_dir: Directory where WW3 output files are located
+        output_dir: Directory where WW3 output files will be located
         output_type_config: Dictionary with output type configuration
+        start_date: Simulation start date in 'YYYYMMDD HHMMSS' format
+        stop_date: Simulation stop date in 'YYYYMMDD HHMMSS' format
+        output_stride: Output stride in seconds
 
     Returns:
-        List of Path objects for discovered files
-    """
-    manifest: list[Path] = []
+        List of Path objects for files that will be created
 
-    # V1: only support restart output
+    Raises:
+        ValueError: If required timing parameters are missing for restart output
+    """
+    manifest: List[Path] = []
+
     if output_type_config.get("restart") is not None:
-        # WW3 creates numbered restart files (restart001.ww3, restart002.ww3, etc.)
-        restart_files = sorted(output_dir.glob("restart*.ww3"))
-        manifest.extend(restart_files)
+        if start_date is None or stop_date is None or output_stride is None:
+            raise ValueError(
+                "start_date, stop_date, and output_stride are required "
+                "to calculate restart file manifest"
+            )
+
+        start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S")
+        stop_dt = datetime.strptime(stop_date, "%Y%m%d %H%M%S")
+        stride_td = timedelta(seconds=output_stride)
+
+        current_dt = start_dt + stride_td
+        file_num = 1
+
+        while current_dt <= stop_dt:
+            restart_file = output_dir / f"restart{file_num:03d}.ww3"
+            manifest.append(restart_file)
+            current_dt += stride_td
+            file_num += 1
 
     return manifest

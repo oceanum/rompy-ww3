@@ -43,13 +43,24 @@ def test_single_destination_transfer(tmp_path):
     """Test successful transfer to single destination."""
     output_dir = tmp_path / "output"
     output_dir.mkdir()
-    restart_file = output_dir / "restart.ww3"
-    restart_file.write_text("test restart data")
+    # Create restart files matching deterministic calculation:
+    # start=20230101 000000, stop=20230101 120000, stride=21600 (6h)
+    # Files at: 06:00 (restart001) and 12:00 (restart002)
+    restart_file1 = output_dir / "restart001.ww3"
+    restart_file1.write_text("test restart data 1")
+    restart_file2 = output_dir / "restart002.ww3"
+    restart_file2.write_text("test restart data 2")
 
     dest_dir = tmp_path / "dest"
     dest_dir.mkdir()
 
-    model_run = SimpleNamespace(output_dir=str(output_dir))
+    config = SimpleNamespace(
+        ww3_shel=SimpleNamespace(
+            domain=SimpleNamespace(start="20230101 000000", stop="20230101 120000"),
+            output_date=SimpleNamespace(restart=SimpleNamespace(stride=21600)),
+        )
+    )
+    model_run = SimpleNamespace(output_dir=str(output_dir), config=config)
 
     processor = WW3TransferPostprocessor()
 
@@ -70,15 +81,26 @@ def test_multi_destination_transfer(tmp_path):
     """Test successful transfer to multiple destinations."""
     output_dir = tmp_path / "output"
     output_dir.mkdir()
-    restart_file = output_dir / "restart.ww3"
-    restart_file.write_text("test restart data")
+    # Create restart files matching deterministic calculation:
+    # start=20230101 000000, stop=20230101 120000, stride=21600 (6h)
+    # Files at: 06:00 (restart001) and 12:00 (restart002)
+    restart_file1 = output_dir / "restart001.ww3"
+    restart_file1.write_text("test restart data 1")
+    restart_file2 = output_dir / "restart002.ww3"
+    restart_file2.write_text("test restart data 2")
 
     dest1 = tmp_path / "dest1"
     dest1.mkdir()
     dest2 = tmp_path / "dest2"
     dest2.mkdir()
 
-    model_run = SimpleNamespace(output_dir=str(output_dir))
+    config = SimpleNamespace(
+        ww3_shel=SimpleNamespace(
+            domain=SimpleNamespace(start="20230101 000000", stop="20230101 120000"),
+            output_date=SimpleNamespace(restart=SimpleNamespace(stride=21600)),
+        )
+    )
+    model_run = SimpleNamespace(output_dir=str(output_dir), config=config)
 
     processor = WW3TransferPostprocessor()
 
@@ -148,7 +170,13 @@ def test_no_files_to_transfer(tmp_path):
     output_dir = tmp_path / "output"
     output_dir.mkdir()
 
-    model_run = SimpleNamespace(output_dir=str(output_dir))
+    config = SimpleNamespace(
+        ww3_shel=SimpleNamespace(
+            domain=SimpleNamespace(start="20230101 000000", stop="20230101 120000"),
+            output_date=SimpleNamespace(restart=SimpleNamespace(stride=21600)),
+        )
+    )
+    model_run = SimpleNamespace(output_dir=str(output_dir), config=config)
 
     processor = WW3TransferPostprocessor()
 

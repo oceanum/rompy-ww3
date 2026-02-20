@@ -83,6 +83,19 @@ class TransferResult:
             "results": self.results,
         }
 
+    def __getitem__(self, key: str):
+        """Support dict-like access to result attributes."""
+        if key == "success":
+            return self.success
+        elif key == "transferred_count":
+            return self.transferred_count
+        elif key == "failed_count":
+            return self.failed_count
+        elif key == "results":
+            return self.results
+        else:
+            raise KeyError(f"'{key}' not found in TransferResult")
+
 
 class WW3TransferPostprocessor:
     """Post-process WW3 run results by transferring output files.
@@ -191,6 +204,52 @@ class WW3TransferPostprocessor:
 
         return None
 
+    def _extract_stop_date(self, model_run: Any) -> Optional[str]:
+        """Extract stop date from model_run configuration.
+
+        Attempts to extract from:
+        1) model_run.config.ww3_shel.domain.stop
+        2) model_run.config.ww3_multi.domain.stop
+        3) model_run.period.stop (converted to WW3 format)
+
+        Returns:
+            Optional[str]: Stop date in 'YYYYMMDD HHMMSS' format, or None if not found
+        """
+        config = getattr(model_run, "config", None)
+        if config is None:
+            return None
+
+        ww3_shel = getattr(config, "ww3_shel", None)
+        if ww3_shel is not None:
+            domain = getattr(ww3_shel, "domain", None)
+            if domain is not None:
+                stop = getattr(domain, "stop", None)
+                if stop is not None:
+                    return stop
+
+        ww3_multi = getattr(config, "ww3_multi", None)
+        if ww3_multi is not None:
+            domain = getattr(ww3_multi, "domain", None)
+            if domain is not None:
+                stop = getattr(domain, "stop", None)
+                if stop is not None:
+                    return stop
+
+        period = getattr(model_run, "period", None)
+        if period is not None:
+            stop = getattr(period, "stop", None)
+            if stop is not None:
+                try:
+                    from datetime import datetime
+
+                    if isinstance(stop, str):
+                        stop = datetime.fromisoformat(stop)
+                    return stop.strftime("%Y%m%d %H%M%S")
+                except Exception:
+                    pass
+
+        return None
+
     def _extract_output_stride(self, model_run: Any) -> Optional[int]:
         """Extract restart output stride from model_run configuration.
 
@@ -283,13 +342,16 @@ class WW3TransferPostprocessor:
 
         # 1) Extract configuration from model_run
         start_date = self._extract_start_date(model_run)
+        stop_date = self._extract_stop_date(model_run)
         output_stride = self._extract_output_stride(model_run)
 
         # 2) Determine where WW3 outputs live
         output_dir = self._get_output_dir(model_run)
 
-        # 3) Build manifest of files to transfer
-        files = generate_manifest(output_dir, output_types)
+        # 3) Build deterministic manifest of files to transfer
+        files = generate_manifest(
+            output_dir, output_types, start_date, stop_date, output_stride
+        )
         files = [Path(p) if not isinstance(p, Path) else p for p in files]
 
         # 4) Build mapping from source file to target name

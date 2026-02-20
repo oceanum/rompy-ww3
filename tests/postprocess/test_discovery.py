@@ -100,17 +100,29 @@ def test_parse_output_type_with_restart():
     assert result["restart"]["extra"] == "DW CUR"
 
 
-def test_generate_manifest_restart_configured():
-    """Test generate_manifest returns restart file when restart is configured."""
+def test_generate_manifest_restart_configured(tmp_path):
+    """Test generate_manifest calculates restart files from timing parameters."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
     config = {"restart": {"extra": "DW"}}
-    result = generate_manifest(Path("/out"), config)
-    assert Path("/out/restart.ww3") in result
+    start_date = "20230101 000000"
+    stop_date = "20230101 120000"
+    output_stride = 21600
+
+    result = generate_manifest(output_dir, config, start_date, stop_date, output_stride)
+
+    assert len(result) == 2
+    assert output_dir / "restart001.ww3" in result
+    assert output_dir / "restart002.ww3" in result
 
 
 def test_generate_manifest_no_restart():
     """Test generate_manifest returns empty list when restart is not configured."""
     config = {}
-    result = generate_manifest(Path("/out"), config)
+    result = generate_manifest(
+        Path("/out"), config, "20230101 000000", "20230102 000000", 3600
+    )
     assert len(result) == 0
 
 
