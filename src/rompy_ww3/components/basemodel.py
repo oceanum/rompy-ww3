@@ -65,12 +65,27 @@ class WW3ComponentBaseModel(RompyBaseModel):
                 continue
             else:
                 nml = getattr(self, key)
-                if not isinstance(nml, NamelistBaseModel):
-                    continue
                 if isinstance(value, list):
-                    for item in nml:
-                        content.append(item.render(*args, **kwargs))
-                else:
+                    # Check if this is a list of homogeneous inputs (needs special handling)
+                    if key == "homog_input" and nml:
+                        # Import here to avoid circular imports
+                        from ..namelists.homogeneous import HomogInput
+
+                        if isinstance(nml[0], HomogInput):
+                            # Collect all homog_input entries into a single namelist block
+                            homog_lines = ["&HOMOG_INPUT_NML"]
+                            for idx, item in enumerate(nml, 1):
+                                if isinstance(item, HomogInput):
+                                    homog_lines.append(item.render_entry(idx))
+                            homog_lines.append("/")
+                            content.append("\n".join(homog_lines))
+                            continue
+
+                    # Handle other lists of namelist objects
+                    for idx, item in enumerate(nml, 1):
+                        if isinstance(item, NamelistBaseModel):
+                            content.append(item.render(index=idx, *args, **kwargs))
+                elif isinstance(nml, NamelistBaseModel):
                     content.append(nml.render(*args, **kwargs))
         content.append(
             ""

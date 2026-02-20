@@ -1,0 +1,18 @@
+Verification run: Configuration schema implementation
+
+Test 1: Import all models
+Command: python -c "from src.rompy_ww3.postprocess.config import UploadConfig, FilesystemDestination, CloudDestination, HTTPDestination, OceanumDestination, FileSelection, RetryConfig; print('Import OK')"
+Result: Import OK
+
+Test 2: Create and validate UploadConfig
+Command: Create UploadConfig with FilesystemDestination
+Result: Model validates OK
+Output: {'destinations': [{'type': 'filesystem', 'path': PosixPath('/tmp/test'), 'create_dirs': True}], 'file_selection': {'output_types': ['field', 'restart'], 'patterns': None}, 'retry': {'max_retries': 3, 'backoff_factor': 2.0}, 'failure_mode': 'strict'}
+
+Test 3: Test Cloud destination models
+Command: Create CloudDestination with s3:// and gs:// URIs
+Result: Models validate correctly
+- S3: {'type': 'cloud', 'uri': 's3://bucket/prefix/', 'endpoint_url': None}
+- GCS with endpoint: {'type': 'cloud', 'uri': 'gs://bucket/prefix/', 'endpoint_url': 'https://custom.endpoint'}
+
+Verification complete. All configuration models work as expected.

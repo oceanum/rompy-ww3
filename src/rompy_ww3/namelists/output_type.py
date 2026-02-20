@@ -213,7 +213,6 @@ class OutputType(NamelistBaseModel):
     - TRACK: Track output format parameters
     - PARTITION: Partitioned output region parameters
     - COUPLING: Coupling exchange parameters for coupled models
-    - RESTART: Restart output parameters
     """
 
     field: Optional[OutputTypeField] = Field(
