@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from typing import Union
+from enum import Enum
 import re
 
 # WW3-specific constants
@@ -59,6 +60,9 @@ def validate_date_format(date_str: str) -> str:
 
 def validate_ww3_boolean(value: str) -> str:
     """Validate WW3 boolean value ('T' or 'F')."""
+    # Accept Enum members by coercing to their underlying value
+    if isinstance(value, Enum):
+        value = value.value
     if not isinstance(value, str):
         raise ValueError(f"Expected string, got {type(value)}")
 
@@ -87,6 +91,9 @@ def validate_range(
 
 def validate_io_type(value: int) -> int:
     """Validate IOSTYP value (0-3)."""
+    # Allow Enum members by using their underlying value
+    if isinstance(value, Enum):
+        value = value.value
     if value not in IOSTYP_VALUES:
         raise ValueError(
             f"IOSTYP value {value} is invalid. Must be one of {sorted(list(IOSTYP_VALUES))}"
@@ -96,6 +103,9 @@ def validate_io_type(value: int) -> int:
 
 def validate_grid_type(value: str) -> str:
     """Validate grid type value."""
+    # Accept Enum members by coercing to their underlying value
+    if isinstance(value, Enum):
+        value = value.value
     if not isinstance(value, str):
         raise ValueError(f"Expected string, got {type(value)}")
 
@@ -110,6 +120,9 @@ def validate_grid_type(value: str) -> str:
 
 def validate_coord_type(value: str) -> str:
     """Validate coordinate type value."""
+    # Accept Enum members by coercing to their underlying value
+    if isinstance(value, Enum):
+        value = value.value
     if not isinstance(value, str):
         raise ValueError(f"Expected string, got {type(value)}")
 
@@ -124,6 +137,9 @@ def validate_coord_type(value: str) -> str:
 
 def validate_clos_type(value: str) -> str:
     """Validate grid closure type value."""
+    # Accept Enum members by coercing to their underlying value
+    if isinstance(value, Enum):
+        value = value.value
     if not isinstance(value, str):
         raise ValueError(f"Expected string, got {type(value)}")
 
@@ -138,6 +154,9 @@ def validate_clos_type(value: str) -> str:
 
 def validate_forcing_type(value: str) -> str:
     """Validate forcing type value."""
+    # Accept Enum members by coercing to their underlying value
+    if isinstance(value, Enum):
+        value = value.value
     if not isinstance(value, str):
         raise ValueError(f"Expected string, got {type(value)}")
 

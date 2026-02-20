@@ -2,6 +2,7 @@
 
 import logging
 import re
+from enum import Enum
 from pathlib import Path
 from datetime import datetime
 from typing import Any, Dict, Union
@@ -71,7 +72,11 @@ class NamelistBaseModel(RompyBaseModel):
         for field_name, field_info in self.__class__.model_fields.items():
             value = getattr(self, field_name)
             if value is not None and not field_name.startswith("_"):
-                serialized[field_name] = value
+                # Convert Enum to its value for serialization
+                if isinstance(value, Enum):
+                    serialized[field_name] = value.value
+                else:
+                    serialized[field_name] = value
         return serialized
 
     @model_validator(mode="before")
@@ -94,7 +99,10 @@ class NamelistBaseModel(RompyBaseModel):
 
     def process_value(self, value: Any) -> Any:
         """Process value for namelist formatting."""
-        if isinstance(value, bool):
+        if isinstance(value, Enum):
+            # Extract canonical WW3 token/code from Enum
+            return self.process_value(value.value)
+        elif isinstance(value, bool):
             return boolean_to_string(value)
         elif isinstance(value, datetime):
             # Render datetime as WW3 format: YYYYMMDD HHMMSS (bare token, no quotes)

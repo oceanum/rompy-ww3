@@ -3,7 +3,7 @@
 from typing import Optional
 from pydantic import Field, field_validator, model_validator
 from .basemodel import NamelistBaseModel
-from .validation import validate_forcing_type
+from .enums import FORCING, parse_enum
 
 
 class InputForcing(NamelistBaseModel):
@@ -18,153 +18,167 @@ class InputForcing(NamelistBaseModel):
     """
 
     # Forcing flags can be: 'F' (no forcing), 'T' (external file), 'H' (homogeneous), 'C' (coupled)
-    water_levels: Optional[str] = Field(
+    water_levels: Optional[FORCING] = Field(
         default=None,
         description=(
             "Water level forcing flag. Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    currents: Optional[str] = Field(
+    currents: Optional[FORCING] = Field(
         default=None,
         description=(
             "Current forcing flag. Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    winds: Optional[str] = Field(
+    winds: Optional[FORCING] = Field(
         default=None,
         description=(
             "Wind forcing flag. Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    atm_momentum: Optional[str] = Field(
+    atm_momentum: Optional[FORCING] = Field(
         default=None,
         description=(
             "Atmospheric momentum forcing flag. Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    air_density: Optional[str] = Field(
+    air_density: Optional[FORCING] = Field(
         default=None,
         description=(
             "Air density forcing flag. Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    ice_conc: Optional[str] = Field(
+    ice_conc: Optional[FORCING] = Field(
         default=None,
         description=(
             "Ice concentration forcing flag. Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    ice_param1: Optional[str] = Field(
+    ice_param1: Optional[FORCING] = Field(
         default=None,
         description=(
             "Ice parameter 1 forcing flag (typically ice thickness). Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    ice_param2: Optional[str] = Field(
+    ice_param2: Optional[FORCING] = Field(
         default=None,
         description=(
             "Ice parameter 2 forcing flag (typically ice viscosity). Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    ice_param3: Optional[str] = Field(
+    ice_param3: Optional[FORCING] = Field(
         default=None,
         description=(
             "Ice parameter 3 forcing flag (typically ice density). Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    ice_param4: Optional[str] = Field(
+    ice_param4: Optional[FORCING] = Field(
         default=None,
         description=(
             "Ice parameter 4 forcing flag (typically ice modulus). Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    ice_param5: Optional[str] = Field(
+    ice_param5: Optional[FORCING] = Field(
         default=None,
         description=(
             "Ice parameter 5 forcing flag (typically ice floe diameter). Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    mud_density: Optional[str] = Field(
+    mud_density: Optional[FORCING] = Field(
         default=None,
         description=(
             "Mud density forcing flag. Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    mud_thickness: Optional[str] = Field(
+    mud_thickness: Optional[FORCING] = Field(
         default=None,
         description=(
             "Mud thickness forcing flag. Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    mud_viscosity: Optional[str] = Field(
+    mud_viscosity: Optional[FORCING] = Field(
         default=None,
         description=(
             "Mud viscosity forcing flag. Valid values are:\n"
             "  'F': No forcing (default)\n"
             "  'T': External forcing file\n"
             "  'H': Homogeneous forcing input\n"
-            "  'C': Coupled forcing field"
+            "  'C': Coupled forcing field\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
 
-    @field_validator("*")
+    @field_validator("*", mode="before")
     @classmethod
     def validate_forcing_flag(cls, v):
-        """Validate that forcing flags are valid WW3 forcing values."""
+        """Validate that forcing flags are valid WW3 forcing values using parse_enum."""
         if v is not None:
-            return validate_forcing_type(v)
+            return parse_enum(FORCING, v)
         return v
 
     @model_validator(mode="after")
@@ -222,14 +236,12 @@ class InputAssim(NamelistBaseModel):
         ),
     )
 
-    @field_validator("*")
+    @field_validator("*", mode="before")
     @classmethod
     def validate_assim_flag(cls, v):
-        """Validate that assimilation flags are valid WW3 boolean values."""
+        """Validate that assimilation flags are valid WW3 forcing values using parse_enum."""
         if v is not None:
-            return validate_forcing_type(
-                v
-            )  # Reuse the forcing validation since assim values are similar: 'F'/'T'
+            return parse_enum(FORCING, v)
         return v
 
 

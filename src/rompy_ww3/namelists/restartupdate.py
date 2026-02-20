@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
+from .enums import UPDATE_METHOD, parse_enum
 
 
 class RestartUpdate(NamelistBaseModel):
@@ -75,13 +76,13 @@ class RestartUpdate(NamelistBaseModel):
     )
 
     # Update method
-    update_method: Optional[str] = Field(
+    update_method: Optional[UPDATE_METHOD] = Field(
         default=None,
         description=(
             "Method for updating the restart fields:\n"
-            "  'replace': Replace the field values with new values\n"
-            "  'add': Add the new values to the existing field values\n"
-            "  'multiply': Multiply the existing field values by the new values"
+            "  'REPLACE': Replace the field values with new values\n"
+            "  'ADD': Add the new values to the existing field values\n"
+            "  'MULTIPLY': Multiply the existing field values by the new values"
         ),
     )
 
@@ -95,17 +96,13 @@ class RestartUpdate(NamelistBaseModel):
             )
         return v
 
-    @field_validator("update_method")
+    @field_validator("update_method", mode="before")
     @classmethod
     def validate_update_method(cls, v):
         """Validate update method is valid."""
-        if v is not None:
-            valid_methods = {"replace", "add", "multiply", "REPLACE", "ADD", "MULTIPLY"}
-            if v.upper() not in valid_methods:
-                raise ValueError(
-                    f"Update method must be one of replace, add, multiply, got {v}"
-                )
-        return v.upper() if v is not None else v
+        if v is None:
+            return v
+        return parse_enum(UPDATE_METHOD, v)
 
     @field_validator("wave_field", "water_level", "current", "ice", "wind")
     @classmethod

@@ -3,7 +3,7 @@
 from typing import Optional
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
-from .validation import validate_grid_type, validate_coord_type, validate_clos_type
+from .enums import GRID_TYPE, COORD_TYPE, CLOS_TYPE, parse_enum
 
 
 class Grid(NamelistBaseModel):
@@ -31,26 +31,28 @@ class Grid(NamelistBaseModel):
             "beyond those defined in this namelist."
         ),
     )
-    type: Optional[str] = Field(
+    type: Optional[GRID_TYPE] = Field(
         default=None,
         description=(
             "Grid type defining the grid geometry:\n"
             "  'RECT': Rectilinear grid with constant x,y spacing\n"
             "  'CURV': Curvilinear grid with variable spacing\n"
             "  'UNST': Unstructured grid (triangle-based)\n"
-            "  'SMC': Spherical Multiple-Cell grid"
+            "  'SMC': Spherical Multiple-Cell grid\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    coord: Optional[str] = Field(
+    coord: Optional[COORD_TYPE] = Field(
         default=None,
         description=(
             "Coordinate system for the grid:\n"
             "  'SPHE': Spherical coordinates (degrees)\n"
             "  'CART': Cartesian coordinates (meters)\n"
-            "Note: Grid closure can only be applied in spherical coordinates."
+            "Note: Grid closure can only be applied in spherical coordinates.\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
-    clos: Optional[str] = Field(
+    clos: Optional[CLOS_TYPE] = Field(
         default=None,
         description=(
             "Grid closure type for handling domain boundaries:\n"
@@ -59,7 +61,8 @@ class Grid(NamelistBaseModel):
             "          In other words, (NX+1,J) => (1,J). Works with RECT and CURV grids.\n"
             "  'TRPL': Tripole grid closure - grid is periodic in i-index and has closure at j=NY+1.\n"
             "          (NX+1,J<=NY) => (1,J) and (I,NY+1) => (NX-I+1,NY). Works with CURV grids only.\n"
-            "          NX must be even for tripole closure."
+            "          NX must be even for tripole closure.\n"
+            "Accepts Enum members, canonical values (exact/case-insensitive), or enum names."
         ),
     )
     zlim: Optional[float] = Field(
@@ -85,28 +88,28 @@ class Grid(NamelistBaseModel):
         gt=0,  # Must be positive
     )
 
-    @field_validator("type")
+    @field_validator("type", mode="before")
     @classmethod
     def validate_grid_type_field(cls, v):
-        """Validate grid type field."""
+        """Validate grid type field using parse_enum for normalization."""
         if v is not None:
-            return validate_grid_type(v)
+            return parse_enum(GRID_TYPE, v)
         return v
 
-    @field_validator("coord")
+    @field_validator("coord", mode="before")
     @classmethod
     def validate_coord_type_field(cls, v):
-        """Validate coordinate type field."""
+        """Validate coordinate type field using parse_enum for normalization."""
         if v is not None:
-            return validate_coord_type(v)
+            return parse_enum(COORD_TYPE, v)
         return v
 
-    @field_validator("clos")
+    @field_validator("clos", mode="before")
     @classmethod
     def validate_clos_type_field(cls, v):
-        """Validate grid closure type field."""
+        """Validate grid closure type field using parse_enum for normalization."""
         if v is not None:
-            return validate_clos_type(v)
+            return parse_enum(CLOS_TYPE, v)
         return v
 
     @field_validator("zlim")

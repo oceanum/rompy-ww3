@@ -3,6 +3,7 @@
 from typing import Any, Union
 from pathlib import Path
 import logging
+from enum import Enum
 from ..namelists.basemodel import NamelistBaseModel
 from rompy.core.types import RompyBaseModel
 
@@ -200,7 +201,10 @@ class WW3ComponentBaseModel(RompyBaseModel):
         Returns:
             Any: The processed value in appropriate Fortran-style format
         """
-        if isinstance(value, bool):
+        if isinstance(value, Enum):
+            # Extract canonical WW3 token/code from Enum
+            return self.process_value(value.value)
+        elif isinstance(value, bool):
             return self.boolean_to_string(value)
         elif isinstance(value, str):
             # Don't quote Fortran booleans

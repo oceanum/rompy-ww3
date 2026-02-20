@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
-from .validation import validate_io_type
+from .enums import IOSTYP, parse_enum
 
 
 class Domain(NamelistBaseModel):
@@ -40,7 +40,7 @@ class Domain(NamelistBaseModel):
             "Example: datetime(2010, 12, 31, 0, 0, 0) or '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
         ),
     )
-    iostyp: Optional[int] = Field(
+    iostyp: Optional[IOSTYP] = Field(
         default=None,
         description=(
             "Output server type defining how output is handled in parallel implementation:\n"
@@ -49,10 +49,9 @@ class Domain(NamelistBaseModel):
             "  1: No data server process. All output for each type performed by process "
             "that performs computations too\n"
             "  2: Last process is reserved for all output, and does no computing\n"
-            "  3: Multiple dedicated output processes. This field can be supplied as a string as part of backward-compatible input parsing."
+            "  3: Multiple dedicated output processes. Accepts Enum members, integer values (0-3), "
+            "or enum names (case-insensitive)."
         ),
-        ge=0,
-        le=3,
     )
 
     # Multi-grid parameters
@@ -97,10 +96,10 @@ class Domain(NamelistBaseModel):
             )
         return v
 
-    @field_validator("iostyp")
+    @field_validator("iostyp", mode="before")
     @classmethod
     def validate_iostyp_field(cls, v):
-        """Validate IOSTYP field value."""
+        """Validate IOSTYP field value using parse_enum for normalization."""
         if v is not None:
-            return validate_io_type(v)
+            return parse_enum(IOSTYP, v)
         return v

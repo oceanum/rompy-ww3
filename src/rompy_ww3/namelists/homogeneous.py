@@ -19,6 +19,7 @@ Validation follows the WW3 specifications:
 from typing import Optional, List
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
+from .enums import HOMOG_INPUT_NAME, parse_enum
 
 
 class HomogCount(NamelistBaseModel):
@@ -102,7 +103,7 @@ class HomogInput(NamelistBaseModel):
     Defines homogeneous inputs.
     """
 
-    name: Optional[str] = Field(
+    name: Optional[HOMOG_INPUT_NAME] = Field(
         default=None,
         description="Input type name (IC1, IC2, IC3, IC4, IC5, MDN, MTH, MVS, LEV, CUR, WND, ICE, MOV, TAU, RHO)",
     )
@@ -125,26 +126,7 @@ class HomogInput(NamelistBaseModel):
         """Validate that name is one of the allowed values."""
         if v is None:
             return v
-        allowed_names = {
-            "IC1",
-            "IC2",
-            "IC3",
-            "IC4",
-            "IC5",
-            "MDN",
-            "MTH",
-            "MVS",
-            "LEV",
-            "CUR",
-            "WND",
-            "ICE",
-            "MOV",
-            "TAU",
-            "RHO",
-        }
-        if v not in allowed_names:
-            raise ValueError(f"Name must be one of {allowed_names}, got {v}")
-        return v
+        return parse_enum(HOMOG_INPUT_NAME, v)
 
     @field_validator("date", mode="before")
     @classmethod
