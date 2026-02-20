@@ -8,7 +8,6 @@ import xarray as xr
 
 from rompy.core.source import SourceBase
 
-
 logger = logging.getLogger(__name__)
 
 HERE = Path(__file__).parent

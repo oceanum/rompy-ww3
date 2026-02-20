@@ -133,7 +133,9 @@ def create_ww3_tp2_11_config():
             nx=121,
             ny=121,
             xcoord=CoordData(
-                filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.lon"),
+                filename=WW3DataBlob(
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.lon"
+                ),
                 sf=0.0001,
                 off=0.0,
                 idf=11,
@@ -142,7 +144,9 @@ def create_ww3_tp2_11_config():
                 format="(....)",
             ),
             ycoord=CoordData(
-                filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.lat"),
+                filename=WW3DataBlob(
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.lat"
+                ),
                 sf=0.0001,
                 off=0.0,
                 idf=12,
@@ -152,14 +156,20 @@ def create_ww3_tp2_11_config():
             ),
         ),
         depth=Depth(
-            filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.bot"),
+            filename=WW3DataBlob(
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.bot"
+            ),
             sf=0.001,
         ),
         mask=Mask(
-            filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.mask"),
+            filename=WW3DataBlob(
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.mask"
+            ),
         ),
         obstacle=Obstacle(
-            filename=WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.obs"),
+            filename=WW3DataBlob(
+                source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.9/input/curv_2d.obs"
+            ),
             sf=0.01,
         ),
     )
@@ -179,7 +189,7 @@ def create_ww3_tp2_11_config():
     field_output_component = Ounf(
         field=Field(
             timestart="19680606 000000",
-            timestride="10800",  # 3 hour output
+            timestride=10800,  # 3 hour output
             timecount="1000000000",
             list="HS T01 FP DIR SPR WND",
             partition="0 1 2",

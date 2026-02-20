@@ -186,6 +186,21 @@ class OutputTypeCoupling(NamelistBaseModel):
         return v
 
 
+class OutputTypeRestart(NamelistBaseModel):
+    """Restart output parameters for WW3.
+
+    The TYPE%RESTART section of the namelist defines parameters for restart output in WW3.
+    """
+
+    extra: Optional[str] = Field(
+        default=None,
+        description=(
+            "Extra fields to write to restart file. This specifies additional fields "
+            "beyond the standard restart fields that should be included in restart output."
+        ),
+    )
+
+
 class OutputType(NamelistBaseModel):
     """TYPE section of OUTPUT_TYPE_NML for WW3 (single-grid).
 
@@ -219,6 +234,10 @@ class OutputType(NamelistBaseModel):
     coupling: Optional[OutputTypeCoupling] = Field(
         default=None,
         description="Coupling exchange parameters for coupled model interactions",
+    )
+    restart: Optional[OutputTypeRestart] = Field(
+        default=None,
+        description="Restart output parameters specifying additional fields for restart files",
     )
 
 

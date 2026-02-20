@@ -12,7 +12,7 @@ class Bound(NamelistBaseModel):
 
     The BOUND_NML namelist defines the input boundaries for preprocessing in WAVEWATCH III.
     This namelist is used by the ww3_bounc program to handle boundary data.
-    
+
     This namelist controls how boundary conditions are read from or written to files,
     including interpolation methods and verbosity of output.
     """
@@ -24,7 +24,7 @@ class Bound(NamelistBaseModel):
             "  'WRITE': Write boundary data to output files\n"
             "  'READ': Read boundary data from input files\n"
             "This determines the direction of data flow for boundary processing."
-        )
+        ),
     )
     interp: Optional[int] = Field(
         default=2,
@@ -35,7 +35,7 @@ class Bound(NamelistBaseModel):
             "This controls how boundary data is interpolated when necessary."
         ),
         ge=1,
-        le=2
+        le=2,
     )
     verbose: Optional[int] = Field(
         default=1,
@@ -47,7 +47,7 @@ class Bound(NamelistBaseModel):
             "This controls the level of detail in the processing logs."
         ),
         ge=0,
-        le=2
+        le=2,
     )
     file: Optional[Union[str, WW3DataBlob, WW3Boundary]] = Field(
         default=None,
@@ -55,29 +55,31 @@ class Bound(NamelistBaseModel):
             "Input/output file specification containing boundary data. "
             "This can be a string path, WW3DataBlob, or WW3Boundary object "
             "containing the boundary conditions in netCDF format (typically spec.nc)."
-        )
+        ),
     )
 
-    @field_validator('mode')
+    @field_validator("mode")
     @classmethod
     def validate_mode(cls, v):
         """Validate mode is either 'WRITE' or 'READ'."""
         if v is not None:
-            valid_modes = {'WRITE', 'READ', 'write', 'read'}
+            valid_modes = {"WRITE", "READ", "write", "read"}
             if v.upper() not in valid_modes:
                 raise ValueError(f"Mode must be 'WRITE' or 'READ', got {v}")
         return v.upper() if v is not None else v
 
-    @field_validator('interp')
+    @field_validator("interp")
     @classmethod
     def validate_interp(cls, v):
         """Validate interpolation method."""
         if v is not None:
             if v not in [1, 2]:
-                raise ValueError(f"Interpolation method must be 1 (nearest) or 2 (linear), got {v}")
+                raise ValueError(
+                    f"Interpolation method must be 1 (nearest) or 2 (linear), got {v}"
+                )
         return v
 
-    @field_validator('verbose')
+    @field_validator("verbose")
     @classmethod
     def validate_verbose(cls, v):
         """Validate verbosity level."""

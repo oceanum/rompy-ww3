@@ -733,10 +733,10 @@ class ShelConfig(BaseWW3Config):
         """
         # If this is a namelist object with stride attribute, set it if not already set
         if hasattr(obj, "stride") and getattr(obj, "stride") is None:
-            obj.stride = str(interval_seconds)
+            obj.stride = interval_seconds
         # If this is a namelist object with timestride attribute, set it if not already set
         if hasattr(obj, "timestride") and getattr(obj, "timestride") is None:
-            obj.timestride = str(interval_seconds)
+            obj.timestride = interval_seconds
 
         # For non-namelist objects, process their fields recursively
         elif hasattr(obj, "__dict__") or hasattr(obj, "__pydantic_fields__"):
@@ -826,3 +826,8 @@ class ShelConfig(BaseWW3Config):
         context["namelists"] = self.render_namelists()
 
         return context
+
+
+# Alias for backward compatibility (Config remains the entry point for users
+# transitioning from older Rompy versions to the Shel-based configuration).
+Config = ShelConfig

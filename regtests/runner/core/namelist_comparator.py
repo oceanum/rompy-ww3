@@ -12,7 +12,6 @@ from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 from difflib import unified_diff
 
-
 logger = logging.getLogger(__name__)
 
 # Default WW3 release tag to use for reference lookups

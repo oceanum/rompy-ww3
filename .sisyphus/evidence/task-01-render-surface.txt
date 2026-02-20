@@ -1,0 +1,6 @@
+Task: Map the full serialization/rendering surface area for namelists
+- Found render() call sites: 46 in 20 files across the codebase (examples include basemodel.py, namelists/*.py, components/*, config.py, namelist_composer.py).
+- Found write_nml() call sites: 19 in 13 files (e.g., components/multi.py, basemodel.py, ounf.py, uptstr.py, trnc.py, bounc.py, shel.py, bound.py, prnc.py, ounp.py, config.py).
+- Rendering is driven through a common render() on WW3ComponentBaseModel and per-component render() overrides; composition wires these into namelists via namelist_composer.py (domain.nml, input.nml, output_type.nml, output_date.nml, homog_count.nml).
+- Evidence: search results cited in the task context show representative call sites and rendering flow. 
+**Notes:** This file documents the surface area discovered during the scan; it is intended as trace evidence for QA.

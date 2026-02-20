@@ -5,11 +5,16 @@ Test cases for WW3 namelist classes.
 import tempfile
 from pathlib import Path
 from rompy_ww3.namelists import Domain, Input, OutputType, OutputDate, HomogCount
+from datetime import datetime
 
 
 def test_domain_nml():
     """Test DOMAIN_NML creation and rendering."""
-    domain = Domain(start="20230101 000000", stop="20230102 000000", iostyp=1)
+    domain = Domain(
+        start=datetime(2023, 1, 1, 0, 0, 0),
+        stop=datetime(2023, 1, 2, 0, 0, 0),
+        iostyp=1,
+    )
 
     rendered = domain.render()
     print("Rendered DOMAIN_NML:")
@@ -58,7 +63,11 @@ def test_output_type_nml():
 def test_output_date_nml():
     """Test OUTPUT_DATE_NML creation and rendering."""
     output_date = OutputDate(
-        field={"start": "20230101 000000", "stride": "3600", "stop": "20230102 000000"}
+        field={
+            "start": datetime(2023, 1, 1, 0, 0, 0),
+            "stride": 3600,
+            "stop": datetime(2023, 1, 2, 0, 0, 0),
+        }
     )
 
     rendered = output_date.render()
@@ -93,7 +102,9 @@ def test_homog_count_nml():
 def test_file_writing():
     """Test writing namelists to files."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        domain = Domain(start="20230101 000000", stop="20230102 000000")
+        domain = Domain(
+            start=datetime(2023, 1, 1, 0, 0, 0), stop=datetime(2023, 1, 2, 0, 0, 0)
+        )
 
         tmp_path = Path(tmpdir)
         domain.write_nml(tmp_path)

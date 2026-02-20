@@ -44,8 +44,6 @@ def create_ww3_mww3_test_02_component():
             currents="no",
             winds="T",  # Wind forcing from files
             ice_conc="no",
-            
-            
         ),
         resource=ModelGridResource(
             rank_id=1,  # MPI rank assignment
@@ -63,8 +61,6 @@ def create_ww3_mww3_test_02_component():
             currents="no",
             winds="T",  # Wind forcing from files
             ice_conc="no",
-            
-            
         ),
         resource=ModelGridResource(
             rank_id=2,  # Different MPI rank
@@ -82,8 +78,6 @@ def create_ww3_mww3_test_02_component():
             currents="no",
             winds="T",  # Wind forcing from files
             ice_conc="no",
-            
-            
         ),
         resource=ModelGridResource(
             rank_id=3,  # Third MPI rank
@@ -101,7 +95,7 @@ def create_ww3_mww3_test_02_component():
     output_date = OutputDate(
         field=OutputDateField(
             start="20200101 000000",
-            stride="1800",  # Every 30 minutes (more frequent than test_01)
+            stride=1800,  # Every 30 minutes (more frequent than test_01)
             stop="20200102 000000",
         ),
     )

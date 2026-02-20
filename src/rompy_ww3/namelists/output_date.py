@@ -1,5 +1,6 @@
 """OUTPUT_DATE_NML namelist implementation for WW3."""
 
+from datetime import datetime
 from typing import Optional
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
@@ -14,38 +15,40 @@ class OutputDateField(NamelistBaseModel):
     Time stride is given in seconds.
     """
 
-    start: Optional[str] = Field(
+    start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Field output start time in format 'YYYYMMDD HHMMSS'. "
+            "Field output start time. "
             "This specifies when to begin writing field output during the simulation. "
-            "Example: '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
+        ),
     )
-    stride: Optional[str] = Field(
+    stride: Optional[int] = Field(
         default=None,
         description=(
-            "Field output time stride in seconds as a string. "
+            "Field output time stride in seconds. "
             "This specifies the time interval between field output writes. "
-            "If set to '0', field output is disabled. "
-            "Example: '3600' for hourly output, '21600' for 6-hourly output."
-        )
+            "If set to 0, field output is disabled. "
+            "Example: 3600 for hourly output, 21600 for 6-hourly output."
+        ),
     )
-    stop: Optional[str] = Field(
+    stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Field output stop time in format 'YYYYMMDD HHMMSS'. "
+            "Field output stop time. "
             "This specifies when to stop writing field output during the simulation. "
-            "Example: '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
+        ),
     )
 
-    @field_validator('start', 'stop')
+    @field_validator("start", "stop")
     @classmethod
-    def validate_date_fields(cls, v):
-        """Validate date format for start and stop fields."""
-        if v is not None:
-            return validate_date_format(v)
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
         return v
 
 
@@ -57,38 +60,73 @@ class OutputDatePoint(NamelistBaseModel):
     Time stride is given in seconds.
     """
 
-    start: Optional[str] = Field(
+    start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Point output start time in format 'YYYYMMDD HHMMSS'. "
+            "Point output start time. "
             "This specifies when to begin writing point output during the simulation. "
-            "Example: '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
+        ),
     )
-    stride: Optional[str] = Field(
+    stride: Optional[int] = Field(
         default=None,
         description=(
-            "Point output time stride in seconds as a string. "
+            "Point output time stride in seconds. "
             "This specifies the time interval between point output writes. "
-            "If set to '0', point output is disabled. "
-            "Example: '3600' for hourly output, '21600' for 6-hourly output."
-        )
+            "If set to 0, point output is disabled. "
+            "Example: 3600 for hourly output, 21600 for 6-hourly output."
+        ),
     )
-    stop: Optional[str] = Field(
+    stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Point output stop time in format 'YYYYMMDD HHMMSS'. "
+            "Point output stop time. "
             "This specifies when to stop writing point output during the simulation. "
-            "Example: '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
+        ),
     )
 
-    @field_validator('start', 'stop')
+    @field_validator("start", "stop")
     @classmethod
-    def validate_date_fields(cls, v):
-        """Validate date format for start and stop fields."""
-        if v is not None:
-            return validate_date_format(v)
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
+        return v
+        if isinstance(v, str):
+            # Validate format first (reuse existing validation)
+            validate_date_format(v)
+            # Parse WW3 format: YYYYMMDD HHMMSS
+            try:
+                parsed = datetime.strptime(v, "%Y%m%d %H%M%S")
+                if parsed.tzinfo is not None:
+                    raise ValueError(
+                        "Timezone-aware datetimes not supported - use naive datetimes only"
+                    )
+                return parsed
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid date format: {v}. Expected 'YYYYMMDD HHMMSS'. Error: {e}"
+                )
+        if isinstance(v, datetime):
+            if v.tzinfo is not None:
+                raise ValueError(
+                    "Timezone-aware datetimes not supported - use naive datetimes only"
+                )
+            return v
+        return v
+
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid integer format for 'stride': {v}. Error: {e}"
+                )
+        if isinstance(v, int):
+            return v
         return v
 
 
@@ -100,38 +138,73 @@ class OutputDateTrack(NamelistBaseModel):
     Time stride is given in seconds.
     """
 
-    start: Optional[str] = Field(
+    start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Track output start time in format 'YYYYMMDD HHMMSS'. "
+            "Track output start time. "
             "This specifies when to begin writing track output during the simulation. "
-            "Example: '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
+        ),
     )
-    stride: Optional[str] = Field(
+    stride: Optional[int] = Field(
         default=None,
         description=(
-            "Track output time stride in seconds as a string. "
+            "Track output time stride in seconds. "
             "This specifies the time interval between track output writes. "
-            "If set to '0', track output is disabled. "
-            "Example: '3600' for hourly output, '21600' for 6-hourly output."
-        )
+            "If set to 0, track output is disabled. "
+            "Example: 3600 for hourly output, 21600 for 6-hourly output."
+        ),
     )
-    stop: Optional[str] = Field(
+    stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Track output stop time in format 'YYYYMMDD HHMMSS'. "
+            "Track output stop time. "
             "This specifies when to stop writing track output during the simulation. "
-            "Example: '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
+        ),
     )
 
-    @field_validator('start', 'stop')
+    @field_validator("start", "stop")
     @classmethod
-    def validate_date_fields(cls, v):
-        """Validate date format for start and stop fields."""
-        if v is not None:
-            return validate_date_format(v)
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
+        return v
+        if isinstance(v, str):
+            # Validate format first (reuse existing validation)
+            validate_date_format(v)
+            # Parse WW3 format: YYYYMMDD HHMMSS
+            try:
+                parsed = datetime.strptime(v, "%Y%m%d %H%M%S")
+                if parsed.tzinfo is not None:
+                    raise ValueError(
+                        "Timezone-aware datetimes not supported - use naive datetimes only"
+                    )
+                return parsed
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid date format: {v}. Expected 'YYYYMMDD HHMMSS'. Error: {e}"
+                )
+        if isinstance(v, datetime):
+            if v.tzinfo is not None:
+                raise ValueError(
+                    "Timezone-aware datetimes not supported - use naive datetimes only"
+                )
+            return v
+        return v
+
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid integer format for 'stride': {v}. Error: {e}"
+                )
+        if isinstance(v, int):
+            return v
         return v
 
 
@@ -143,38 +216,73 @@ class OutputDateRestart(NamelistBaseModel):
     Time stride is given in seconds.
     """
 
-    start: Optional[str] = Field(
+    start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Restart output start time in format 'YYYYMMDD HHMMSS'. "
+            "Restart output start time. "
             "This specifies when to begin writing restart output during the simulation. "
-            "Example: '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
+        ),
     )
-    stride: Optional[str] = Field(
+    stride: Optional[int] = Field(
         default=None,
         description=(
-            "Restart output time stride in seconds as a string. "
+            "Restart output time stride in seconds. "
             "This specifies the time interval between restart output writes. "
-            "If set to '0', restart output is disabled. "
-            "Example: '43200' for 12-hourly output, '86400' for daily output."
-        )
+            "If set to 0, restart output is disabled. "
+            "Example: 43200 for 12-hourly output, 86400 for daily output."
+        ),
     )
-    stop: Optional[str] = Field(
+    stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Restart output stop time in format 'YYYYMMDD HHMMSS'. "
+            "Restart output stop time. "
             "This specifies when to stop writing restart output during the simulation. "
-            "Example: '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
+        ),
     )
 
-    @field_validator('start', 'stop')
+    @field_validator("start", "stop")
     @classmethod
-    def validate_date_fields(cls, v):
-        """Validate date format for start and stop fields."""
-        if v is not None:
-            return validate_date_format(v)
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
+        return v
+        if isinstance(v, str):
+            # Validate format first (reuse existing validation)
+            validate_date_format(v)
+            # Parse WW3 format: YYYYMMDD HHMMSS
+            try:
+                parsed = datetime.strptime(v, "%Y%m%d %H%M%S")
+                if parsed.tzinfo is not None:
+                    raise ValueError(
+                        "Timezone-aware datetimes not supported - use naive datetimes only"
+                    )
+                return parsed
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid date format: {v}. Expected 'YYYYMMDD HHMMSS'. Error: {e}"
+                )
+        if isinstance(v, datetime):
+            if v.tzinfo is not None:
+                raise ValueError(
+                    "Timezone-aware datetimes not supported - use naive datetimes only"
+                )
+            return v
+        return v
+
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid integer format for 'stride': {v}. Error: {e}"
+                )
+        if isinstance(v, int):
+            return v
         return v
 
 
@@ -186,38 +294,73 @@ class OutputDateBoundary(NamelistBaseModel):
     Time stride is given in seconds.
     """
 
-    start: Optional[str] = Field(
+    start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Boundary output start time in format 'YYYYMMDD HHMMSS'. "
+            "Boundary output start time. "
             "This specifies when to begin writing boundary output during the simulation. "
-            "Example: '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
+        ),
     )
-    stride: Optional[str] = Field(
+    stride: Optional[int] = Field(
         default=None,
         description=(
-            "Boundary output time stride in seconds as a string. "
+            "Boundary output time stride in seconds. "
             "This specifies the time interval between boundary output writes. "
-            "If set to '0', boundary output is disabled. "
-            "Example: '3600' for hourly output, '21600' for 6-hourly output."
-        )
+            "If set to 0, boundary output is disabled. "
+            "Example: 3600 for hourly output, 21600 for 6-hourly output."
+        ),
     )
-    stop: Optional[str] = Field(
+    stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Boundary output stop time in format 'YYYYMMDD HHMMSS'. "
+            "Boundary output stop time. "
             "This specifies when to stop writing boundary output during the simulation. "
-            "Example: '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
+        ),
     )
 
-    @field_validator('start', 'stop')
+    @field_validator("start", "stop")
     @classmethod
-    def validate_date_fields(cls, v):
-        """Validate date format for start and stop fields."""
-        if v is not None:
-            return validate_date_format(v)
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
+        return v
+        if isinstance(v, str):
+            # Validate format first (reuse existing validation)
+            validate_date_format(v)
+            # Parse WW3 format: YYYYMMDD HHMMSS
+            try:
+                parsed = datetime.strptime(v, "%Y%m%d %H%M%S")
+                if parsed.tzinfo is not None:
+                    raise ValueError(
+                        "Timezone-aware datetimes not supported - use naive datetimes only"
+                    )
+                return parsed
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid date format: {v}. Expected 'YYYYMMDD HHMMSS'. Error: {e}"
+                )
+        if isinstance(v, datetime):
+            if v.tzinfo is not None:
+                raise ValueError(
+                    "Timezone-aware datetimes not supported - use naive datetimes only"
+                )
+            return v
+        return v
+
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid integer format for 'stride': {v}. Error: {e}"
+                )
+        if isinstance(v, int):
+            return v
         return v
 
 
@@ -229,38 +372,73 @@ class OutputDatePartition(NamelistBaseModel):
     Time stride is given in seconds.
     """
 
-    start: Optional[str] = Field(
+    start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Partition output start time in format 'YYYYMMDD HHMMSS'. "
+            "Partition output start time. "
             "This specifies when to begin writing partition output during the simulation. "
-            "Example: '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
+        ),
     )
-    stride: Optional[str] = Field(
+    stride: Optional[int] = Field(
         default=None,
         description=(
-            "Partition output time stride in seconds as a string. "
+            "Partition output time stride in seconds. "
             "This specifies the time interval between partition output writes. "
-            "If set to '0', partition output is disabled. "
-            "Example: '3600' for hourly output, '21600' for 6-hourly output."
-        )
+            "If set to 0, partition output is disabled. "
+            "Example: 3600 for hourly output, 21600 for 6-hourly output."
+        ),
     )
-    stop: Optional[str] = Field(
+    stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Partition output stop time in format 'YYYYMMDD HHMMSS'. "
+            "Partition output stop time. "
             "This specifies when to stop writing partition output during the simulation. "
-            "Example: '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
+        ),
     )
 
-    @field_validator('start', 'stop')
+    @field_validator("start", "stop")
     @classmethod
-    def validate_date_fields(cls, v):
-        """Validate date format for start and stop fields."""
-        if v is not None:
-            return validate_date_format(v)
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
+        return v
+        if isinstance(v, str):
+            # Validate format first (reuse existing validation)
+            validate_date_format(v)
+            # Parse WW3 format: YYYYMMDD HHMMSS
+            try:
+                parsed = datetime.strptime(v, "%Y%m%d %H%M%S")
+                if parsed.tzinfo is not None:
+                    raise ValueError(
+                        "Timezone-aware datetimes not supported - use naive datetimes only"
+                    )
+                return parsed
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid date format: {v}. Expected 'YYYYMMDD HHMMSS'. Error: {e}"
+                )
+        if isinstance(v, datetime):
+            if v.tzinfo is not None:
+                raise ValueError(
+                    "Timezone-aware datetimes not supported - use naive datetimes only"
+                )
+            return v
+        return v
+
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid integer format for 'stride': {v}. Error: {e}"
+                )
+        if isinstance(v, int):
+            return v
         return v
 
 
@@ -272,45 +450,80 @@ class OutputDateCoupling(NamelistBaseModel):
     Time stride is given in seconds.
     """
 
-    start: Optional[str] = Field(
+    start: Optional[datetime] = Field(
         default=None,
         description=(
-            "Coupling output start time in format 'YYYYMMDD HHMMSS'. "
+            "Coupling output start time. "
             "This specifies when to begin writing coupling output during the simulation. "
-            "Example: '20100101 000000' for January 1, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
+        ),
     )
-    stride: Optional[str] = Field(
+    stride: Optional[int] = Field(
         default=None,
         description=(
-            "Coupling output time stride in seconds as a string. "
+            "Coupling output time stride in seconds. "
             "This specifies the time interval between coupling output writes. "
-            "If set to '0', coupling output is disabled. "
-            "Example: '3600' for hourly output, '21600' for 6-hourly output."
-        )
+            "If set to 0, coupling output is disabled. "
+            "Example: 3600 for hourly output, 21600 for 6-hourly output."
+        ),
     )
-    stop: Optional[str] = Field(
+    stop: Optional[datetime] = Field(
         default=None,
         description=(
-            "Coupling output stop time in format 'YYYYMMDD HHMMSS'. "
+            "Coupling output stop time. "
             "This specifies when to stop writing coupling output during the simulation. "
-            "Example: '20101231 000000' for December 31, 2010 at 00:00:00 UTC."
-        )
+            "Example: datetime(2010, 12, 31, 0, 0, 0) for December 31, 2010 at 00:00:00 UTC."
+        ),
     )
 
-    @field_validator('start', 'stop')
+    @field_validator("start", "stop")
     @classmethod
-    def validate_date_fields(cls, v):
-        """Validate date format for start and stop fields."""
-        if v is not None:
-            return validate_date_format(v)
+    def validate_timezone(cls, v):
+        """Validate that datetime is timezone-naive."""
+        if v is not None and v.tzinfo is not None:
+            raise ValueError(
+                "Timezone-aware datetimes not supported - use naive datetimes only"
+            )
+        return v
+        if isinstance(v, str):
+            # Validate format first (reuse existing validation)
+            validate_date_format(v)
+            # Parse WW3 format: YYYYMMDD HHMMSS
+            try:
+                parsed = datetime.strptime(v, "%Y%m%d %H%M%S")
+                if parsed.tzinfo is not None:
+                    raise ValueError(
+                        "Timezone-aware datetimes not supported - use naive datetimes only"
+                    )
+                return parsed
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid date format: {v}. Expected 'YYYYMMDD HHMMSS'. Error: {e}"
+                )
+        if isinstance(v, datetime):
+            if v.tzinfo is not None:
+                raise ValueError(
+                    "Timezone-aware datetimes not supported - use naive datetimes only"
+                )
+            return v
+        return v
+
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid integer format for 'stride': {v}. Error: {e}"
+                )
+        if isinstance(v, int):
+            return v
         return v
 
 
 class OutputDate(NamelistBaseModel):
     """DATE section of OUTPUT_DATE_NML for WW3 (single-grid).
 
-    The OUTPUT_DATE_NML namelist defines the output timing parameters for 
+    The OUTPUT_DATE_NML namelist defines the output timing parameters for
     single-grid WAVEWATCH III runs. This namelist is read by the ww3_shel program.
 
     The namelist contains sections for:
@@ -329,32 +542,32 @@ class OutputDate(NamelistBaseModel):
     """
 
     field: Optional[OutputDateField] = Field(
-        default=None, 
-        description="Field output date parameters defining when and how frequently field output is written"
+        default=None,
+        description="Field output date parameters defining when and how frequently field output is written",
     )
     point: Optional[OutputDatePoint] = Field(
-        default=None, 
-        description="Point output date parameters defining when and how frequently point output is written"
+        default=None,
+        description="Point output date parameters defining when and how frequently point output is written",
     )
     track: Optional[OutputDateTrack] = Field(
-        default=None, 
-        description="Track output date parameters defining when and how frequently track output is written"
+        default=None,
+        description="Track output date parameters defining when and how frequently track output is written",
     )
     restart: Optional[OutputDateRestart] = Field(
-        default=None, 
-        description="Restart output date parameters defining when and how frequently restart output is written"
+        default=None,
+        description="Restart output date parameters defining when and how frequently restart output is written",
     )
     boundary: Optional[OutputDateBoundary] = Field(
-        default=None, 
-        description="Boundary output date parameters defining when and how frequently boundary output is written"
+        default=None,
+        description="Boundary output date parameters defining when and how frequently boundary output is written",
     )
     partition: Optional[OutputDatePartition] = Field(
-        default=None, 
-        description="Partition output date parameters defining when and how frequently partition output is written"
+        default=None,
+        description="Partition output date parameters defining when and how frequently partition output is written",
     )
     coupling: Optional[OutputDateCoupling] = Field(
-        default=None, 
-        description="Coupling output date parameters defining when and how frequently coupling output is written"
+        default=None,
+        description="Coupling output date parameters defining when and how frequently coupling output is written",
     )
 
 
@@ -365,32 +578,32 @@ class AllDate(NamelistBaseModel):
     """
 
     field: Optional[OutputDateField] = Field(
-        default=None, 
-        description="Field output date parameters applied to all grids in multi-grid runs"
+        default=None,
+        description="Field output date parameters applied to all grids in multi-grid runs",
     )
     point: Optional[OutputDatePoint] = Field(
-        default=None, 
-        description="Point output date parameters applied to all grids in multi-grid runs"
+        default=None,
+        description="Point output date parameters applied to all grids in multi-grid runs",
     )
     track: Optional[OutputDateTrack] = Field(
-        default=None, 
-        description="Track output date parameters applied to all grids in multi-grid runs"
+        default=None,
+        description="Track output date parameters applied to all grids in multi-grid runs",
     )
     restart: Optional[OutputDateRestart] = Field(
-        default=None, 
-        description="Restart output date parameters applied to all grids in multi-grid runs"
+        default=None,
+        description="Restart output date parameters applied to all grids in multi-grid runs",
     )
     boundary: Optional[OutputDateBoundary] = Field(
-        default=None, 
-        description="Boundary output date parameters applied to all grids in multi-grid runs"
+        default=None,
+        description="Boundary output date parameters applied to all grids in multi-grid runs",
     )
     partition: Optional[OutputDatePartition] = Field(
-        default=None, 
-        description="Partition output date parameters applied to all grids in multi-grid runs"
+        default=None,
+        description="Partition output date parameters applied to all grids in multi-grid runs",
     )
     coupling: Optional[OutputDateCoupling] = Field(
-        default=None, 
-        description="Coupling output date parameters applied to all grids in multi-grid runs"
+        default=None,
+        description="Coupling output date parameters applied to all grids in multi-grid runs",
     )
 
 
@@ -401,30 +614,30 @@ class IDate(NamelistBaseModel):
     """
 
     field: Optional[OutputDateField] = Field(
-        default=None, 
-        description="Field output date parameters for specific grid I in multi-grid runs"
+        default=None,
+        description="Field output date parameters for specific grid I in multi-grid runs",
     )
     point: Optional[OutputDatePoint] = Field(
-        default=None, 
-        description="Point output date parameters for specific grid I in multi-grid runs"
+        default=None,
+        description="Point output date parameters for specific grid I in multi-grid runs",
     )
     track: Optional[OutputDateTrack] = Field(
-        default=None, 
-        description="Track output date parameters for specific grid I in multi-grid runs"
+        default=None,
+        description="Track output date parameters for specific grid I in multi-grid runs",
     )
     restart: Optional[OutputDateRestart] = Field(
-        default=None, 
-        description="Restart output date parameters for specific grid I in multi-grid runs"
+        default=None,
+        description="Restart output date parameters for specific grid I in multi-grid runs",
     )
     boundary: Optional[OutputDateBoundary] = Field(
-        default=None, 
-        description="Boundary output date parameters for specific grid I in multi-grid runs"
+        default=None,
+        description="Boundary output date parameters for specific grid I in multi-grid runs",
     )
     partition: Optional[OutputDatePartition] = Field(
-        default=None, 
-        description="Partition output date parameters for specific grid I in multi-grid runs"
+        default=None,
+        description="Partition output date parameters for specific grid I in multi-grid runs",
     )
     coupling: Optional[OutputDateCoupling] = Field(
-        default=None, 
-        description="Coupling output date parameters for specific grid I in multi-grid runs"
+        default=None,
+        description="Coupling output date parameters for specific grid I in multi-grid runs",
     )

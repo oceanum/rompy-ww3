@@ -82,4 +82,3 @@ class Uptstr(WW3ComponentBaseModel):
             str: The command to run the WW3 restart update executable 'ww3_uprstr'
         """
         return "ww3_uprstr"
-

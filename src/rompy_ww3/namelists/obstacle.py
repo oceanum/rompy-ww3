@@ -4,6 +4,7 @@ from typing import Optional, Union
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
 from ..core.data import WW3DataBlob
+from .enums import LAYOUT_INDICATOR, FORMAT_INDICATOR, parse_enum
 
 
 class Obstacle(NamelistBaseModel):
@@ -14,13 +15,13 @@ class Obstacle(NamelistBaseModel):
     or if &MISC FLAGTR = 2 in param.nml (transparencies at cell centers)
     or if &MISC FLAGTR = 3 in param.nml (transparencies at cell boundaries with continuous ice)
     or if &MISC FLAGTR = 4 in param.nml (transparencies at cell centers with continuous ice).
-    
+
     The obstruction values represent the transparency or transmission coefficient of obstacles
     like vegetation, ice, structures, etc. The scale factor converts the input values to the
     appropriate obstruction values needed by WW3.
-    
+
     In the case of unstructured grids, no obstruction file can be added.
-    
+
     If the file unit number equals 10, then data is read from this file with special handling.
     No comment lines are allowed within the data input.
     """
@@ -32,14 +33,14 @@ class Obstacle(NamelistBaseModel):
             "The final obstruction value is calculated as: value = value_read * scale_factor. "
             "This factor is used to convert the values from the input file to appropriate "
             "obstruction values for WW3's transmission calculations."
-        )
+        ),
     )
     filename: Optional[Union[str, WW3DataBlob]] = Field(
         default=None,
         description=(
             "Filename or data blob containing the obstruction data for the grid. This file should contain "
             "the obstruction/transmission values in the format specified by the idfm and format parameters."
-        )
+        ),
     )
     idf: Optional[int] = Field(
         default=None,
@@ -47,9 +48,9 @@ class Obstacle(NamelistBaseModel):
             "File unit number for the obstacle file. Each file in WW3 is assigned a unique "
             "unit number to distinguish between different input files during processing."
         ),
-        ge=1  # Must be positive file unit number
+        ge=1,  # Must be positive file unit number
     )
-    idla: Optional[int] = Field(
+    idla: Optional[LAYOUT_INDICATOR] = Field(
         default=None,
         description=(
             "Layout indicator for reading obstacle data:\n"
@@ -58,10 +59,8 @@ class Obstacle(NamelistBaseModel):
             "  3: Read line-by-line from top to bottom\n"
             "  4: Like 3, but with a single read statement"
         ),
-        ge=1,
-        le=4
     )
-    idfm: Optional[int] = Field(
+    idfm: Optional[FORMAT_INDICATOR] = Field(
         default=None,
         description=(
             "Format indicator for reading obstacle data:\n"
@@ -69,8 +68,6 @@ class Obstacle(NamelistBaseModel):
             "  2: Fixed format\n"
             "  3: Unformatted"
         ),
-        ge=1,
-        le=3
     )
     format: Optional[str] = Field(
         default=None,
@@ -78,10 +75,10 @@ class Obstacle(NamelistBaseModel):
             "Formatted read format specification, like '(f10.6)' for float type. "
             "Use '(....)' for auto detection of the format. This specifies how the "
             "obstacle values should be read from the file."
-        )
+        ),
     )
 
-    @field_validator('sf')
+    @field_validator("sf")
     @classmethod
     def validate_scale_factor(cls, v):
         """Validate scale factor is not zero."""
@@ -90,7 +87,7 @@ class Obstacle(NamelistBaseModel):
                 raise ValueError(f"Scale factor must not be zero, got {v}")
         return v
 
-    @field_validator('idf')
+    @field_validator("idf")
     @classmethod
     def validate_file_unit(cls, v):
         """Validate file unit number."""
@@ -99,18 +96,18 @@ class Obstacle(NamelistBaseModel):
                 raise ValueError(f"File unit number must be positive, got {v}")
         return v
 
-    @field_validator('idla')
+    @field_validator("idla", mode="before")
     @classmethod
     def validate_idla(cls, v):
         """Validate layout indicator."""
-        if v is not None and v not in [1, 2, 3, 4]:
-            raise ValueError(f"Layout indicator (idla) must be between 1 and 4, got {v}")
-        return v
+        if v is None:
+            return v
+        return parse_enum(LAYOUT_INDICATOR, v)
 
-    @field_validator('idfm')
+    @field_validator("idfm", mode="before")
     @classmethod
     def validate_idfm(cls, v):
         """Validate format indicator."""
-        if v is not None and v not in [1, 2, 3]:
-            raise ValueError(f"Format indicator (idfm) must be 1, 2, or 3, got {v}")
-        return v
+        if v is None:
+            return v
+        return parse_enum(FORMAT_INDICATOR, v)

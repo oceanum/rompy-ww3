@@ -35,7 +35,7 @@ class Timesteps(NamelistBaseModel):
 
     The TIMESTEPS_NML namelist defines the timestep parameterization for WAVEWATCH III.
     Proper timestep selection is critical for model stability and accuracy.
-    
+
     The timesteps should be set up as multiples of each other for best results.
     The time step relationships recommended by WW3 documentation are:
     - DTXY is the maximum CFL time step for x-y propagation
@@ -53,7 +53,7 @@ class Timesteps(NamelistBaseModel):
             "and the lowest spatial grid resolution (DXY): Tcfl = DXY / (G / (FREQ1*4*Pi)) "
             "where G=9.8m/s². DTMAX is typically around 3 × DTXY."
         ),
-        gt=0  # Must be positive
+        gt=0,  # Must be positive
     )
     dtxy: Optional[float] = Field(
         ...,
@@ -63,7 +63,7 @@ class Timesteps(NamelistBaseModel):
             "based on the CFL condition and is typically about 90% of the theoretical CFL "
             "limit: DTXY ≈ 0.9 * DXY / (G / (FREQ1*4*Pi)) where G=9.8m/s²."
         ),
-        gt=0  # Must be positive
+        gt=0,  # Must be positive
     )
     dtkth: Optional[float] = Field(
         ...,
@@ -73,7 +73,7 @@ class Timesteps(NamelistBaseModel):
             "The value depends on current velocities: for no/light currents, DTKTH ≈ DTMAX/2, "
             "while for strong currents, DTKTH ≈ DTMAX/10."
         ),
-        gt=0  # Must be positive
+        gt=0,  # Must be positive
     )
     dtmin: Optional[float] = Field(
         default=10,
@@ -83,7 +83,7 @@ class Timesteps(NamelistBaseModel):
             "Typical values range between 5 and 60 seconds, with 10 seconds being common."
         ),
         ge=0.1,  # Reasonable minimum
-        le=3600  # Reasonable maximum (1 hour)
+        le=3600,  # Reasonable maximum (1 hour)
     )
 
     @model_validator(mode="after")

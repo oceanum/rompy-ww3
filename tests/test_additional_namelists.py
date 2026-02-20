@@ -3,6 +3,7 @@ Test cases for additional WW3 namelist classes.
 """
 
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from rompy_ww3.namelists import (
     Spectrum,
@@ -122,8 +123,8 @@ def test_bound_nml():
 def test_forcing_nml():
     """Test FORCING_NML namelist."""
     forcing = Forcing(
-        timestart="20230101 000000",
-        timestop="20230107 000000",
+        timestart=datetime(2023, 1, 1, 0, 0, 0),
+        timestop=datetime(2023, 1, 7, 0, 0, 0),
         field={"winds": True},  # Only one field can be True
         grid={"latlon": True},
     )
@@ -144,7 +145,7 @@ def test_forcing_nml():
 
 def test_track_nml():
     """Test TRACK_NML namelist."""
-    track = Track(timestart="20230101 000000", timestride="3600", timesplit=8)
+    track = Track(timestart=datetime(2023, 1, 1, 0, 0, 0), timestride=3600, timesplit=8)
 
     rendered = track.render()
     print("\nTRACK_NML rendered:")
@@ -162,8 +163,8 @@ def test_track_nml():
 def test_field_nml():
     """Test FIELD_NML namelist."""
     field = Field(
-        timestart="20230101 000000",
-        timestride="3600",
+        timestart=datetime(2023, 1, 1, 0, 0, 0),
+        timestride=3600,
         list="HS DIR SPR WND ICE CUR LEV",
         samefile=True,
     )
@@ -185,7 +186,7 @@ def test_field_nml():
 def test_point_nml():
     """Test POINT_NML namelist."""
     point = Point(
-        timestart="20230101 000000", timestride="3600", list="all", buffer=150
+        timestart=datetime(2023, 1, 1, 0, 0, 0), timestride=3600, list="all", buffer=150
     )
 
     rendered = point.render()
@@ -204,7 +205,7 @@ def test_point_nml():
 
 def test_restart_nml():
     """Test RESTART_NML namelist."""
-    restart = Restart(restarttime="20230101 000000")
+    restart = Restart(restarttime=datetime(2023, 1, 1, 0, 0, 0))
 
     rendered = restart.render()
     print("\nRESTART_NML rendered:")
@@ -247,7 +248,7 @@ def test_file_writing():
         assert (tmp_path / "forcing.nml").exists()
 
         # Track
-        track = Track(timestart="20230101 000000", timestride="3600")
+        track = Track(timestart=datetime(2023, 1, 1, 0, 0, 0), timestride=3600)
         track.write_nml(tmp_path)
         assert (tmp_path / "track.nml").exists()
 
@@ -262,7 +263,7 @@ def test_file_writing():
         assert (tmp_path / "point.nml").exists()
 
         # Restart
-        restart = Restart(restarttime="20230101 000000")
+        restart = Restart(restarttime=datetime(2023, 1, 1, 0, 0, 0))
         restart.write_nml(tmp_path)
         assert (tmp_path / "restart.nml").exists()
 
@@ -270,7 +271,7 @@ def test_file_writing():
         update = Update(prcntg=1.0, prcntg_cap=1.1)
         update.write_nml(tmp_path)
         # RestartUpdate
-        restart_update = RestartUpdate(update_time="20230101 000000")
+        restart_update = RestartUpdate(update_time=datetime(2023, 1, 1, 0, 0, 0))
         restart_update.write_nml(tmp_path)
         assert (tmp_path / "restartupdate.nml").exists()
 

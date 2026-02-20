@@ -11,7 +11,6 @@ import numpy as np
 
 from .result import ValidationReport
 
-
 logger = logging.getLogger(__name__)
 
 

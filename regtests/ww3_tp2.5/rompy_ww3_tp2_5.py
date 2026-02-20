@@ -54,7 +54,11 @@ def create_ww3_tp2_5_config():
         input_nml=Input(),  # No forcing inputs
         output_type=OutputType(
             field={"list": "DPT HS FP DIR SPR"},
-            point={"file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/points.list")},
+            point={
+                "file": WW3DataBlob(
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/points.list"
+                )
+            },
         ),
         output_date=OutputDate(
             field={
@@ -156,7 +160,7 @@ def create_ww3_tp2_5_config():
     field_output_component = Ounf(
         field=Field(
             timestart="20080522 000000",
-            timestride="3600",
+            timestride=3600,
             timecount="999",
             list="DPT HS",
             partition="0 1 2",

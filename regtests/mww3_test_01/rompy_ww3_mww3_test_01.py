@@ -80,7 +80,7 @@ def create_ww3_mww3_test_01_component():
     output_date = OutputDate(
         field=OutputDateField(
             start="20200101 000000",
-            stride="3600",
+            stride=3600,
             stop="20200102 000000",
         ),
     )

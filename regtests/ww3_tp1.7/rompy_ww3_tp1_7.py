@@ -41,7 +41,11 @@ def create_ww3_tp1_7_components():
         input_nml=Input(),
         output_type=OutputType(
             field={"list": "DPT HS T0M1 DIR SPR HIG EF P2L"},
-            point={"file": WW3DataBlob(source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.7/input/points.list")},
+            point={
+                "file": WW3DataBlob(
+                    source="https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp1.7/input/points.list"
+                )
+            },
         ),
         output_date=OutputDate(
             field={
@@ -136,7 +140,7 @@ def create_ww3_tp1_7_components():
     field_output_component = Ounf(
         field=Field(
             timestart="20120600 000000",
-            timestride="60",
+            timestride=60,
             timecount="999",
             list="DPT HS T0M1 DIR SPR HIG EF P2L",
             partition="0 1 2",

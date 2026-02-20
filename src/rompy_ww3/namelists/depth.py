@@ -4,6 +4,7 @@ from typing import Optional, Union
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
 from ..core.data import WW3DataBlob
+from .enums import LAYOUT_INDICATOR, FORMAT_INDICATOR, parse_enum
 
 
 class Depth(NamelistBaseModel):
@@ -11,12 +12,12 @@ class Depth(NamelistBaseModel):
 
     The DEPTH_NML namelist defines the bathymetry depth data to preprocess for WAVEWATCH III.
     This namelist specifies how depth values are read from input files and applied to the grid.
-    
+
     The depth values must have negative values under the mean sea level. The scale factor
     is used to convert the values from the input file to the proper depth values needed by WW3.
     For example, if the file contains positive depth values in millimeters, use a scale factor
     of -0.001 to convert to negative meters (below sea level).
-    
+
     If no obstruction subgrid is used, need to set &MISC FLAGTR = 0 in param.nml.
     """
 
@@ -29,14 +30,14 @@ class Depth(NamelistBaseModel):
             "should be used to ensure the resulting depths are negative (below sea level). "
             "For example, if the file contains positive depths in millimeters, use -0.001 "
             "to convert to negative meters."
-        )
+        ),
     )
     filename: Optional[Union[str, WW3DataBlob]] = Field(
         default=None,
         description=(
             "Filename or data blob containing the depth data for the grid. This file should contain "
             "the bathymetry/elevation data in the format specified by the idfm and format parameters."
-        )
+        ),
     )
     idf: Optional[int] = Field(
         default=None,
@@ -44,9 +45,9 @@ class Depth(NamelistBaseModel):
             "File unit number for the depth file. Each file in WW3 is assigned a unique "
             "unit number to distinguish between different input files during processing."
         ),
-        ge=1  # Must be positive file unit number
+        ge=1,  # Must be positive file unit number
     )
-    idla: Optional[int] = Field(
+    idla: Optional[LAYOUT_INDICATOR] = Field(
         default=None,
         description=(
             "Layout indicator for reading depth data:\n"
@@ -55,10 +56,8 @@ class Depth(NamelistBaseModel):
             "  3: Read line-by-line from top to bottom\n"
             "  4: Like 3, but with a single read statement"
         ),
-        ge=1,
-        le=4
     )
-    idfm: Optional[int] = Field(
+    idfm: Optional[FORMAT_INDICATOR] = Field(
         default=None,
         description=(
             "Format indicator for reading depth data:\n"
@@ -66,8 +65,6 @@ class Depth(NamelistBaseModel):
             "  2: Fixed format\n"
             "  3: Unformatted"
         ),
-        ge=1,
-        le=3
     )
     format: Optional[str] = Field(
         default=None,
@@ -75,10 +72,10 @@ class Depth(NamelistBaseModel):
             "Formatted read format specification, like '(f10.6)' for float type. "
             "Use '(....)' for auto detection of the format. This specifies how the "
             "depth values should be read from the file."
-        )
+        ),
     )
 
-    @field_validator('sf')
+    @field_validator("sf")
     @classmethod
     def validate_scale_factor(cls, v):
         """Validate scale factor is not zero."""
@@ -87,7 +84,7 @@ class Depth(NamelistBaseModel):
                 raise ValueError(f"Scale factor must not be zero, got {v}")
         return v
 
-    @field_validator('idf')
+    @field_validator("idf")
     @classmethod
     def validate_file_unit(cls, v):
         """Validate file unit number."""
@@ -96,18 +93,18 @@ class Depth(NamelistBaseModel):
                 raise ValueError(f"File unit number must be positive, got {v}")
         return v
 
-    @field_validator('idla')
+    @field_validator("idla", mode="before")
     @classmethod
     def validate_idla(cls, v):
         """Validate layout indicator."""
-        if v is not None and v not in [1, 2, 3, 4]:
-            raise ValueError(f"Layout indicator (idla) must be between 1 and 4, got {v}")
-        return v
+        if v is None:
+            return v
+        return parse_enum(LAYOUT_INDICATOR, v)
 
-    @field_validator('idfm')
+    @field_validator("idfm", mode="before")
     @classmethod
     def validate_idfm(cls, v):
         """Validate format indicator."""
-        if v is not None and v not in [1, 2, 3]:
-            raise ValueError(f"Format indicator (idfm) must be 1, 2, or 3, got {v}")
-        return v
+        if v is None:
+            return v
+        return parse_enum(FORMAT_INDICATOR, v)

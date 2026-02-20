@@ -1,0 +1,9 @@
+Task: Confirm no Jinja2 templates in rendering path affecting string types
+- Found Jinja2 template usage in:
+  - src/rompy_ww3/source.py: Generate template context for Jinja2 templates.
+  - src/rompy_ww3/config.py: Generate template context for Jinja2 templates.
+  - src/rompy_ww3/templates/base/run_ww3.j2 (template file)
+  - src/rompy_ww3/templates/base/ww3_shel.nml (template file)
+- The template files appear to render WW3 namelist blocks but the scan did not reveal direct in-code rendering of string fields via templates in write paths outside templating. The presence of templates suggests render paths can involve template substitution prior to final file emission.
+- QA outcome: enumerated templates and their potential impact; no non-template rendering of primitive fields detected in the scanned paths beyond standard template substitution.
+- Evidence captured in the render surface mapping file and the template usage in the codebase.

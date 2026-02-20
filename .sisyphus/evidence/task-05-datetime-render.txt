@@ -1,0 +1,65 @@
+============================================================
+Testing datetime rendering support in WW3 namelists
+============================================================
+
+Test 1: Datetime rendering
+------------------------------------------------------------
+✓ Test 1 passed: datetime(2020, 1, 2, 3, 4, 5) -> '20200102 030405'
+✓ Test 2 passed: datetime(2023, 1, 1, 0, 0, 0) -> '20230101 000000'
+✓ Test 3 passed: datetime(2023, 12, 31, 23, 59, 59) -> '20231231 235959'
+
+Test 2: Mixed types rendering
+------------------------------------------------------------
+✓ datetime renders as: 20200102 030405 (bare token, no quotes)
+✓ bool renders as: True -> 'T', False -> 'F'
+✓ string renders as: 'test_string' (quoted)
+✓ int renders as: 3600 (unquoted)
+✓ float renders as: 1.5 (unquoted)
+
+Test 3: No quotes verification
+------------------------------------------------------------
+✓ No quotes test passed: datetime renders as bare token '20200102 030405'
+
+============================================================
+✓ ALL TESTS PASSED
+============================================================
+
+Summary:
+  - datetime objects render as WW3 format: YYYYMMDD HHMMSS
+  - No quotes around datetime values (bare tokens)
+  - Behavior matches WW3 Fortran namelist requirements
+  - Other types (bool, str, int, float) render correctly
+
+========================================================================
+INTEGRATION DEMO: Datetime Rendering in Actual Namelist Context
+========================================================================
+
+Example: Domain Namelist Rendering with datetime fields
+----------------------------------------------------------------------
+
+Python values:
+  start = datetime.datetime(2023, 1, 1, 0, 0)
+  stop = datetime.datetime(2023, 1, 7, 0, 0)
+  iostyp = 1
+
+Rendered namelist:
+&DOMAIN_NML
+  DOMAIN%START = 20230101 000000
+  DOMAIN%STOP = 20230107 000000
+  DOMAIN%IOSTYP = 1
+/
+
+Expected WW3 format:
+&DOMAIN_NML
+  DOMAIN%START = 20230101 000000
+  DOMAIN%STOP = 20230107 000000
+  DOMAIN%IOSTYP = 1
+/
+
+✓ Datetime values render as bare tokens (no quotes)
+✓ Format matches WW3 requirement: YYYYMMDD HHMMSS
+✓ Integer values render unquoted
+
+========================================================================
+CONCLUSION: Implementation verified and ready for Wave 3 conversions
+========================================================================
