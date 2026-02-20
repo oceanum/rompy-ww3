@@ -11,7 +11,7 @@ maintainers = [{ name = "Rompy Developers", email = "developers@rompy.com" }]
 classifiers = []
 license = { text = "Apache Software License 2.0" }
 dependencies = [
-    "rompy @ git+https://github.com/rom-py/rompy.git@postprocessing_enhancement",
+    "rompy @ git+https://github.com/rom-py/rompy.git@main",
     "typer",
     "rich",
 ]
@@ -29,8 +29,8 @@ rompy_ww3 = "rompy_ww3.cli:app"
 ww3shel = "rompy_ww3.config:ShelConfig"
 ww3multi = "rompy_ww3.config:MultiConfig"
 
- [project.entry-points."rompy.postprocess.config"]
- ww3_transfer = "rompy_ww3.postprocess.config:WW3TransferConfig"
+[project.entry-points."rompy.postprocess.config"]
+ww3_transfer = "rompy_ww3.postprocess.config:WW3TransferConfig"
 
 [project.entry-points."rompy.source"]
 # Register here any new source. For example:
