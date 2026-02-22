@@ -14,7 +14,7 @@ command: ./full_ww3.sh
 shell: true
 
 # Whether to capture stdout and stderr (default: true)
-capture_output: true
+capture_output: false
 
 # Optional working directory for execution
 # If not specified, defaults to the model's output directory

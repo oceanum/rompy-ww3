@@ -66,6 +66,86 @@ The rompy-ww3 plugin includes complete implementations for all major WW3 namelis
 - **Source**: WW3-specific data sources with variable mapping
 - **Namelists**: Complete set of Pydantic models for WW3 namelists
 
+## Post-Processing
+
+The rompy-ww3 package includes a post-processing system for transferring WW3 output files to multiple destinations with datestamped filenames.
+
+### WW3TransferPostprocessor
+
+Automatically transfers WW3 model outputs (restart files, field outputs, point outputs) to multiple destination prefixes using the rompy transfer backend system. The postprocessor uses rompy's Pydantic-based configuration framework for type-safe configuration management.
+
+**Features:**
+- Multi-destination fan-out: transfer to multiple destinations in one operation
+- Datestamped filenames: automatic `YYYYMMDD_HHMMSS_filename` format
+- Auto-extraction: timing parameters (`start_date` and `output_stride`) automatically extracted from model config
+- Special restart handling: uses valid-date computation for restart files
+- Failure policies: continue on error or fail-fast
+- Backend-agnostic: works with any rompy.transfer backend (file://, s3://, gs://, az://, etc.)
+- Standalone configuration files: processor configs can be run independently via CLI
+
+**Configuration-Based Usage (Recommended):**
+
+```python
+from rompy_ww3.postprocess import WW3TransferConfig
+
+# Create configuration object
+config = WW3TransferConfig(
+    destinations=["file:///backup/ww3-outputs/", "s3://my-bucket/outputs/"],
+    output_types={"restart": {"extra": "DW"}, "field": {"list": [1, 2, 3]}},
+    failure_policy="CONTINUE"
+)
+
+# Get processor class and instantiate
+processor_class = config.get_postprocessor_class()
+processor = processor_class()
+
+# Process outputs - start_date and output_stride auto-extracted from model_run.config
+result = processor.process(
+    model_run,
+    destinations=config.destinations,
+    output_types=config.output_types,
+    failure_policy=config.failure_policy
+)
+print(f"Transferred: {result['transferred_count']}, Failed: {result['failed_count']}")
+```
+
+**CLI Usage:**
+
+```bash
+# Using standalone processor config file
+rompy postprocess --processor-config examples/postprocessor_configs/ww3_transfer_basic.yaml
+
+# Or load from YAML
+from rompy_ww3.postprocess import WW3TransferConfig
+config = WW3TransferConfig.parse_file("ww3_transfer_config.yaml")
+```
+
+**Example Configuration File (`ww3_transfer_config.yaml`):**
+
+```yaml
+type: ww3_transfer
+
+destinations:
+  - "file:///backup/ww3-outputs/"
+  - "s3://my-bucket/model-outputs/"
+  - "gs://my-gcs-bucket/ww3-data/"
+
+output_types:
+  restart:
+    extra: DW
+  field:
+    list: [1, 2, 3, 4]
+
+failure_policy: CONTINUE
+timeout: 3600
+
+# Note: start_date and output_stride are automatically extracted from the model configuration
+# They are read from model_run.config.ww3_shel.domain.start and 
+# model_run.config.ww3_shel.output_date.restart.stride (or ww3_multi equivalents)
+```
+
+See `examples/postprocessor_configs/` for complete working examples.
+
 ## WW3 Executable Components
 
 The rompy-ww3 package includes a comprehensive set of components for each WW3 executable:

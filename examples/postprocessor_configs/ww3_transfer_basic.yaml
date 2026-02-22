@@ -1,0 +1,30 @@
+# WW3 Transfer Postprocessor - Basic Example
+# This configuration file transfers WW3 restart files to a local backup directory.
+#
+# Usage:
+#   rompy postprocess --processor-config examples/postprocessor_configs/ww3_transfer_basic.yaml
+#
+# Or via Python:
+#   from rompy_ww3.postprocess import WW3TransferConfig
+#   config = WW3TransferConfig.parse_file("ww3_transfer_basic.yaml")
+#   processor = config.get_postprocessor_class()()
+
+type: ww3_transfer
+
+# Destination: single local directory
+destinations:
+  - "file:///tmp/ww3_backup/"
+
+# Output types: only restart files
+output_types:
+  restart:
+    extra: DW
+
+# Failure policy: continue on errors (log warnings but keep processing)
+failure_policy: CONTINUE
+
+# Optional: execution timeout in seconds (default: 3600)
+timeout: 3600
+
+# Optional: environment variables for transfer backends
+env_vars: {}

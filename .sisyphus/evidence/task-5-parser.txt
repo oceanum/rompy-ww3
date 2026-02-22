@@ -1,0 +1,25 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0 -- /home/tdurrant/source/rompy/rompy-meta/repos/rompy-ww3/postprocessing/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/tdurrant/source/rompy/rompy-meta/repos/rompy-ww3/postprocessing
+configfile: pyproject.toml
+plugins: anyio-4.12.1
+collecting ... collected 9 items
+
+tests/postprocess/test_discovery.py::test_parse_output_type_with_field PASSED [ 11%]
+tests/postprocess/test_discovery.py::test_parse_output_type_with_point PASSED [ 22%]
+tests/postprocess/test_discovery.py::test_parse_output_type_with_track PASSED [ 33%]
+tests/postprocess/test_discovery.py::test_parse_output_type_with_partition PASSED [ 44%]
+tests/postprocess/test_discovery.py::test_parse_output_type_with_coupling PASSED [ 55%]
+tests/postprocess/test_discovery.py::test_parse_output_type_with_restart PASSED [ 66%]
+tests/postprocess/test_discovery.py::test_parse_output_type_with_multiple_types PASSED [ 77%]
+tests/postprocess/test_discovery.py::test_parse_output_type_empty PASSED [ 88%]
+tests/postprocess/test_discovery.py::test_parse_output_type_with_all_types PASSED [100%]
+
+=============================== warnings summary ===============================
+src/rompy_ww3/namelists/outbound.py:33
+  /home/tdurrant/source/rompy/rompy-meta/repos/rompy-ww3/postprocessing/src/rompy_ww3/namelists/outbound.py:33: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'ne'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    np: Optional[int] = Field(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 9 passed, 1 warning in 0.09s =========================

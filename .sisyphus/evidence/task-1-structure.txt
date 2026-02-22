@@ -1,0 +1,31 @@
+Verification run: postprocess package structure creation
+
+Output (src/rompy_ww3/postprocess/):
+total 28
+drwxrwxr-x 3 tdurrant tdurrant 4096 Feb 18 10:02 .
+drwxrwxr-x 7 tdurrant tdurrant 4096 Feb 18 10:01 ..
+-rw-rw-r-- 1 tdurrant tdurrant 57 Feb 18 10:01 __init__.py
+-rw-rw-r-- 1 tdurrant tdurrant 50 Feb 18 10:02 config.py
+-rw-rw-r-- 1 tdurrant tdurrant 53 Feb 18 10:02 discovery.py
+-rw-rw-r-- 1 tdurrant tdurrant 51 Feb 18 10:02 restart.py
+---
+total 32
+drwxrwxr-x 2 tdurrant tdurrant 4096 Feb 18 10:03 .
+drwxrwxr-x 3 tdurrant tdurrant 4096 Feb 18 10:02 ..
+-rw-rw-r-- 1 tdurrant tdurrant 54 Feb 18 10:02 __init__.py
+-rw-rw-r-- 1 tdurrant tdurrant 41 Feb 18 10:02 base.py
+-rw-rw-r-- 1 tdurrant tdurrant 42 Feb 18 10:03 cloud.py
+-rw-rw-r-- 1 tdurrant tdurrant 47 Feb 18 10:02 filesystem.py
+-rw-rw-r-- 1 tdurrant tdurrant 41 Feb 18 10:03 http.py
+-rw-rw-r-- 1 tdurrant tdurrant 44 Feb 18 10:03 oceanum.py
+total 36
+drwxrwxr-x 2 tdurrant tdurrant 4096 Feb 18 10:03 .
+drwxrwxr-x 5 tdurrant tdurrant 4096 Feb 18 10:04 ..
+-rw-rw-r-- 1 tdurrant tdurrant 55 Feb 18 10:03 test_config.py
+-rw-rw-r-- 1 tdurrant tdurrant 57 Feb 18 10:03 test_discovery.py
+-rw-rw-r-- 1 tdurrant tdurrant 59 Feb 18 10:04 test_integration.py
+-rw-rw-r-- 1 tdurrant tdurrant 57 Feb 18 10:04 test_lifecycle.py
+-rw-rw-r-- 1 tdurrant tdurrant 55 Feb 18 10:04 test_restart.py
+-rw-rw-r-- 1 tdurrant tdurrant 57 Feb 18 10:04 test_uploaders.py
+
+Verification complete. All listed paths exist as expected.

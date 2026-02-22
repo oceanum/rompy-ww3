@@ -16,66 +16,36 @@ period:
 config:
     model_type: shel
 
-    ww3_prnc:
-        - forcing:
-              field:
-                  winds: "T"
-          file:
-              var1: "u10" # U-component of wind
-              var2: "v10" # V-component of wind
-              filename:
-                  # For datamesh source, uncomment the structure below:
-                  model_type: data_grid
-                  variables:
-                      - "u10"
-                      - "v10"
-                  source:
-                      model_type: datamesh
-                      datasource: "era5_wind10m"
-                  filter:
-                      sort:
-                          coords:
-                              - latitude
-                  #
-                  # For local file source (currently configured):
-                  # model_type: data_blob
-                  # source: "global_u10_v10.nc"
-        - forcing:
-              field:
-                  ice_conc: "T"
-          file:
-              var1: "siconc" # U-component of wind
-              filename:
-                  model_type: data_grid
-                  variables:
-                      - "siconc"
-                  source:
-                      model_type: datamesh
-                      datasource: "era5_seaicecon"
-                  filter:
-                      sort:
-                          coords:
-                              - latitude
-
     ww3_shel:
         domain:
             iostyp: 1 # Output server type from reference
             start: "20080522 000000"
             stop: "20080523 000000"
+        input_nml:
+            forcing:
+                winds: "H" # Homogeneous wind forcing (H=homogeneous, F=no forcing, T=external file)
+                ice_conc: "F" # No ice forcing (homogeneous not available for ICE_CONC)
         output_type:
-            restart:
-                extra: DW # Extra output (D=daily, W=weekly)
             field:
-                list: "DPT HS ICE FP DIR SPR WND" # Output fields from reference
-            point:
-                file:
-                    model_type: data_blob
-                    source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/points.list"
+                list: "DPT HS FP DIR SPR WND" # Output fields from reference (removed ICE since no ice forcing)
         output_date:
             restart:
                 start: "20080522 000000"
                 stride: "21600" # 6 hours in seconds (WW3 namelists expect strings)
                 stop: "20080523 000000"
+
+        # Homogeneous forcing configuration - no external data files needed
+        homog_count:
+            n_wnd: 2
+        homog_input:
+            - name: "WND"
+              date: "20080522 000000"
+              value1: 10.0 # Wind speed (m/s)
+              value2: 90.0 # Wind direction (degrees, coming from)
+            - name: "WND"
+              date: "20080522 060000"
+              value1: 15.0 # Wind speed (m/s)
+              value2: 120.0 # Wind direction (degrees, coming from)
 
     # Grid component for ww3_grid.nml (grid preprocessing configuration)
     ww3_grid:

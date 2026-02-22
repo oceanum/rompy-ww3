@@ -169,6 +169,28 @@ class HomogInput(NamelistBaseModel):
         # at the HomogeneousInputs level or during model construction
         return v
 
+    def render_entry(self, index: int) -> str:
+        """Render a single HOMOG_INPUT entry with the given index.
+
+        This returns just the lines for one entry, to be combined into a single
+        HOMOG_INPUT_NML block by the parent component.
+        """
+        lines = []
+
+        if self.name is not None:
+            lines.append(f"  HOMOG_INPUT({index})%NAME   = '{self.name}'")
+        if self.date is not None:
+            lines.append(f"  HOMOG_INPUT({index})%DATE   = '{self.date}'")
+        if self.value1 is not None:
+            lines.append(f"  HOMOG_INPUT({index})%VALUE1 = {self.value1}")
+        if self.value2 is not None:
+            lines.append(f"  HOMOG_INPUT({index})%VALUE2 = {self.value2}")
+        if self.value3 is not None:
+            lines.append(f"  HOMOG_INPUT({index})%VALUE3 = {self.value3}")
+
+        lines.append("")  # Blank line between entries
+        return "\n".join(lines)
+
 
 class HomogeneousInputs(NamelistBaseModel):
     """Container for managing homogeneous inputs and automatically calculating counts.
