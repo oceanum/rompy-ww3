@@ -1,0 +1,4 @@
+# Exclude downloaded test data from linting
+exclude = [
+    "tests/data/",
+]
