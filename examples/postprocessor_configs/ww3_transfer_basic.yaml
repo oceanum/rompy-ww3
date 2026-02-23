@@ -13,12 +13,7 @@ type: ww3_transfer
 
 # Destination: single local directory
 destinations:
-  - "file:///tmp/ww3_backup/"
-
-# Output types: only restart files
-output_types:
-  restart:
-    extra: DW
+    - "file:///tmp/ww3_backup/"
 
 # Failure policy: continue on errors (log warnings but keep processing)
 failure_policy: CONTINUE
