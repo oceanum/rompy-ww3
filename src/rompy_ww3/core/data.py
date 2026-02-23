@@ -56,26 +56,40 @@ class WW3RestartBlob(DataBlob):
         Returns:
             Path to the fetched file
         """
-        import shutil
+        from rompy.transfer import get_transfer
 
-        source = str(self.source)
+        source_pattern = str(self.source)
+        source = source_pattern
 
         if time is not None and time.start is not None:
             start_str = time.start.strftime("%Y%m%d_%H%M%S")
             source = source.replace("{start_time}", start_str)
 
-        # Simple file copy using shutil
-        source_path = Path(source)
         destdir = Path(destdir) if destdir else None
         if destdir is None:
             raise ValueError("destdir is required for fetching restart files")
 
         destdir.mkdir(parents=True, exist_ok=True)
-        dest_path = destdir / source_path.name
 
-        shutil.copy2(source_path, dest_path)
+        try:
+            # Use the transfer registry to fetch the file
+            transfer = get_transfer(source)
+            outfile = transfer.get(
+                uri=source, destdir=destdir, name=None, link=self.link
+            )
+        except FileNotFoundError as e:
+            raise FileNotFoundError(
+                f"Restart file not found: {source}\n"
+                f"Expected restart file for run start time.\n"
+                f"Source pattern: {source_pattern}\n"
+                f"Resolved time: {start_str if time and time.start else 'N/A'}\n"
+                f"Check that:\n"
+                f"  1. The source path is correct\n"
+                f"  2. The {{start_time}} placeholder resolves to the correct datetime\n"
+                f"  3. The restart file exists in the remote location"
+            ) from e
 
-        return dest_path
+        return outfile
 
 
 class WW3DataGrid(DataGrid):
