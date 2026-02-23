@@ -12,7 +12,7 @@ period:
     duration: "1d" # 3 hours duration
     interval: "1H" # 1 hour time interval
 
-# Model configuration (equivalent to NMLConfig)
+# Model configuration
 config:
     model_type: shel
 
