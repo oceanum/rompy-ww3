@@ -7,6 +7,7 @@ from ..namelists.input import Input
 from ..namelists.output_type import OutputType
 from ..namelists.output_date import OutputDate
 from ..namelists.homogeneous import HomogCount, HomogInput
+from ..namelists.restart import Restart
 from .basemodel import WW3ComponentBaseModel
 
 
@@ -103,6 +104,13 @@ class Shel(WW3ComponentBaseModel):
         description=(
             "List of HOMOG_INPUT_NML configurations defining individual homogeneous inputs. "
             "Each input includes name, date, and values for homogeneous forcing fields."
+        ),
+    )
+    restart_nml: Optional[Restart] = Field(
+        default=None,
+        description=(
+            "RESTART_NML configuration for initializing the model from restart files. "
+            "Specifies the restart time and optionally a source for fetching restart files."
         ),
     )
 

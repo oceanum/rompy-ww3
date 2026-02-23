@@ -19,8 +19,14 @@ config:
     ww3_shel:
         domain:
             iostyp: 1 # Output server type from reference
-            start: "20080522 000000"
-            stop: "20080523 000000"
+            start: "2008-05-22T00:00:00"
+            stop: "2008-05-23T00:00:00"
+        # Restart configuration - fetch restart file based on run start time
+        restart_nml:
+            restarttime: "2008-05-22T00:00:00"
+            source:
+                model_type: restart_blob
+                source: "/path/to/restarts/{start_time}_restart.ww3"
         input_nml:
             forcing:
                 winds: "H" # Homogeneous wind forcing (H=homogeneous, F=no forcing, T=external file)
@@ -30,9 +36,9 @@ config:
                 list: "DPT HS FP DIR SPR WND" # Output fields from reference (removed ICE since no ice forcing)
         output_date:
             restart:
-                start: "20080522 000000"
+                start: "2008-05-22T00:00:00"
                 stride: "21600" # 6 hours in seconds (WW3 namelists expect strings)
-                stop: "20080523 000000"
+                stop: "2008-05-23T00:00:00"
 
         # Homogeneous forcing configuration - no external data files needed
         homog_count:
