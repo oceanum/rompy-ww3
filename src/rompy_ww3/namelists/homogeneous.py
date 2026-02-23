@@ -20,6 +20,7 @@ from typing import Optional, List
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
 from .enums import HOMOG_INPUT_NAME, parse_enum
+from .validation import validate_date_format
 
 
 class HomogCount(NamelistBaseModel):
@@ -131,20 +132,10 @@ class HomogInput(NamelistBaseModel):
     @field_validator("date", mode="before")
     @classmethod
     def validate_date_format(cls, v):
-        """Validate date format is yyyymmdd hhmmss."""
+        """Validate and convert date format to WW3 format (yyyymmdd hhmmss)."""
         if v is None:
             return v
-        # Check if it matches the format yyyymmdd hhmmss (15 characters)
-        if not isinstance(v, str) or len(v) != 15 or v[8] != " ":
-            raise ValueError(f"Date must be in format yyyymmdd hhmmss, got {v}")
-
-        # Check if all characters are digits except the space
-        date_part = v[:8]
-        time_part = v[9:]
-        if not (date_part.isdigit() and time_part.isdigit()):
-            raise ValueError(f"Date must be in format yyyymmdd hhmmss, got {v}")
-
-        return v
+        return validate_date_format(v)
 
     @field_validator("value1", mode="before")
     @classmethod

@@ -118,8 +118,8 @@ class NamelistBaseModel(RompyBaseModel):
         elif isinstance(value, bool):
             return boolean_to_string(value)
         elif isinstance(value, datetime):
-            # Render datetime as WW3 format: YYYYMMDD HHMMSS (bare token, no quotes)
-            return value.strftime("%Y%m%d %H%M%S")
+            # Render datetime as WW3 format: 'YYYYMMDD HHMMSS' (quoted string)
+            return f"'{value.strftime('%Y%m%d %H%M%S')}'"
         elif isinstance(value, str):
             # Don't quote Fortran booleans
             # if value in ["T", "F"]:
