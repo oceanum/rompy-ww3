@@ -1,112 +1,119 @@
-# WW3 ModelRun configuration with output transfer postprocessing
+# WW3 Pipeline Configuration with Output Transfer Postprocessing
 # This example demonstrates using the ww3_transfer postprocessor to transfer
 # WW3 model outputs to multiple destinations with datestamped filenames.
 #
 # Usage:
-#   rompy postprocess examples/postprocess_transfer_example.yaml --processor ww3_transfer
+#   rompy pipeline examples/postprocess_transfer_example.yaml
 #
-# Or run the full pipeline:
-#   rompy pipeline examples/postprocess_transfer_example.yaml --processor ww3_transfer
+# Or run just postprocessing:
+#   rompy postprocess <run_id> --processor-config postprocessor_configs/ww3_transfer_multi_dest.yaml
 
-run_id: ww3_transfer_example
-output_dir: ./ww3_output
-period:
-  start: '2023-01-01T00:00:00'
-  duration: 3D
-  interval: 1H
-
+# Model configuration
 config:
-  model_type: shel
-  
-  # WW3 Shell component configuration
-  ww3_shel:
-    domain:
-      start: 20230101 000000
-      stop: 20230104 000000
-      iostyp: 1
-    
-    input_nml: {}
-    
-    output_type:
-      # Configure restart output - will be transferred with datestamped filename
-      restart:
-        extra: DW
-      # Configure field output - will be transferred with datestamped filename
-      field:
-        list: [HS, DIR, SPR, DP]
-    
-    output_date:
-      # Restart output every 6 hours
-      restart:
-        start: 20230101 000000
-        stride: 21600
-        stop: 20230104 000000
-      # Field output every 1 hour
-      field:
-        start: 20230101 000000
-        stride: 3600
-        stop: 20230104 000000
-    
-    homog_count:
-      n_lev: 0
-      n_cur: 0
-      n_wnd: 0
-      n_ice: 0
-    
-    homog_input: []
-  
-  # WW3 Grid component configuration
-  ww3_grid:
-    grid_type: rect
-    spectrum:
-      xfr: 1.1
-      freq1: 0.04665
-      nk: 25
-      nth: 24
-      thoff: 0.0
-    run:
-      fldry: false
-      flcx: true
-      flcy: true
-      flcth: false
-      flck: false
-      flsou: true
-    timesteps:
-      dtmax: 900.0
-      dtxy: 300.0
-      dtkth: 450.0
-      dtmin: 10.0
-    rect:
-      nx: 30
-      ny: 20
-      sx: 0.5
-      sy: 0.5
-      sf: 1.0
-      x0: 140.0
-      y0: -40.0
-      sf0: 1.0
-      base_depth: 2000.0
+  run_id: ww3_transfer_example
+  output_dir: ./ww3_output
+  period:
+    start: '2023-01-01T00:00:00'
+    duration: 3D
+    interval: 1H
 
-# Postprocessor configuration for ww3_transfer
-# This is used when running: rompy postprocess <config> --processor ww3_transfer
-postprocessor:
-  ww3_transfer:
-    # Destination prefixes (can be file://, s3://, etc.)
-    destinations:
-      - "file:///tmp/ww3_backup/"
-      - "file:///tmp/ww3_archive/"
+  config:
+    model_type: shel
     
-    # Output types to transfer (must match output_type configuration above)
-    output_types:
-      restart:
-        extra: DW
-      field:
-        list: [1, 2, 3, 4]  # Index-based reference to field outputs
+    # WW3 Shell component configuration
+    ww3_shel:
+      domain:
+        start: 20230101 000000
+        stop: 20230104 000000
+        iostyp: 1
+      
+      input_nml: {}
+      
+      output_type:
+        # Configure restart output - will be transferred with datestamped filename
+        restart:
+          extra: DW
+        # Configure field output - will be transferred with datestamped filename
+        field:
+          list: [HS, DIR, SPR, DP]
+      
+      output_date:
+        # Restart output every 6 hours
+        restart:
+          start: 20230101 000000
+          stride: 21600
+          stop: 20230104 000000
+        # Field output every 1 hour
+        field:
+          start: 20230101 000000
+          stride: 3600
+          stop: 20230104 000000
+      
+      homog_count:
+        n_lev: 0
+        n_cur: 0
+        n_wnd: 0
+        n_ice: 0
+      
+      homog_input: []
     
-    # Failure policy: "CONTINUE" or "FAIL_FAST"
-    failure_policy: "CONTINUE"
+    # WW3 Grid component configuration
+    ww3_grid:
+      grid_type: rect
+      spectrum:
+        xfr: 1.1
+        freq1: 0.04665
+        nk: 25
+        nth: 24
+        thoff: 0.0
+      run:
+        fldry: false
+        flcx: true
+        flcy: true
+        flcth: false
+        flck: false
+        flsou: true
+      timesteps:
+        dtmax: 900.0
+        dtxy: 300.0
+        dtkth: 450.0
+        dtmin: 10.0
+      rect:
+        nx: 30
+        ny: 20
+        sx: 0.5
+        sy: 0.5
+        sf: 1.0
+        x0: 140.0
+        y0: -40.0
+        sf0: 1.0
+        base_depth: 2000.0
 
-# Backend configuration (optional - defaults to local)
+# Backend configuration
 backend:
-  backend_type: local
-  model_dir: ./ww3_model
+  type: local
+  timeout: 7200
+  command: ./full_ww3.sh
+  shell: true
+  capture_output: false
+
+# Postprocessor configuration
+postprocessor:
+  type: ww3_transfer
+  # Destination prefixes (can be file://, s3://, etc.)
+  destinations:
+    - "file:///tmp/ww3_backup/"
+    - "file:///tmp/ww3_archive/"
+  
+  # Output types to transfer (must match output_type configuration above)
+  output_types:
+    restart:
+      extra: DW
+    field:
+      list: [1, 2, 3, 4]  # Index-based reference to field outputs
+  
+  # Failure policy: "CONTINUE" or "FAIL_FAST"
+  failure_policy: "CONTINUE"
+  
+  # Optional timeout
+  timeout: 3600
