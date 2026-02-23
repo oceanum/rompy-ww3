@@ -17,6 +17,7 @@ Validation follows the WW3 specifications:
 """
 
 from typing import Optional, List
+from enum import Enum
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
 from .enums import HOMOG_INPUT_NAME, parse_enum
@@ -169,7 +170,8 @@ class HomogInput(NamelistBaseModel):
         lines = []
 
         if self.name is not None:
-            lines.append(f"  HOMOG_INPUT({index})%NAME   = '{self.name}'")
+            name_value = self.name.value if isinstance(self.name, Enum) else self.name
+            lines.append(f"  HOMOG_INPUT({index})%NAME   = '{name_value}'")
         if self.date is not None:
             lines.append(f"  HOMOG_INPUT({index})%DATE   = '{self.date}'")
         if self.value1 is not None:
