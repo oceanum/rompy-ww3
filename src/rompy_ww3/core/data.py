@@ -1,7 +1,7 @@
 from rompy.core.data import DataBlob, DataGrid
 from rompy.core.boundary import BoundaryWaveStation
 from pydantic import Field
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 from pathlib import Path
 from rompy.core.grid import RegularGrid
 from rompy.core.time import TimeRange
@@ -21,6 +21,61 @@ class WW3DataBlob(DataBlob):
         This method should be implemented to retrieve the data blob.
         """
         return super().get(*args, **kwargs).name
+
+
+class WW3RestartBlob(DataBlob):
+    """A data blob for WW3 restart files with datetime pattern support.
+
+    The source URI can include a {start_time} placeholder that will be substituted
+    with the model run start time (format: YYYYMMDD_HHMMSS) when the file is fetched.
+
+    Example:
+        WW3RestartBlob(source="s3://bucket/ww3/{start_time}_restart.ww3")
+    """
+
+    model_type: Literal["restart_blob"] = Field(
+        default="restart_blob",
+        description="Model type discriminator for WW3 restart files",
+    )
+
+    def get(
+        self,
+        destdir: Optional[Union[str, Path]] = None,
+        time: Optional[TimeRange] = None,
+        *args,
+        **kwargs,
+    ) -> Path:
+        """Fetch the restart file, substituting datetime pattern with run start time.
+
+        Args:
+            destdir: Destination directory
+            time: Runtime period (used to substitute datetime pattern in source)
+            *args: Additional arguments passed to parent
+            **kwargs: Additional keyword arguments passed to parent
+
+        Returns:
+            Path to the fetched file
+        """
+        import shutil
+
+        source = str(self.source)
+
+        if time is not None and time.start is not None:
+            start_str = time.start.strftime("%Y%m%d_%H%M%S")
+            source = source.replace("{start_time}", start_str)
+
+        # Simple file copy using shutil
+        source_path = Path(source)
+        destdir = Path(destdir) if destdir else None
+        if destdir is None:
+            raise ValueError("destdir is required for fetching restart files")
+
+        destdir.mkdir(parents=True, exist_ok=True)
+        dest_path = destdir / source_path.name
+
+        shutil.copy2(source_path, dest_path)
+
+        return dest_path
 
 
 class WW3DataGrid(DataGrid):

@@ -294,8 +294,9 @@ class NamelistBaseModel(RompyBaseModel):
         filename = f"{self.__class__.__name__.lower()}.nml"
         filepath = destdir / filename
 
+        # Pass destdir to render so that DataBlob.get() can be called properly
         with open(filepath, "w") as f:
-            f.write(self.render(*args, **kwargs))
+            f.write(self.render(destdir=destdir, *args, **kwargs))
 
         logger.info(f"Wrote namelist to {filepath}")
 

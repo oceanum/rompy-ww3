@@ -1,9 +1,10 @@
 """RESTART_NML namelist implementation for WW3."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 from pydantic import Field, field_validator
 from .basemodel import NamelistBaseModel
+from ..core.data import WW3RestartBlob
 
 
 class Restart(NamelistBaseModel):
@@ -26,6 +27,15 @@ class Restart(NamelistBaseModel):
             "The model will look for restart files corresponding to this time to initialize "
             "the wave spectra and other state variables. "
             "Example: datetime(2010, 1, 1, 0, 0, 0) for January 1, 2010 at 00:00:00 UTC."
+        ),
+    )
+    source: Optional[Union[str, WW3RestartBlob]] = Field(
+        default=None,
+        description=(
+            "Source for the restart file. Can be a path string or a WW3RestartBlob "
+            "with datetime pattern (e.g., s3://bucket/{start_time}_restart.ww3). "
+            "The {start_time} placeholder is replaced with the run start time in format YYYYMMDD_HHMMSS. "
+            "The restart file will be fetched to the staging directory before the run."
         ),
     )
 
