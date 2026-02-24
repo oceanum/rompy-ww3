@@ -60,8 +60,8 @@ config:
     ww3_shel:
         domain:
             iostyp: 1 # Output server type from reference
-            start: "20080522 000000"
-            stop: "20080523 000000"
+            start: "2008-05-22T00:00:00"
+            stop: "2008-05-23T00:00:00"
         output_type:
             restart:
                 extra: DW # Extra output (D=daily, W=weekly)
@@ -73,9 +73,9 @@ config:
                     source: "https://raw.githubusercontent.com/NOAA-EMC/WW3/refs/tags/6.07.1/regtests/ww3_tp2.5/input/points.list"
         output_date:
             restart:
-                start: "20080522 000000"
+                start: "2008-05-22T00:00:00"
                 stride: "21600" # 6 hours in seconds (WW3 namelists expect strings)
-                stop: "20080523 000000"
+                stop: "2008-05-23T00:00:00"
 
     # Grid component for ww3_grid.nml (grid preprocessing configuration)
     ww3_grid:

@@ -22,11 +22,11 @@ config:
             start: "2008-05-22T00:00:00"
             stop: "2008-05-23T00:00:00"
         # Restart configuration - fetch restart file based on run start time
-        restart_nml:
-            restarttime: "2008-05-22T00:00:00"
-            source:
-                model_type: restart_blob
-                source: "/path/to/restarts/{start_time}_restart.ww3"
+        # restart_nml:
+        #     restarttime: "2008-05-22T00:00:00"
+        #     source:
+        #         model_type: restart_blob
+        #         source: "/path/to/restarts/{start_time}_restart.ww3"
         input_nml:
             forcing:
                 winds: "H" # Homogeneous wind forcing (H=homogeneous, F=no forcing, T=external file)
@@ -45,11 +45,11 @@ config:
             n_wnd: 2
         homog_input:
             - name: "WND"
-              date: "20080522 000000"
+              date: "2008-05-22T00:00:00"
               value1: 10.0 # Wind speed (m/s)
               value2: 90.0 # Wind direction (degrees, coming from)
             - name: "WND"
-              date: "20080522 060000"
+              date: "2008-05-22T06:00:00"
               value1: 15.0 # Wind speed (m/s)
               value2: 120.0 # Wind direction (degrees, coming from)
 

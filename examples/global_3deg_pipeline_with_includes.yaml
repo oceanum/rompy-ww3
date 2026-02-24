@@ -1,0 +1,16 @@
+# WW3 Pipeline Configuration Using Includes
+#
+# This demonstrates using !include directives to compose a pipeline
+# from multiple files, keeping configs modular and reusable.
+#
+# Usage:
+#   rompy pipeline examples/global_3deg_pipeline_with_includes.yaml -v
+
+# Reference the model configuration
+config: !include global_3deg_homog.yaml
+
+# Reference the backend configuration
+backend: !include ../regtests/backends/local_backend.yml
+
+# Reference the postprocessor configuration
+postprocessor: !include postprocessor_configs/ww3_transfer_basic.yaml

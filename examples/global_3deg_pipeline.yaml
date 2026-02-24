@@ -1,0 +1,133 @@
+# Complete WW3 Pipeline Configuration
+#
+# This demonstrates the new pipeline config structure where all three
+# components (model config, backend, postprocessor) are in one file.
+#
+# Usage:
+#   rompy pipeline examples/global_3deg_pipeline.yaml -v
+
+# Model configuration
+config:
+  run_id: glob3_pipeline
+  output_dir: ./ww3_output
+  period:
+      start: "2008-05-22T00:00:00"
+      duration: "1d"
+      interval: "1H"
+
+  config:
+      model_type: shel
+
+      ww3_shel:
+          domain:
+              iostyp: 1
+              start: "2008-05-22T00:00:00"
+              stop: "2008-05-23T00:00:00"
+          input_nml:
+              forcing:
+                  winds: "H"
+                  ice_conc: "F"
+          output_type:
+              field:
+                  list: "DPT HS FP DIR SPR WND"
+          output_date:
+              restart:
+                  start: "2008-05-22T00:00:00"
+                  stride: "21600"
+                  stop: "2008-05-23T00:00:00"
+
+          homog_count:
+              n_wnd: 2
+          homog_input:
+              - name: "WND"
+                date: "2008-05-22T00:00:00"
+                value1: 10.0
+                value2: 90.0
+              - name: "WND"
+                date: "2008-05-22T06:00:00"
+                value1: 15.0
+                value2: 120.0
+
+      ww3_grid:
+          spectrum:
+              xfr: 1.1
+              freq1: 0.1
+              nk: 10
+              nth: 12
+              thoff: 0.0
+          run:
+              fldry: false
+              flcx: true
+              flcy: true
+              flcth: true
+              flck: false
+              flsou: true
+          timesteps:
+              dtmax: 3600.0
+              dtxy: 1200
+              dtkth: 1200
+              dtmin: 10.0
+          grid:
+              name: "Gobal 3 degree test case"
+              type: "RECT"
+              coord: "SPHE"
+              clos: "NONE"
+              zlim: -0.1
+              dmin: 7.50
+          rect:
+              nx: 120
+              ny: 50
+              sx: 3
+              sy: 3
+              x0: 0
+              y0: -75
+          depth:
+              filename:
+                  model_type: data_blob
+                  source: "gs://oceanum-static/ww3/glob3/glob3.depth_ascii"
+              sf: 1.0
+              idf: 50
+              idla: 1
+
+      namelists:
+          pro2:
+              dtime: 64800.0
+          pro3:
+              wdthcg: 1.5
+              wdthth: 1.5
+          pro4:
+              rnfac: 0.0
+              rsfac: 0.0
+
+      ww3_ounf:
+          field:
+              timestride: "3600"
+              timecount: "999"
+              partition: "0 1 2"
+              type: 4
+              samefile: true
+          file:
+              prefix: "ww3."
+              netcdf: 3
+              ix0: 1
+              ixn: 1000000000
+              iy0: 1
+              iyn: 1000000000
+
+# Backend configuration
+backend:
+  type: local
+  timeout: 7200
+  command: ./full_ww3.sh
+  shell: true
+  capture_output: false
+  env_vars:
+    LOG_LEVEL: "INFO"
+
+# Postprocessor configuration
+postprocessor:
+  type: ww3_transfer
+  destinations:
+    - "file:///tmp/ww3_backup/"
+  failure_policy: CONTINUE
+  timeout: 3600
