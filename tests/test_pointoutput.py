@@ -21,7 +21,7 @@ def test_point_nml():
     )
     content = point.render()
     assert "&POINT_NML" in content
-    assert "POINT%TIMESTART = 20100101 000000" in content
+    assert "POINT%TIMESTART = '20100101 000000'" in content
     assert "POINT%TIMESTRIDE = 3600" in content
     assert "POINT%TYPE = 1" in content
     assert "/" in content
