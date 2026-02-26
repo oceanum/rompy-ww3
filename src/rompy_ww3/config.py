@@ -535,6 +535,12 @@ class BaseWW3Config(BaseConfig):
             f.write("\n".join(full))
         os.chmod(Path(destdir) / "full_ww3.sh", 0o755)
 
+    def render(self, context: dict, output_dir: Path | str) -> str:
+        """Override render cookie cutter not used"""
+        logger.warning(
+            "Overriding render method: BaseWW3Config does not implement render method. "
+        )
+
 
 class ShelConfig(BaseWW3Config):
     """WW3 namelist-based config class.

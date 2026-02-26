@@ -11,7 +11,7 @@ maintainers = [{ name = "Rompy Developers", email = "developers@rompy.com" }]
 classifiers = []
 license = { text = "Apache Software License 2.0" }
 dependencies = [
-    "rompy @ git+https://github.com/rom-py/rompy.git@main",
+    "rompy @ git+https://github.com/rom-py/rompy.git@issue-30-decouple-rendering",
     "typer",
     "rich",
 ]
