@@ -7,6 +7,7 @@ from typing import Literal, Optional, List, Dict, Any
 from pydantic import BaseModel, Field as PydanticField, model_validator, ConfigDict
 
 from rompy.core.config import BaseConfig
+from rompy.core.types import RompyBaseModel
 
 from .components import (
     Shel,
@@ -24,6 +25,36 @@ from .components import (
 logger = logging.getLogger(__name__)
 
 HERE = Path(__file__).parent
+
+
+def _format_value_skip_none(lines: list, obj: Any, level: int, field_name: str) -> None:
+    """Helper to build hierarchical string representation skipping None values."""
+
+    indent = "  " * level
+
+    if isinstance(obj, RompyBaseModel):
+        lines.append(f"{indent}{field_name}:")
+        for fname, fvalue in obj.model_dump().items():
+            if fname.startswith("_"):
+                continue
+            if fvalue is None:
+                continue
+            _format_value_skip_none(lines, fvalue, level + 1, fname)
+    elif isinstance(obj, dict):
+        if not obj:
+            return
+        lines.append(f"{indent}{field_name}:")
+        for key, value in obj.items():
+            if value is None:
+                continue
+            _format_value_skip_none(lines, value, level + 1, key)
+    elif isinstance(obj, list):
+        for idx, item in enumerate(obj):
+            if item is None:
+                continue
+            _format_value_skip_none(lines, item, level, f"{field_name}[{idx}]")
+    else:
+        lines.append(f"{indent}{field_name}: {obj}")
 
 
 class GridSpec(BaseModel):
@@ -45,6 +76,41 @@ class GridSpec(BaseModel):
     bounc: Optional[Bounc] = PydanticField(
         default=None, description="Optional boundary conditions"
     )
+
+    def _format_value(self, obj):
+        """Custom formatter for GridSpec values.
+
+        This method provides special formatting for GridSpec objects.
+
+        Args:
+            obj: The object to format
+
+        Returns:
+            A formatted string or None to use default formatting
+        """
+        from rompy.formatting import get_formatted_header_footer
+        from rompy.logging import LoggingConfig
+
+        logging_config = LoggingConfig()
+        USE_ASCII_ONLY = logging_config.use_ascii
+
+        if isinstance(obj, GridSpec):
+            header, footer, bullet = get_formatted_header_footer(
+                title=f"WW3 GRID SPEC: {obj.name}", use_ascii=USE_ASCII_ONLY
+            )
+
+            lines = [header]
+            lines.append(f"  {bullet} Grid: {type(obj.grid).__name__}")
+
+            if obj.prnc:
+                lines.append(f"  {bullet} Field input: {type(obj.prnc).__name__}")
+            if obj.bounc:
+                lines.append(f"  {bullet} Boundary: {type(obj.bounc).__name__}")
+
+            lines.append(footer)
+            return "\n".join(lines)
+
+        return None
 
 
 class MultiConfig(BaseConfig):
@@ -345,6 +411,29 @@ $(dirname $0)/postprocess_ww3.sh
 echo "Post-processing complete."
 echo "Workflow finished successfully."
 """
+
+    def _format_value(self, obj):
+        """Custom formatter for MultiConfig values.
+
+        This method provides a concise hierarchical formatting that skips None values.
+
+        Args:
+            obj: The object to format
+
+        Returns:
+            A formatted string or None to use default formatting
+        """
+        if isinstance(obj, MultiConfig):
+            lines = []
+            dump = obj.model_dump()
+            for fname, fvalue in dump.items():
+                if fname.startswith("_"):
+                    continue
+                if fvalue is None:
+                    continue
+                _format_value_skip_none(lines, fvalue, 1, fname)
+            return "\n".join(lines)
+        return None
 
 
 class BaseWW3Config(BaseConfig):
@@ -826,6 +915,29 @@ class ShelConfig(BaseWW3Config):
         context["namelists"] = self.render_namelists()
 
         return context
+
+    def _format_value(self, obj):
+        """Custom formatter for ShelConfig values.
+
+        This method provides a concise hierarchical formatting that skips None values.
+
+        Args:
+            obj: The object to format
+
+        Returns:
+            A formatted string or None to use default formatting
+        """
+        if isinstance(obj, ShelConfig):
+            lines = []
+            dump = obj.model_dump()
+            for fname, fvalue in dump.items():
+                if fname.startswith("_"):
+                    continue
+                if fvalue is None:
+                    continue
+                _format_value_skip_none(lines, fvalue, 1, fname)
+            return "\n".join(lines)
+        return None
 
 
 # Alias for backward compatibility (Config remains the entry point for users

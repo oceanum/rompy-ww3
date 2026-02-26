@@ -282,3 +282,49 @@ class WW3ComponentBaseModel(RompyBaseModel):
         """
         class_name = self.__class__.__name__
         return f"{class_name.upper()}_NML"
+
+    def _format_value(self, obj):
+        """Custom formatter for WW3 component values.
+
+        This method provides special formatting for WW3 component objects
+        such as Shel, Grid, Multi, etc.
+
+        Args:
+            obj: The object to format
+
+        Returns:
+            A formatted string or None to use default formatting
+        """
+        from rompy.formatting import get_formatted_header_footer
+        from rompy.logging import LoggingConfig
+
+        logging_config = LoggingConfig()
+        USE_ASCII_ONLY = logging_config.use_ascii
+
+        if isinstance(obj, WW3ComponentBaseModel):
+            header, footer, bullet = get_formatted_header_footer(
+                title=f"WW3 {obj.__class__.__name__.upper()} COMPONENT",
+                use_ascii=USE_ASCII_ONLY,
+            )
+
+            lines = [header]
+
+            model_data = obj.model_dump()
+            for key, value in model_data.items():
+                if value is None:
+                    continue
+                if hasattr(value, "__class__"):
+                    type_name = value.__class__.__name__
+                    if hasattr(value, "model_dump"):
+                        lines.append(f"  {bullet} {key}: {type_name}")
+                    else:
+                        lines.append(f"  {bullet} {key}: {value}")
+                elif isinstance(value, list):
+                    lines.append(f"  {bullet} {key}: {len(value)} items")
+                else:
+                    lines.append(f"  {bullet} {key}: {value}")
+
+            lines.append(footer)
+            return "\n".join(lines)
+
+        return None

@@ -32,6 +32,77 @@ class BaseWW3Grid(BaseGrid, ABC):
 
     grid: Grid = Field(..., description="GRID_NML namelist object for WW3")
 
+    def _format_value(self, obj):
+        """Custom formatter for WW3 grid values.
+
+        This method provides special formatting for specific types used in
+        WW3 grid classes.
+
+        Args:
+            obj: The object to format
+
+        Returns:
+            A formatted string or None to use default formatting
+        """
+        from rompy.formatting import get_formatted_header_footer
+        from rompy.logging import LoggingConfig
+
+        logging_config = LoggingConfig()
+        USE_ASCII_ONLY = logging_config.use_ascii
+
+        if isinstance(obj, BaseWW3Grid):
+            header, footer, bullet = get_formatted_header_footer(
+                title="WW3 GRID CONFIGURATION", use_ascii=USE_ASCII_ONLY
+            )
+
+            lines = [header]
+
+            grid_type = type(obj).__name__
+            lines.append(f"  {bullet} Grid type: {grid_type}")
+
+            grid_attr = getattr(obj, "grid", None)
+            if grid_attr:
+                filegrid = getattr(grid_attr, "filegrid", None)
+                if filegrid:
+                    lines.append("      File-based grid")
+                else:
+                    lines.append("      Computed grid")
+
+            rect = getattr(obj, "rect", None)
+            if rect:
+                nx = getattr(rect, "nx", None)
+                ny = getattr(rect, "ny", None)
+                if nx and ny:
+                    lines.append(f"      Dimensions: {nx} x {ny}")
+
+            curv_nml = getattr(obj, "curv_nml", None)
+            if curv_nml:
+                lines.append("      Curvilinear grid")
+
+            unst_nml = getattr(obj, "unst_nml", None)
+            if unst_nml:
+                lines.append("      Unstructured grid")
+
+            smc_nml = getattr(obj, "smc_nml", None)
+            if smc_nml:
+                lines.append("      SMC grid")
+
+            if getattr(obj, "depth", None):
+                lines.append(f"  {bullet} Depth: configured")
+            if getattr(obj, "mask", None):
+                lines.append(f"  {bullet} Mask: configured")
+            if getattr(obj, "obst", None):
+                lines.append(f"  {bullet} Obstructions: configured")
+            if getattr(obj, "slope", None):
+                lines.append(f"  {bullet} Slope: configured")
+            if getattr(obj, "sed", None):
+                lines.append(f"  {bullet} Sediment: configured")
+
+            lines.append(footer)
+            return "\n".join(lines)
+
+        return None
+
 
 class RectGrid(BaseWW3Grid):
     """Rectilinear WW3 grid class."""

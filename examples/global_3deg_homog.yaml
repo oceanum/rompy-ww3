@@ -8,7 +8,8 @@ run_id: glob3
 
 # Time configuration
 period:
-    start: "2008-05-22T00:00:00"
+    # start: "2008-05-22T00:00:00"
+    start: "${CYCLE}"
     duration: "1d" # 3 hours duration
     interval: "1H" # 1 hour time interval
 
@@ -19,11 +20,9 @@ config:
     ww3_shel:
         domain:
             iostyp: 1 # Output server type from reference
-            start: "2008-05-22T00:00:00"
-            stop: "2008-05-23T00:00:00"
         # Restart configuration - fetch restart file based on run start time
         # restart_nml:
-        #     restarttime: "2008-05-22T00:00:00"
+        #     restarttime: "${CYCLE}"
         #     source:
         #         model_type: restart_blob
         #         source: "/path/to/restarts/{start_time}_restart.ww3"
@@ -36,22 +35,21 @@ config:
                 list: "DPT HS FP DIR SPR WND" # Output fields from reference (removed ICE since no ice forcing)
         output_date:
             restart:
-                start: "2008-05-22T00:00:00"
                 stride: "21600" # 6 hours in seconds (WW3 namelists expect strings)
-                stop: "2008-05-23T00:00:00"
 
         # Homogeneous forcing configuration - no external data files needed
         homog_count:
             n_wnd: 2
         homog_input:
             - name: "WND"
-              date: "2008-05-22T00:00:00"
+              date: "${CYCLE}"
               value1: 10.0 # Wind speed (m/s)
               value2: 90.0 # Wind direction (degrees, coming from)
-            - name: "WND"
-              date: "2008-05-22T06:00:00"
-              value1: 15.0 # Wind speed (m/s)
-              value2: 120.0 # Wind direction (degrees, coming from)
+            # - name: "WND"
+            #   date: "${CYCLE|as_datetime|shift:+24h}"
+            #   # date: "${CYCLE|shift:+24h}"
+            #   value1: 15.0 # Wind speed (m/s)
+            #   value2: 120.0 # Wind direction (degrees, coming from)
 
     # Grid component for ww3_grid.nml (grid preprocessing configuration)
     ww3_grid:
