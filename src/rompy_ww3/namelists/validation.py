@@ -14,8 +14,11 @@ CLOS_TYPE_VALUES = {"NONE", "SMPL", "TRPL"}
 FORCING_VALUES = {"F", "T", "H", "C"}  # No forcing, external file, homogeneous, coupled
 
 
-def validate_date_format(date_str: str) -> str:
+def validate_date_format(date_str: Union[str, datetime]) -> str:
     """Validate and convert date string to WW3 format (YYYYMMDD HHMMSS)."""
+    if isinstance(date_str, datetime):
+        return date_str.strftime("%Y%m%d %H%M%S")
+
     if not date_str:
         return date_str
 
