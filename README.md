@@ -82,6 +82,7 @@ Automatically transfers WW3 model outputs (restart files, field outputs, point o
 - Failure policies: continue on error or fail-fast
 - Backend-agnostic: works with any rompy.transfer backend (file://, s3://, gs://, az://, etc.)
 - Standalone configuration files: processor configs can be run independently via CLI
+- Typed responses: returns `PostprocessSuccess` or `PostprocessFailure` Pydantic objects with timing, metadata, and artifact details
 
 **Configuration-Based Usage (Recommended):**
 
@@ -106,7 +107,17 @@ result = processor.process(
     output_types=config.output_types,
     failure_policy=config.failure_policy
 )
-print(f"Transferred: {result['transferred_count']}, Failed: {result['failed_count']}")
+
+# Result is a PostprocessSuccess or PostprocessFailure object
+if result.success:
+    print(f"✓ Transfer completed successfully")
+    print(f"  Duration: {result.timing.duration_seconds:.2f}s")
+    print(f"  Artifacts: {len(result.artifacts)} files transferred")
+    for artifact in result.artifacts:
+        print(f"    - {artifact.filename} ({artifact.size_bytes} bytes)")
+else:
+    print(f"✗ Transfer failed: {result.error_message}")
+    print(f"  Error type: {result.error_type}")
 ```
 
 **CLI Usage:**
