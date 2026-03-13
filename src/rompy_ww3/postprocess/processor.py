@@ -11,90 +11,21 @@ __init__(), enabling standalone postprocessor configuration files.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from rompy.core.responses import (
+    PostprocessResult,
+    PostprocessSuccess,
+    PostprocessFailure,
+    Artifact,
+    ArtifactType,
+    TimingInfo,
+)
 from rompy.transfer import TransferManager, TransferFailurePolicy
 from rompy_ww3.postprocess.discovery import generate_manifest
 from rompy_ww3.postprocess.naming import compute_target_name
-
-
-class TransferResult:
-    """Container for transfer results with pretty-printing support."""
-
-    def __init__(
-        self,
-        success: bool,
-        transferred_count: int,
-        failed_count: int,
-        results: list,
-    ):
-        self.success = success
-        self.transferred_count = transferred_count
-        self.failed_count = failed_count
-        self.results = results
-
-    def __str__(self) -> str:
-        """Format results into a human-readable summary."""
-        lines = []
-        lines.append("")
-        lines.append("=" * 60)
-        lines.append("📦 WW3 Transfer Postprocessor Results")
-        lines.append("=" * 60)
-
-        # Summary section
-        status_icon = "✅" if self.success else "❌"
-        lines.append(
-            f"\n{status_icon} Status: {'SUCCESS' if self.success else 'FAILED'}"
-        )
-        lines.append(f"📊 Transferred: {self.transferred_count} files")
-        lines.append(f"❌ Failed: {self.failed_count} files")
-
-        # Results details
-        if self.results:
-            lines.append("\n" + "-" * 60)
-            lines.append("📋 Transfer Details:")
-            lines.append("-" * 60)
-
-            for i, item in enumerate(self.results, 1):
-                icon = "✅" if getattr(item, "ok", False) else "❌"
-                local_path = getattr(item, "local_path", None)
-                target_name = getattr(item, "target_name", None)
-                dest_uri = getattr(item, "dest_uri", None)
-                error = getattr(item, "error", None)
-
-                lines.append(
-                    f"\n  {i}. {icon} {local_path.name if local_path else 'Unknown'}"
-                )
-                lines.append(f"     Target: {target_name}")
-                lines.append(f"     Destination: {dest_uri}")
-                if error:
-                    lines.append(f"     Error: {error}")
-
-        lines.append("\n" + "=" * 60)
-        return "\n".join(lines)
-
-    def to_dict(self) -> dict:
-        """Convert to dictionary for serialization."""
-        return {
-            "success": self.success,
-            "transferred_count": self.transferred_count,
-            "failed_count": self.failed_count,
-            "results": self.results,
-        }
-
-    def __getitem__(self, key: str):
-        """Support dict-like access to result attributes."""
-        if key == "success":
-            return self.success
-        elif key == "transferred_count":
-            return self.transferred_count
-        elif key == "failed_count":
-            return self.failed_count
-        elif key == "results":
-            return self.results
-        else:
-            raise KeyError(f"'{key}' not found in TransferResult")
 
 
 class WW3TransferPostprocessor:
@@ -118,6 +49,61 @@ class WW3TransferPostprocessor:
         configuration parameters are passed via process(), not __init__().
         """
         pass
+
+    def _create_artifact(self, path: Path, output_dir: Path) -> Artifact:
+        """Create an Artifact object from a file path.
+
+        Maps WW3 file types to ArtifactType enum, extracts file size,
+        and generates a human-readable description.
+
+        Args:
+            path: Path to the file (relative to output_dir or absolute)
+            output_dir: Base output directory for the model run
+
+        Returns:
+            Artifact object with metadata
+        """
+        # Resolve to absolute path if relative
+        if not path.is_absolute():
+            abs_path = output_dir / path
+        else:
+            abs_path = path
+
+        # Determine artifact type from file extension
+        suffix = path.suffix.lower()
+        if suffix == ".nc":
+            artifact_type = ArtifactType.NETCDF
+        elif suffix == ".yaml" or suffix == ".yml":
+            artifact_type = ArtifactType.YAML
+        elif suffix == ".ww3":
+            artifact_type = ArtifactType.OTHER  # Binary restart file
+        elif suffix in [".txt", ".list", ".nml"]:
+            artifact_type = ArtifactType.TEXT
+        else:
+            artifact_type = ArtifactType.OTHER
+
+        # Extract file size if file exists
+        size_bytes = None
+        if abs_path.exists():
+            size_bytes = abs_path.stat().st_size
+
+        # Generate description based on file type and name
+        name = path.name
+        if suffix == ".ww3":
+            description = f"WW3 binary restart file: {name}"
+        elif suffix == ".nc":
+            description = f"WW3 NetCDF output: {name}"
+        elif suffix == ".yaml" or suffix == ".yml":
+            description = f"WW3 configuration file: {name}"
+        else:
+            description = f"WW3 output file: {name}"
+
+        return Artifact(
+            path=str(path),  # Store relative path as string
+            artifact_type=artifact_type,
+            size_bytes=size_bytes,
+            description=description,
+        )
 
     def _get_output_dir(self, model_run: Any) -> Path:
         """Resolve the output directory from a model_run object.
@@ -302,7 +288,7 @@ class WW3TransferPostprocessor:
         output_types: Dict[str, Any],
         failure_policy: str = "CONTINUE",
         **kwargs,
-    ) -> TransferResult:
+    ) -> PostprocessResult:
         """Execute the transfer post-processing for a given model_run.
 
         Args:
@@ -313,11 +299,7 @@ class WW3TransferPostprocessor:
             **kwargs: Additional parameters (ignored)
 
         Returns:
-            Dictionary with transfer results:
-            - success: bool indicating if all transfers succeeded
-            - transferred_count: number of successful transfers
-            - failed_count: number of failed transfers
-            - results: list of per-file transfer results
+            PostprocessSuccess or PostprocessFailure with transfer metadata.
 
         Steps:
         1. Extract configuration from model_run (start_date, output_stride)
@@ -325,7 +307,7 @@ class WW3TransferPostprocessor:
         3. Generate a manifest of files to transfer
         4. Compute per-file target names
         5. Invoke TransferManager.transfer_files with the computed mapping
-        6. Return a structured summary of the transfer results
+        6. Return PostprocessSuccess or PostprocessFailure based on transfer results
         """
 
         # Validate destinations
@@ -353,6 +335,55 @@ class WW3TransferPostprocessor:
             output_dir, output_types, start_date, stop_date, output_stride
         )
         files = [Path(p) if not isinstance(p, Path) else p for p in files]
+
+        # Build artifacts_planned from manifest files (Task 2 + Task 3)
+        artifacts_planned: List[Artifact] = []
+        for file_path in files:
+            # Determine artifact type from filename and configured output types
+            filename = file_path.name
+
+            if filename.startswith("restart"):
+                # Restart files - Task 2
+                artifact_type = ArtifactType.OTHER
+            elif filename.startswith("ww3.") and filename.endswith(".nc"):
+                # Field output: ww3.*.nc - Task 3
+                artifact_type = (
+                    ArtifactType.NETCDF
+                    if "field" in output_types
+                    else ArtifactType.OTHER
+                )
+            elif filename.startswith("points.") and filename.endswith(".nc"):
+                # Point output: points.*.nc - Task 3
+                artifact_type = (
+                    ArtifactType.NETCDF
+                    if "point" in output_types
+                    else ArtifactType.OTHER
+                )
+            elif filename.startswith("track.") and filename.endswith(".nc"):
+                # Track output: track.*.nc - Task 3
+                artifact_type = (
+                    ArtifactType.NETCDF
+                    if "track" in output_types
+                    else ArtifactType.OTHER
+                )
+            else:
+                # Other files (e.g., spec.nc, arbitrary *.nc)
+                artifact_type = ArtifactType.OTHER
+
+            # Determine size if file exists; be resilient if it does not
+            try:
+                size_bytes = file_path.stat().st_size
+            except (OSError, FileNotFoundError):
+                size_bytes = None
+
+            artifacts_planned.append(
+                Artifact(
+                    path=str(file_path),
+                    artifact_type=artifact_type,
+                    size_bytes=size_bytes,
+                    description=None,
+                )
+            )
 
         # 4) Build mapping from source file to target name
         name_map: Dict[Path, str] = {}
@@ -383,10 +414,58 @@ class WW3TransferPostprocessor:
             policy=policy,
         )
 
-        # 6) Return structured result object with pretty-printing
-        return TransferResult(
-            success=bool(result.all_succeeded()),
-            transferred_count=int(result.succeeded),
-            failed_count=int(result.failed),
-            results=result.items,
+        # 6) Return PostprocessSuccess or PostprocessFailure based on transfer results
+        start_time = datetime.now(timezone.utc)
+
+        # Extract run_id with fallback
+        run_id = getattr(model_run, "run_id", "unknown")
+
+        # Build metadata with transfer summary
+        metadata = {
+            "transferred_count": int(result.succeeded),
+            "failed_count": int(result.failed),
+            "destinations": destinations,
+            "name_map": {str(k): v for k, v in name_map.items()},
+        }
+        # Attach planned artifacts information for Task 3 downstream processing
+        metadata["artifacts_planned"] = artifacts_planned
+
+        # Calculate timing
+        end_time = datetime.now(timezone.utc)
+        timing = TimingInfo(
+            start_time=start_time,
+            end_time=end_time,
         )
+
+        # Create artifacts from the file list
+        artifacts = [self._create_artifact(f, output_dir) for f in files]
+
+        # Return success or failure based on transfer result
+        if result.all_succeeded():
+            return PostprocessSuccess(
+                success=True,
+                run_id=run_id,
+                output_dir=str(output_dir),
+                validated=False,
+                file_count=len(files),
+                artifacts=artifacts,
+                metadata=metadata,
+                timing=timing,
+            )
+        else:
+            # Extract error message from failed transfers
+            error_msg = f"Transfer failed: {result.failed} of {len(files)} files failed"
+            if result.items:
+                failed_items = [item for item in result.items if not item.ok]
+                if failed_items and failed_items[0].error:
+                    error_msg += f". First error: {failed_items[0].error}"
+
+            return PostprocessFailure(
+                success=False,
+                run_id=run_id,
+                error=error_msg,
+                output_dir=str(output_dir),
+                artifacts=artifacts,
+                metadata=metadata,
+                timing=timing,
+            )

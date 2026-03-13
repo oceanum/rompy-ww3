@@ -4,6 +4,7 @@ import pytest
 from types import SimpleNamespace
 
 from rompy_ww3.postprocess.processor import WW3TransferPostprocessor
+from rompy.core.responses import PostprocessSuccess, PostprocessFailure
 
 
 def test_processor_initialization():
@@ -71,10 +72,16 @@ def test_single_destination_transfer(tmp_path):
         failure_policy="CONTINUE",
     )
 
-    assert result["success"] is True
-    assert result["transferred_count"] >= 0
-    assert result["failed_count"] == 0
-    assert isinstance(result["results"], list)
+    # Validate response type and success
+    assert isinstance(result, PostprocessSuccess)
+    assert result.success is True
+
+    # Check metadata
+    assert result.metadata["transferred_count"] >= 0
+    assert result.metadata["failed_count"] == 0
+
+    # Validate artifacts list
+    assert isinstance(result.artifacts, list)
 
 
 def test_multi_destination_transfer(tmp_path):
@@ -111,8 +118,12 @@ def test_multi_destination_transfer(tmp_path):
         failure_policy="CONTINUE",
     )
 
-    assert result["success"] is True
-    assert isinstance(result["results"], list)
+    # Validate response type and success
+    assert isinstance(result, PostprocessSuccess)
+    assert result.success is True
+
+    # Validate artifacts list
+    assert isinstance(result.artifacts, list)
 
 
 def test_output_dir_resolution_direct(tmp_path):
@@ -187,5 +198,12 @@ def test_no_files_to_transfer(tmp_path):
         failure_policy="CONTINUE",
     )
 
-    assert result["transferred_count"] == 0
-    assert isinstance(result["results"], list)
+    # Validate response type - should fail when files don't exist
+    assert isinstance(result, PostprocessFailure)
+    assert result.metadata["transferred_count"] == 0
+    assert result.metadata["failed_count"] == 2
+    assert "Local path is neither file nor directory" in result.error
+
+    # Validate artifacts list contains planned files
+    assert isinstance(result.artifacts, list)
+    assert len(result.artifacts) == 2
