@@ -420,12 +420,25 @@ class WW3TransferPostprocessor:
         # Extract run_id with fallback
         run_id = getattr(model_run, "run_id", "unknown")
 
-        # Build metadata with transfer summary
+        # Build transfer metadata with detailed failure information
+        transfer_failures = []
+        for item in result.items:
+            if not item.ok:
+                transfer_failures.append(
+                    {
+                        "local_path": str(item.local_path),
+                        "target_name": item.target_name,
+                        "dest_uri": item.dest_uri,
+                        "error": item.error or "Unknown error",
+                    }
+                )
+
         metadata = {
             "transferred_count": int(result.succeeded),
             "failed_count": int(result.failed),
             "destinations": destinations,
             "name_map": {str(k): v for k, v in name_map.items()},
+            "transfer_failures": transfer_failures,
         }
         # Attach planned artifacts information for Task 3 downstream processing
         metadata["artifacts_planned"] = artifacts_planned
@@ -437,8 +450,12 @@ class WW3TransferPostprocessor:
             end_time=end_time,
         )
 
-        # Create artifacts from the file list
-        artifacts = [self._create_artifact(f, output_dir) for f in files]
+        # Create artifacts only for successfully transferred files
+        # Build mapping from local_path to successfully transferred items
+        successful_paths = {item.local_path for item in result.items if item.ok}
+        observed_artifacts = [
+            self._create_artifact(f, output_dir) for f in files if f in successful_paths
+        ]
 
         # Return success or failure based on transfer result
         if result.all_succeeded():
@@ -448,7 +465,8 @@ class WW3TransferPostprocessor:
                 output_dir=str(output_dir),
                 validated=False,
                 file_count=len(files),
-                artifacts=artifacts,
+                artifacts=observed_artifacts,
+                message=None,
                 metadata=metadata,
                 timing=timing,
             )
@@ -460,12 +478,14 @@ class WW3TransferPostprocessor:
                 if failed_items and failed_items[0].error:
                     error_msg += f". First error: {failed_items[0].error}"
 
+            # For failures, artifacts list contains only successfully transferred files
             return PostprocessFailure(
                 success=False,
                 run_id=run_id,
                 error=error_msg,
                 output_dir=str(output_dir),
-                artifacts=artifacts,
+                artifacts=observed_artifacts,
+                message=None,
                 metadata=metadata,
                 timing=timing,
             )

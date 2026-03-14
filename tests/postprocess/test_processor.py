@@ -204,6 +204,8 @@ def test_no_files_to_transfer(tmp_path):
     assert result.metadata["failed_count"] == 2
     assert "Local path is neither file nor directory" in result.error
 
-    # Validate artifacts list contains planned files
+    # Validate planned artifacts in metadata (actual artifacts list is empty on failure)
     assert isinstance(result.artifacts, list)
-    assert len(result.artifacts) == 2
+    assert len(result.artifacts) == 0  # No successful transfers
+    assert "artifacts_planned" in result.metadata
+    assert len(result.metadata["artifacts_planned"]) == 2

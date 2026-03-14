@@ -112,12 +112,16 @@ result = processor.process(
 if result.success:
     print(f"✓ Transfer completed successfully")
     print(f"  Duration: {result.timing.duration_seconds:.2f}s")
-    print(f"  Artifacts: {len(result.artifacts)} files transferred")
+    print(f"  Observed artifacts: {len(result.artifacts)} files transferred")
     for artifact in result.artifacts:
-        print(f"    - {artifact.filename} ({artifact.size_bytes} bytes)")
+        print(f"    - {artifact.path} ({artifact.size_bytes} bytes)")
+    # Planned artifacts are available in result.metadata["artifacts_planned"]
+    print(f"  Planned artifacts: {len(result.metadata.get('artifacts_planned', []))}")
 else:
-    print(f"✗ Transfer failed: {result.error_message}")
-    print(f"  Error type: {result.error_type}")
+    print(f"✗ Transfer failed: {result.error}")
+    print(f"  Successfully transferred: {len(result.artifacts)} files")
+    print(f"  Failed transfers: {len(result.metadata.get('transfer_failures', []))}")
+    # Strict failure semantics: any failed transfer results in PostprocessFailure
 ```
 
 **CLI Usage:**

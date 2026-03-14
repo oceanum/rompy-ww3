@@ -180,3 +180,92 @@ def test_parse_output_type_with_all_types():
     assert result["partition"] is not None
     assert result["coupling"] is not None
     assert result["restart"] is not None
+
+
+def test_generate_manifest_field_outputs_empty(tmp_path):
+    """Test generate_manifest returns empty list for field output."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    ww3_file = output_dir / "ww3.202001.nc"
+    ww3_file.write_text("dummy")
+
+    config = {"field": {"list": "HS DIR"}}
+    start_date = "20230101 000000"
+    stop_date = "20230101 120000"
+    output_stride = 21600
+
+    result = generate_manifest(output_dir, config, start_date, stop_date, output_stride)
+
+    assert len(result) == 0
+
+
+def test_generate_manifest_point_outputs_empty(tmp_path):
+    """Test generate_manifest returns empty list for point output."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    points_file = output_dir / "points.buoys.nc"
+    points_file.write_text("dummy")
+
+    config = {"point": {"file": "points.txt", "name": "buoys"}}
+    start_date = "20230101 000000"
+    stop_date = "20230101 120000"
+    output_stride = 21600
+
+    result = generate_manifest(output_dir, config, start_date, stop_date, output_stride)
+
+    assert len(result) == 0
+
+
+def test_generate_manifest_track_outputs_empty(tmp_path):
+    """Test generate_manifest returns empty list for track output."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    track_file = output_dir / "track.1.nc"
+    track_file.write_text("dummy")
+
+    config = {"track": {"format": True}}
+    start_date = "20230101 000000"
+    stop_date = "20230101 120000"
+    output_stride = 21600
+
+    result = generate_manifest(output_dir, config, start_date, stop_date, output_stride)
+
+    assert len(result) == 0
+
+
+def test_generate_manifest_point_outputs_returns_empty(tmp_path):
+    """Test generate_manifest returns empty list for point output (only handles restart)."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    # Create a dummy points file
+    points_file = output_dir / "points.buoys.nc"
+    points_file.write_text("dummy")
+
+    config = {"point": {"file": "points.txt", "name": "buoys"}}
+    start_date = "20230101 000000"
+    stop_date = "20230101 120000"
+    output_stride = 21600
+
+    result = generate_manifest(output_dir, config, start_date, stop_date, output_stride)
+
+    # generate_manifest only handles restart files, so should return empty for point
+    assert len(result) == 0
+
+
+def test_generate_manifest_track_outputs_returns_empty(tmp_path):
+    """Test generate_manifest returns empty list for track output (only handles restart)."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    # Create a dummy track file
+    track_file = output_dir / "track.1.nc"
+    track_file.write_text("dummy")
+
+    config = {"track": {"format": True}}
+    start_date = "20230101 000000"
+    stop_date = "20230101 120000"
+    output_stride = 21600
+
+    result = generate_manifest(output_dir, config, start_date, stop_date, output_stride)
+
+    # generate_manifest only handles restart files, so should return empty for track
+    assert len(result) == 0
