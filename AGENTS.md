@@ -25,7 +25,7 @@ rompy-ww3 is a Python plugin for the rompy framework that provides WAVEWATCH III
 
 | Task                 | Location                     | Notes                                        |
 | -------------------- | ---------------------------- | -------------------------------------------- |
-| Core configuration   | `src/rompy_ww3/config.py`    | Main Config and NMLConfig classes            |
+| Core configuration   | `src/rompy_ww3/config.py`    | Main Config (ShelConfig) class               |
 | WW3 namelists        | `src/rompy_ww3/namelists/`   | 47+ Pydantic models for all WW3 components   |
 | Component processors | `src/rompy_ww3/components/`  | Shel, Grid, Multi, Ounf, etc.                |
 | Data handling        | `src/rompy_ww3/core/data.py` | WW3DataBlob, WW3DataGrid, WW3Boundary        |
@@ -36,8 +36,8 @@ rompy-ww3 is a Python plugin for the rompy framework that provides WAVEWATCH III
 
 | Symbol                | Type  | Location                | Refs       | Role                               |
 | --------------------- | ----- | ----------------------- | ---------- | ---------------------------------- |
-| NMLConfig             | Class | config.py               | Primary    | Main configuration interface       |
-| Config                | Class | config.py               | Primary    | Alias for NMLConfig                |
+| ShelConfig            | Class | config.py               | Primary    | Main configuration interface       |
+| Config                | Class | config.py               | Primary    | Alias for ShelConfig               |
 | Domain                | Class | namelists/domain.py     | Core       | WW3 domain/timing configuration    |
 | Input                 | Class | namelists/input.py      | Core       | WW3 input data configuration       |
 | Shel                  | Class | components/shel.py      | Core       | WW3 shell model component          |
@@ -84,18 +84,151 @@ rompy-ww3 is a Python plugin for the rompy framework that provides WAVEWATCH III
 ## COMMANDS
 
 ```bash
-# Development
-make test              # Run test suite
+# Development Workflow
+make test              # Run full test suite with pytest
 make lint              # Code quality checks with ruff
-make coverage          # Generate coverage report
+make coverage          # Generate coverage report (HTML in htmlcov/)
 make docs              # Build MkDocs documentation
-make clean              # Clean build artifacts
+make clean             # Clean build artifacts
 
-# CLI
+# Testing - Single Tests/Modules
+pytest tests/test_config.py                           # Single test file
+pytest tests/test_config.py::test_grid_from_yaml      # Single test function
+pytest tests/test_config.py::TestNMLConfig            # Single test class
+pytest -k "grid"                                       # All tests matching "grid"
+pytest -v                                              # Verbose output
+pytest --pdb                                           # Drop into debugger on failure
+pytest --lf                                            # Run last failed tests only
+pytest --capture=no                                    # Show print() statements
+
+# Code Quality
+ruff check .                                           # Lint all files
+ruff check --fix .                                     # Auto-fix issues
+ruff format .                                          # Format code (black-compatible)
+mypy src/rompy_ww3                                     # Type checking
+pre-commit run --all-files                             # Run all pre-commit hooks
+
+# CLI Commands
 rompy_ww3 init         # Initialize new WW3 configuration
 rompy_ww3 run          # Execute WW3 model run
 rompy_ww3 create_grid  # Generate grid configuration
 ```
+
+## CODE STYLE GUIDELINES
+
+### Import Order
+```python
+# 1. Standard library
+import os
+from pathlib import Path
+from typing import Optional, List, Dict, Literal
+
+# 2. Third-party packages
+import numpy as np
+import xarray as xr
+from pydantic import Field, field_validator, model_validator
+
+# 3. Rompy framework
+from rompy.core import RompyBaseModel
+
+# 4. Local package
+from rompy_ww3.namelists.basemodel import NamelistBaseModel
+from rompy_ww3.core.types import TimeType
+```
+
+### Type Annotations
+- **Always use type hints** for function parameters and return values
+- Use `Optional[T]` for nullable types
+- Use `Literal["value1", "value2"]` for restricted string choices
+- Use `List[T]`, `Dict[K, V]` from typing (Python 3.9+ generics also acceptable)
+- Pydantic models use `Field()` for metadata and validation
+
+```python
+def process_grid(
+    depth: np.ndarray,
+    mask: Optional[np.ndarray] = None,
+    zlim: float = 0.5,
+) -> Dict[str, np.ndarray]:
+    """Process grid with optional mask."""
+    ...
+```
+
+### Naming Conventions
+- **Classes**: PascalCase (e.g., `ShelConfig`, `WW3DataGrid`)
+- **Functions/methods**: snake_case (e.g., `create_grid`, `validate_timesteps`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `DEFAULT_ZLIM`, `WW3_BOOLEAN_TRUE`)
+- **Private attributes**: Leading underscore (e.g., `_template_env`)
+- **Pydantic fields**: snake_case matching WW3 namelist parameters
+
+### Error Handling
+- **Raise ValueError** for validation errors with detailed messages explaining WW3 constraints
+- Include parameter names, expected values, and actual values in error messages
+- Use model validators (`@field_validator`, `@model_validator`) for Pydantic validation
+
+```python
+@field_validator("dtkth")
+@classmethod
+def validate_dtkth(cls, v: float, info) -> float:
+    """Validate dtkth is between dtmax/10 and dtmax/2."""
+    dtmax = info.data.get("dtmax")
+    if dtmax is not None:
+        if not (dtmax / 10 <= v <= dtmax / 2):
+            raise ValueError(
+                f"dtkth ({v}) must be between dtmax/10 ({dtmax/10}) "
+                f"and dtmax/2 ({dtmax/2})"
+            )
+    return v
+```
+
+### Documentation
+- **Docstrings**: Use Google-style docstrings for all public functions/classes
+- **Type hints**: Required for all function signatures
+- **Field descriptions**: Use `Field(description="...")` for Pydantic fields
+- **Inline comments**: Explain WW3-specific constraints and non-obvious logic
+
+```python
+class Timesteps(NamelistBaseModel):
+    """WW3 timestep configuration.
+    
+    Timesteps must follow critical relationships:
+    - dtmax ≈ 3 × dtxy (CFL condition)
+    - dtkth between dtmax/10 and dtmax/2
+    """
+    
+    dtmax: float = Field(..., description="Maximum global time step (seconds)")
+    dtxy: float = Field(..., description="Spatial propagation time step (seconds)")
+```
+
+### Testing Conventions
+- **Test files**: `test_*.py` in `tests/` directory
+- **Test functions**: `test_<functionality>` naming
+- **Fixtures**: Define in `conftest.py` for reusability
+- **Parametrize**: Use `@pytest.mark.parametrize` for multiple test cases
+- **Assertions**: Prefer specific assertions (`assert x == y`) over generic ones
+
+```python
+@pytest.mark.parametrize(
+    "dtmax,dtxy,valid",
+    [
+        (300, 100, True),   # dtmax = 3 × dtxy (valid)
+        (300, 200, False),  # dtmax < 3 × dtxy (invalid)
+    ],
+)
+def test_timestep_validation(dtmax, dtxy, valid):
+    """Test timestep relationship validation."""
+    if valid:
+        Timesteps(dtmax=dtmax, dtxy=dtxy)
+    else:
+        with pytest.raises(ValueError):
+            Timesteps(dtmax=dtmax, dtxy=dtxy)
+```
+
+### WW3-Specific Patterns
+- **Booleans**: Use `'T'`/`'F'` strings, not Python `True`/`False`
+- **Namelists**: Generate via Jinja2 templates in `templates/` directory
+- **Component inheritance**: All components inherit from `WW3ComponentBaseModel`
+- **Validation**: Extensive validation prevents WW3 model runtime failures
+- **Entry points**: Register new config types in `pyproject.toml` under `rompy.config`
 
 ## NOTES
 
