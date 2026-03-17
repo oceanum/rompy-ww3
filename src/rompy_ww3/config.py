@@ -1,9 +1,14 @@
 """WW3 Rompy config."""
 
+from __future__ import annotations
+
 import logging
 import os
 from pathlib import Path
-from typing import Literal, Optional, List, Dict, Any
+from typing import TYPE_CHECKING, Literal, Optional, List, Dict, Any
+
+if TYPE_CHECKING:
+    from rompy.core.responses import Artifact
 from pydantic import BaseModel, Field as PydanticField, model_validator, ConfigDict
 
 from rompy.core.config import BaseConfig
@@ -699,6 +704,89 @@ class ShelConfig(BaseWW3Config):
 
         # Generate execution scripts based on what files and executables are needed
         self.generate_run_script(runtime.staging_dir)
+
+    def expected_artifacts(self) -> List["Artifact"]:
+        """Return the list of artifacts this config expects to produce.
+
+        Override in subclasses to declare expected output files. The base
+        implementation returns an empty list.
+
+        Returns:
+            List[Artifact]: Expected artifacts (empty list in this implementation).
+        """
+        return []
+
+    def infer_artifacts(
+        self, files: List[Path], output_types: Dict[str, Any]
+    ) -> List["Artifact"]:
+        """Infer artifact types from a list of file paths based on WW3 output conventions.
+
+        This method determines the artifact type for each file based on its filename
+        and the configured output types. It follows WW3 naming conventions:
+        - restart* files are classified as OTHER
+        - ww3.*.nc files are NETCDF if 'field' is in output_types
+        - points.*.nc files are NETCDF if 'point' is in output_types
+        - track.*.nc files are NETCDF if 'track' is in output_types
+        - All other files are classified as OTHER
+
+        Args:
+            files: List of Path objects representing files to analyze
+            output_types: Dict mapping output type names to their configurations
+
+        Returns:
+            List[Artifact]: List of artifacts with inferred types and sizes
+        """
+        from rompy.core.responses import Artifact, ArtifactType
+
+        artifacts: List[Artifact] = []
+        for file_path in files:
+            # Determine artifact type from filename and configured output types
+            filename = file_path.name
+
+            if filename.startswith("restart"):
+                # Restart files
+                artifact_type = ArtifactType.OTHER
+            elif filename.startswith("ww3.") and filename.endswith(".nc"):
+                # Field output: ww3.*.nc
+                artifact_type = (
+                    ArtifactType.NETCDF
+                    if "field" in output_types
+                    else ArtifactType.OTHER
+                )
+            elif filename.startswith("points.") and filename.endswith(".nc"):
+                # Point output: points.*.nc
+                artifact_type = (
+                    ArtifactType.NETCDF
+                    if "point" in output_types
+                    else ArtifactType.OTHER
+                )
+            elif filename.startswith("track.") and filename.endswith(".nc"):
+                # Track output: track.*.nc
+                artifact_type = (
+                    ArtifactType.NETCDF
+                    if "track" in output_types
+                    else ArtifactType.OTHER
+                )
+            else:
+                # Other files (e.g., spec.nc, arbitrary *.nc)
+                artifact_type = ArtifactType.OTHER
+
+            # Determine size if file exists; be resilient if it does not
+            try:
+                size_bytes = file_path.stat().st_size
+            except (OSError, FileNotFoundError):
+                size_bytes = None
+
+            artifacts.append(
+                Artifact(
+                    path=str(file_path),
+                    artifact_type=artifact_type,
+                    size_bytes=size_bytes,
+                    description=None,
+                )
+            )
+
+        return artifacts
 
     def _set_default_dates(self, runtime):
         """Set default start and end dates from the runtime period if not already set in components."""

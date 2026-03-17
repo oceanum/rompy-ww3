@@ -336,54 +336,39 @@ class WW3TransferPostprocessor:
         )
         files = [Path(p) if not isinstance(p, Path) else p for p in files]
 
-        # Build artifacts_planned from manifest files (Task 2 + Task 3)
+        # Build artifacts_planned from manifest files using config methods if available
         artifacts_planned: List[Artifact] = []
-        for file_path in files:
-            # Determine artifact type from filename and configured output types
-            filename = file_path.name
+        config = getattr(model_run, "config", None)
 
-            if filename.startswith("restart"):
-                # Restart files - Task 2
-                artifact_type = ArtifactType.OTHER
-            elif filename.startswith("ww3.") and filename.endswith(".nc"):
-                # Field output: ww3.*.nc - Task 3
-                artifact_type = (
-                    ArtifactType.NETCDF
-                    if "field" in output_types
-                    else ArtifactType.OTHER
-                )
-            elif filename.startswith("points.") and filename.endswith(".nc"):
-                # Point output: points.*.nc - Task 3
-                artifact_type = (
-                    ArtifactType.NETCDF
-                    if "point" in output_types
-                    else ArtifactType.OTHER
-                )
-            elif filename.startswith("track.") and filename.endswith(".nc"):
-                # Track output: track.*.nc - Task 3
-                artifact_type = (
-                    ArtifactType.NETCDF
-                    if "track" in output_types
-                    else ArtifactType.OTHER
-                )
-            else:
-                # Other files (e.g., spec.nc, arbitrary *.nc)
-                artifact_type = ArtifactType.OTHER
-
-            # Determine size if file exists; be resilient if it does not
+        # First attempt: try to get expected_artifacts from config
+        if config is not None and hasattr(config, "expected_artifacts"):
             try:
-                size_bytes = file_path.stat().st_size
-            except (OSError, FileNotFoundError):
-                size_bytes = None
-
-            artifacts_planned.append(
-                Artifact(
-                    path=str(file_path),
-                    artifact_type=artifact_type,
-                    size_bytes=size_bytes,
-                    description=None,
-                )
-            )
+                expected_artifacts = config.expected_artifacts()
+                if expected_artifacts:  # If not empty, use it
+                    artifacts_planned = expected_artifacts
+                else:
+                    # Second attempt: try to use infer_artifacts method
+                    if hasattr(config, "infer_artifacts"):
+                        try:
+                            artifacts_planned = config.infer_artifacts(
+                                files, output_types
+                            )
+                        except Exception:
+                            # Fall back to original inference logic
+                            artifacts_planned = self._infer_artifacts_original(
+                                files, output_types
+                            )
+                    else:
+                        # Fall back to original inference logic
+                        artifacts_planned = self._infer_artifacts_original(
+                            files, output_types
+                        )
+            except Exception:
+                # Fall back to original inference logic
+                artifacts_planned = self._infer_artifacts_original(files, output_types)
+        else:
+            # Fall back to original inference logic
+            artifacts_planned = self._infer_artifacts_original(files, output_types)
 
         # 4) Build mapping from source file to target name
         name_map: Dict[Path, str] = {}
@@ -440,6 +425,7 @@ class WW3TransferPostprocessor:
             "name_map": {str(k): v for k, v in name_map.items()},
             "transfer_failures": transfer_failures,
         }
+
         # Attach planned artifacts information for Task 3 downstream processing
         metadata["artifacts_planned"] = artifacts_planned
 
@@ -489,3 +475,75 @@ class WW3TransferPostprocessor:
                 metadata=metadata,
                 timing=timing,
             )
+
+    def _infer_artifacts_original(
+        self, files: List[Path], output_types: Dict[str, Any]
+    ) -> List[Artifact]:
+        """Original artifact inference logic from the process method.
+
+        This method determines the artifact type for each file based on its filename
+        and the configured output types. It follows WW3 naming conventions:
+        - restart* files are classified as OTHER
+        - ww3.*.nc files are NETCDF if 'field' is in output_types
+        - points.*.nc files are NETCDF if 'point' is in output_types
+        - track.*.nc files are NETCDF if 'track' is in output_types
+        - All other files are classified as OTHER
+
+        Args:
+            files: List of Path objects representing files to analyze
+            output_types: Dict mapping output type names to their configurations
+
+        Returns:
+            List[Artifact]: List of artifacts with inferred types and sizes
+        """
+        from rompy.core.responses import Artifact, ArtifactType
+
+        artifacts: List[Artifact] = []
+        for file_path in files:
+            # Determine artifact type from filename and configured output types
+            filename = file_path.name
+
+            if filename.startswith("restart"):
+                # Restart files - Task 2
+                artifact_type = ArtifactType.OTHER
+            elif filename.startswith("ww3.") and filename.endswith(".nc"):
+                # Field output: ww3.*.nc - Task 3
+                artifact_type = (
+                    ArtifactType.NETCDF
+                    if "field" in output_types
+                    else ArtifactType.OTHER
+                )
+            elif filename.startswith("points.") and filename.endswith(".nc"):
+                # Point output: points.*.nc - Task 3
+                artifact_type = (
+                    ArtifactType.NETCDF
+                    if "point" in output_types
+                    else ArtifactType.OTHER
+                )
+            elif filename.startswith("track.") and filename.endswith(".nc"):
+                # Track output: track.*.nc - Task 3
+                artifact_type = (
+                    ArtifactType.NETCDF
+                    if "track" in output_types
+                    else ArtifactType.OTHER
+                )
+            else:
+                # Other files (e.g., spec.nc, arbitrary *.nc)
+                artifact_type = ArtifactType.OTHER
+
+            # Determine size if file exists; be resilient if it does not
+            try:
+                size_bytes = file_path.stat().st_size
+            except (OSError, FileNotFoundError):
+                size_bytes = None
+
+            artifacts.append(
+                Artifact(
+                    path=str(file_path),
+                    artifact_type=artifact_type,
+                    size_bytes=size_bytes,
+                    description=None,
+                )
+            )
+
+        return artifacts
