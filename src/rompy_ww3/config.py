@@ -440,6 +440,30 @@ echo "Workflow finished successfully."
             return "\n".join(lines)
         return None
 
+    def infer_artifacts(
+        self, files: List[Path], output_types: Dict[str, Any]
+    ) -> List["Artifact"]:
+        """Infer artifact types from a list of file paths based on WW3 output conventions.
+
+        This method determines the artifact type for each file based on its filename
+        and the configured output types. It follows WW3 naming conventions:
+        - restart* files are classified as OTHER
+        - ww3.*.nc files are NETCDF if 'field' is in output_types
+        - points.*.nc files are NETCDF if 'point' is in output_types
+        - track.*.nc files are NETCDF if 'track' is in output_types
+        - All other files are classified as OTHER
+
+        Args:
+            files: List of Path objects representing files to analyze
+            output_types: Dict mapping output type names to their configurations
+
+        Returns:
+            List[Artifact]: List of artifacts with inferred types and sizes
+        """
+        from rompy_ww3.postprocess.discovery import infer_artifacts_from_files
+
+        return infer_artifacts_from_files(files, output_types)
+
 
 class BaseWW3Config(BaseConfig):
     """Base config class for WW3 models."""

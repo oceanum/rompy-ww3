@@ -336,39 +336,20 @@ class WW3TransferPostprocessor:
         )
         files = [Path(p) if not isinstance(p, Path) else p for p in files]
 
-        # Build artifacts_planned from manifest files using config methods if available
         artifacts_planned: List[Artifact] = []
         config = getattr(model_run, "config", None)
 
-        # First attempt: try to get expected_artifacts from config
-        if config is not None and hasattr(config, "expected_artifacts"):
+        if config is not None and hasattr(config, "infer_artifacts"):
             try:
-                expected_artifacts = config.expected_artifacts()
-                if expected_artifacts:  # If not empty, use it
-                    artifacts_planned = expected_artifacts
-                else:
-                    # Second attempt: try to use infer_artifacts method
-                    if hasattr(config, "infer_artifacts"):
-                        try:
-                            artifacts_planned = config.infer_artifacts(
-                                files, output_types
-                            )
-                        except Exception:
-                            # Fall back to original inference logic
-                            artifacts_planned = self._infer_artifacts_original(
-                                files, output_types
-                            )
-                    else:
-                        # Fall back to original inference logic
-                        artifacts_planned = self._infer_artifacts_original(
-                            files, output_types
-                        )
+                artifacts_planned = config.infer_artifacts(files, output_types)
             except Exception:
-                # Fall back to original inference logic
-                artifacts_planned = self._infer_artifacts_original(files, output_types)
+                from rompy_ww3.postprocess.discovery import infer_artifacts_from_files
+
+                artifacts_planned = infer_artifacts_from_files(files, output_types)
         else:
-            # Fall back to original inference logic
-            artifacts_planned = self._infer_artifacts_original(files, output_types)
+            from rompy_ww3.postprocess.discovery import infer_artifacts_from_files
+
+            artifacts_planned = infer_artifacts_from_files(files, output_types)
 
         # 4) Build mapping from source file to target name
         name_map: Dict[Path, str] = {}
@@ -475,27 +456,3 @@ class WW3TransferPostprocessor:
                 metadata=metadata,
                 timing=timing,
             )
-
-    def _infer_artifacts_original(
-        self, files: List[Path], output_types: Dict[str, Any]
-    ) -> List[Artifact]:
-        """Original artifact inference logic from the process method.
-
-        This method determines the artifact type for each file based on its filename
-        and the configured output types. It follows WW3 naming conventions:
-        - restart* files are classified as OTHER
-        - ww3.*.nc files are NETCDF if 'field' is in output_types
-        - points.*.nc files are NETCDF if 'point' is in output_types
-        - track.*.nc files are NETCDF if 'track' is in output_types
-        - All other files are classified as OTHER
-
-        Args:
-            files: List of Path objects representing files to analyze
-            output_types: Dict mapping output type names to their configurations
-
-        Returns:
-            List[Artifact]: List of artifacts with inferred types and sizes
-        """
-        from rompy_ww3.postprocess.discovery import infer_artifacts_from_files
-
-        return infer_artifacts_from_files(files, output_types)
