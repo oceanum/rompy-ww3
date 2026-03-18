@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from rompy.core.responses import Artifact, ArtifactType
 from rompy_ww3.namelists.output_type import OutputType
 
 
@@ -141,3 +142,68 @@ def generate_manifest(
             file_num += 1
 
     return manifest
+
+
+def infer_artifacts_from_files(
+    files: List[Path], output_types: Dict[str, Any]
+) -> List[Artifact]:
+    """Infer artifact types from a list of file paths based on WW3 output conventions.
+
+    This function determines the artifact type for each file based on its filename
+    and the configured output types. It follows WW3 naming conventions:
+    - restart* files are classified as OTHER
+    - ww3.*.nc files are NETCDF if 'field' is in output_types
+    - points.*.nc files are NETCDF if 'point' is in output_types
+    - track.*.nc files are NETCDF if 'track' is in output_types
+    - All other files are classified as OTHER
+
+    Args:
+        files: List of Path objects representing files to analyze
+        output_types: Dict mapping output type names to their configurations
+
+    Returns:
+        List[Artifact]: List of artifacts with inferred types and sizes
+    """
+    artifacts: List[Artifact] = []
+    for file_path in files:
+        # Determine artifact type from filename and configured output types
+        filename = file_path.name
+
+        if filename.startswith("restart"):
+            # Restart files
+            artifact_type = ArtifactType.OTHER
+        elif filename.startswith("ww3.") and filename.endswith(".nc"):
+            # Field output: ww3.*.nc
+            artifact_type = (
+                ArtifactType.NETCDF if "field" in output_types else ArtifactType.OTHER
+            )
+        elif filename.startswith("points.") and filename.endswith(".nc"):
+            # Point output: points.*.nc
+            artifact_type = (
+                ArtifactType.NETCDF if "point" in output_types else ArtifactType.OTHER
+            )
+        elif filename.startswith("track.") and filename.endswith(".nc"):
+            # Track output: track.*.nc
+            artifact_type = (
+                ArtifactType.NETCDF if "track" in output_types else ArtifactType.OTHER
+            )
+        else:
+            # Other files (e.g., spec.nc, arbitrary *.nc)
+            artifact_type = ArtifactType.OTHER
+
+        # Determine size if file exists; be resilient if it does not
+        try:
+            size_bytes = file_path.stat().st_size
+        except (OSError, FileNotFoundError):
+            size_bytes = None
+
+        artifacts.append(
+            Artifact(
+                path=str(file_path),
+                artifact_type=artifact_type,
+                size_bytes=size_bytes,
+                description=None,
+            )
+        )
+
+    return artifacts

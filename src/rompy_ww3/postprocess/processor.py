@@ -496,54 +496,6 @@ class WW3TransferPostprocessor:
         Returns:
             List[Artifact]: List of artifacts with inferred types and sizes
         """
-        from rompy.core.responses import Artifact, ArtifactType
+        from rompy_ww3.postprocess.discovery import infer_artifacts_from_files
 
-        artifacts: List[Artifact] = []
-        for file_path in files:
-            # Determine artifact type from filename and configured output types
-            filename = file_path.name
-
-            if filename.startswith("restart"):
-                # Restart files - Task 2
-                artifact_type = ArtifactType.OTHER
-            elif filename.startswith("ww3.") and filename.endswith(".nc"):
-                # Field output: ww3.*.nc - Task 3
-                artifact_type = (
-                    ArtifactType.NETCDF
-                    if "field" in output_types
-                    else ArtifactType.OTHER
-                )
-            elif filename.startswith("points.") and filename.endswith(".nc"):
-                # Point output: points.*.nc - Task 3
-                artifact_type = (
-                    ArtifactType.NETCDF
-                    if "point" in output_types
-                    else ArtifactType.OTHER
-                )
-            elif filename.startswith("track.") and filename.endswith(".nc"):
-                # Track output: track.*.nc - Task 3
-                artifact_type = (
-                    ArtifactType.NETCDF
-                    if "track" in output_types
-                    else ArtifactType.OTHER
-                )
-            else:
-                # Other files (e.g., spec.nc, arbitrary *.nc)
-                artifact_type = ArtifactType.OTHER
-
-            # Determine size if file exists; be resilient if it does not
-            try:
-                size_bytes = file_path.stat().st_size
-            except (OSError, FileNotFoundError):
-                size_bytes = None
-
-            artifacts.append(
-                Artifact(
-                    path=str(file_path),
-                    artifact_type=artifact_type,
-                    size_bytes=size_bytes,
-                    description=None,
-                )
-            )
-
-        return artifacts
+        return infer_artifacts_from_files(files, output_types)
