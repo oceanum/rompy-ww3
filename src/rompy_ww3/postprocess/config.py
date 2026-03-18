@@ -4,7 +4,8 @@ This module provides Pydantic-based configuration classes for WW3-specific
 postprocessor types, following the rompy postprocessor configuration framework.
 """
 
-from typing import Any, Dict, List, Literal
+from typing import Optional, List, Literal
+from rompy.core.responses import ArtifactType
 
 from pydantic import Field, field_validator
 from rompy.postprocess.config import BasePostprocessorConfig
@@ -39,10 +40,9 @@ class WW3TransferConfig(BasePostprocessorConfig):
         "Supports any rompy.transfer backend (file://, s3://, gs://, az://, etc.)",
     )
 
-    output_types: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Manifest filter describing which WW3 output types to include. "
-        "Accepted by generate_manifest. Example: {'restart': {'extra': 'DW'}, 'field': {'list': [1, 2, 3]}}",
+    artifact_types: Optional[List[ArtifactType]] = Field(
+        None,
+        description="Optional list of artifact types (e.g., NETCDF, PLOT, TEXT) to include in post-processing",
     )
 
     failure_policy: Literal["CONTINUE", "FAIL_FAST"] = Field(

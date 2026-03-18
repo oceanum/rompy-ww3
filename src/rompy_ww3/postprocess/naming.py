@@ -105,7 +105,8 @@ def compute_restart_valid_date(
     from datetime import datetime, timedelta
 
     seq_num = _extract_restart_number(restart_path.name)
-    start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S")
+    normalized_start_date = validate_date_format(start_date)
+    start_dt = datetime.strptime(normalized_start_date, "%Y%m%d %H%M%S")
     offset_seconds = (seq_num - 1) * output_stride
     valid_dt = start_dt + timedelta(seconds=offset_seconds)
     return valid_dt.strftime("%Y%m%d_%H%M%S")
