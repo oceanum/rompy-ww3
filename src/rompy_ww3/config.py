@@ -321,11 +321,56 @@ class MultiConfig(BaseConfig):
 
         return run_path
 
+    def get_normalized_extensions(self) -> Dict[str, Any]:
+        """Extract WW3-specific extensions for normalized_context.
+
+        Returns:
+            Dict with 'ww3' key containing:
+                - restart_stride_seconds: int | None
+                - config_variant: "ww3multi"
+        """
+        restart_stride = None
+        if (
+            self.multi
+            and self.multi.output_date
+            and self.multi.output_date.restart
+            and self.multi.output_date.restart.stride is not None
+        ):
+            restart_stride = self.multi.output_date.restart.stride
+
+        return {
+            "ww3": {
+                "restart_stride_seconds": restart_stride,
+                "config_variant": "ww3multi",
+            }
+        }
+
+    def _update_sidecar_extensions(self, runtime) -> None:
+        """Update generate_result.json sidecar with WW3-specific extensions."""
+        try:
+            from rompy.core.result_persistence import (
+                load_generate_result,
+                write_generate_result,
+            )
+
+            sidecar_path = Path(runtime.staging_dir) / "generate_result.json"
+            if not sidecar_path.exists():
+                return
+
+            sidecar = load_generate_result(runtime.staging_dir)
+            if sidecar.normalized_context:
+                extensions = self.get_normalized_extensions()
+                sidecar.normalized_context.extensions.update(extensions)
+                write_generate_result(runtime.staging_dir, sidecar)
+        except Exception:
+            pass
+
     def __call__(self, runtime) -> dict:
         """Callable invoked by rompy to generate namelists and scripts."""
         self._set_default_dates(runtime)
         self.write_control_files(runtime)
         self.generate_run_script(runtime)
+        self._update_sidecar_extensions(runtime)
         return {}
 
     def _set_default_dates(self, runtime):
@@ -717,6 +762,50 @@ class ShelConfig(BaseWW3Config):
                             )
         return self
 
+    def get_normalized_extensions(self) -> Dict[str, Any]:
+        """Extract WW3-specific extensions for normalized_context.
+
+        Returns:
+            Dict with 'ww3' key containing:
+                - restart_stride_seconds: int | None
+                - config_variant: "ww3shel"
+        """
+        restart_stride = None
+        if (
+            self.ww3_shel
+            and self.ww3_shel.output_date
+            and self.ww3_shel.output_date.restart
+            and self.ww3_shel.output_date.restart.stride is not None
+        ):
+            restart_stride = self.ww3_shel.output_date.restart.stride
+
+        return {
+            "ww3": {
+                "restart_stride_seconds": restart_stride,
+                "config_variant": "ww3shel",
+            }
+        }
+
+    def _update_sidecar_extensions(self, runtime) -> None:
+        """Update generate_result.json sidecar with WW3-specific extensions."""
+        try:
+            from rompy.core.result_persistence import (
+                load_generate_result,
+                write_generate_result,
+            )
+
+            sidecar_path = Path(runtime.staging_dir) / "generate_result.json"
+            if not sidecar_path.exists():
+                return
+
+            sidecar = load_generate_result(runtime.staging_dir)
+            if sidecar.normalized_context:
+                extensions = self.get_normalized_extensions()
+                sidecar.normalized_context.extensions.update(extensions)
+                write_generate_result(runtime.staging_dir, sidecar)
+        except Exception:
+            pass
+
     def __call__(self, runtime) -> dict:
         """Callable where data and config are interfaced and CMD is rendered."""
 
@@ -728,6 +817,8 @@ class ShelConfig(BaseWW3Config):
 
         # Generate execution scripts based on what files and executables are needed
         self.generate_run_script(runtime.staging_dir)
+
+        self._update_sidecar_extensions(runtime)
 
     def expected_artifacts(self) -> List["Artifact"]:
         """Return the list of artifacts this config expects to produce.

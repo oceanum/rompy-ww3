@@ -358,7 +358,7 @@ class TestArtifactDateNormalization:
             result.metadata["name_map"][
                 str(tmp_path / "ww3_output" / "ww3.20230101_000000.nc")
             ]
-            == "20240115_000000_ww3.20230101_000000.nc"
+            == "ww3.20230101_000000.nc"
         )
 
     def test_timezone_iso_artifact_date_succeeds(self, tmp_path):
@@ -370,7 +370,7 @@ class TestArtifactDateNormalization:
             result.metadata["name_map"][
                 str(tmp_path / "ww3_output" / "ww3.20230101_000000.nc")
             ]
-            == "20240115_000000_ww3.20230101_000000.nc"
+            == "ww3.20230101_000000.nc"
         )
 
     def test_fractional_seconds_artifact_date_succeeds(self, tmp_path):
@@ -384,10 +384,10 @@ class TestArtifactDateNormalization:
             result.metadata["name_map"][
                 str(tmp_path / "ww3_output" / "ww3.20230101_000000.nc")
             ]
-            == "20240115_000000_ww3.20230101_000000.nc"
+            == "ww3.20230101_000000.nc"
         )
 
-    def test_none_artifact_date_falls_back_to_timing_start_time(self, tmp_path):
+    def test_none_artifact_date_keeps_non_restart_name_by_default(self, tmp_path):
         result = self._process_with_artifact_date(tmp_path, None)
 
         assert isinstance(result, PostprocessSuccess)
@@ -396,6 +396,49 @@ class TestArtifactDateNormalization:
             result.metadata["name_map"][
                 str(tmp_path / "ww3_output" / "ww3.20230101_000000.nc")
             ]
+            == "ww3.20230101_000000.nc"
+        )
+
+    def test_none_artifact_date_datestamps_non_restart_in_legacy_mode(self, tmp_path):
+        output_dir = tmp_path / "ww3_output"
+        output_dir.mkdir()
+
+        field_file = output_dir / "ww3.20230101_000000.nc"
+        field_file.write_text("field data")
+
+        dest_dir = tmp_path / "dest"
+        dest_dir.mkdir()
+
+        artifacts = [
+            Artifact(
+                path="ww3.20230101_000000.nc",
+                artifact_type=ArtifactType.NETCDF,
+                size_bytes=None,
+                description=None,
+                date=None,
+            )
+        ]
+        model_run_result = SimpleNamespace(
+            output_dir=str(output_dir),
+            artifacts=artifacts,
+            timing=SimpleNamespace(
+                start_time=datetime(2023, 1, 1, tzinfo=timezone.utc)
+            ),
+            run_id="test-run-001",
+        )
+
+        processor = WW3TransferPostprocessor()
+        result = processor.process(
+            model_run_result,
+            destinations=[f"file://{dest_dir}"],
+            failure_policy="CONTINUE",
+            naming_policy="datestamp_all",
+        )
+
+        assert isinstance(result, PostprocessSuccess)
+        assert result.metadata["transferred_count"] == 1
+        assert (
+            result.metadata["name_map"][str(output_dir / "ww3.20230101_000000.nc")]
             == "20230101_000000_ww3.20230101_000000.nc"
         )
 

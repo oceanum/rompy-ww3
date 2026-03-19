@@ -127,12 +127,20 @@ else:
 **CLI Usage:**
 
 ```bash
-# Using standalone processor config file
-rompy postprocess --processor-config examples/postprocessor_configs/ww3_transfer_basic.yaml
+# Using a standalone processor config file after `rompy run`
+rompy postprocess examples/global_3deg_homog.yaml \
+  --processor-config examples/postprocessor_configs/ww3_transfer_basic.yaml
+
+# Or point postprocess at an explicit sidecar path
+rompy postprocess examples/global_3deg_homog.yaml \
+  --processor-config examples/postprocessor_configs/ww3_transfer_basic.yaml \
+  --run-result /path/to/run_result.json
 
 # Or load from YAML
 from rompy_ww3.postprocess import WW3TransferConfig
-config = WW3TransferConfig.parse_file("ww3_transfer_config.yaml")
+config = WW3TransferConfig.model_validate(
+    yaml.safe_load(Path("ww3_transfer_config.yaml").read_text())
+)
 ```
 
 **Example Configuration File (`ww3_transfer_config.yaml`):**

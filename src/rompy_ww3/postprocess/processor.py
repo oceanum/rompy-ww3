@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+import logging
 from typing import Any, Dict, List, Optional
 
 from rompy.core.responses import (
@@ -24,6 +25,9 @@ from rompy.core.responses import (
 )
 from rompy.transfer import TransferManager, TransferFailurePolicy
 from rompy_ww3.postprocess.naming import compute_target_name
+
+
+logger = logging.getLogger(__name__)
 
 
 class WW3TransferPostprocessor:
@@ -107,21 +111,33 @@ class WW3TransferPostprocessor:
     def _get_output_dir(self, model_run: Any) -> Path:
         """Resolve the output directory from a model_run object.
 
-        The resolution order mirrors the public expectations:
-        1) model_run.output_dir
-        2) model_run.run_dir
-        3) model_run.config.output_dir
+        The resolution order mirrors sidecar-first contract:
+        1) model_run.normalized_context.output_dir (v2 sidecar)
+        2) model_run.output_dir (direct attribute)
+        3) model_run.run_dir (legacy attribute)
+        4) model_run.config.output_dir (v1 fallback)
 
         If a run_id is present, it will be appended to form the actual
         simulation output directory (e.g., simulations/glob3/).
         """
         base_dir = None
-        for attr in ("output_dir", "run_dir"):
-            value = getattr(model_run, attr, None)
-            if value:
-                base_dir = Path(value)
-                break
 
+        # First try normalized_context (v2 sidecar)
+        ctx = getattr(model_run, "normalized_context", None)
+        if ctx is not None:
+            output_dir = getattr(ctx, "output_dir", None)
+            if output_dir:
+                base_dir = Path(output_dir)
+
+        # Fallback to direct attributes
+        if base_dir is None:
+            for attr in ("output_dir", "run_dir"):
+                value = getattr(model_run, attr, None)
+                if value:
+                    base_dir = Path(value)
+                    break
+
+        # Fallback to config (v1 backward compat)
         if base_dir is None:
             config = getattr(model_run, "config", None)
             if config is not None:
@@ -143,13 +159,25 @@ class WW3TransferPostprocessor:
         """Extract start date from model_run configuration.
 
         Attempts to extract from:
-        1) model_run.config.ww3_shel.domain.start
-        2) model_run.config.ww3_multi.domain.start
-        3) model_run.period.start (converted to WW3 format)
+        1) model_run.normalized_context.period_start (v2 sidecar)
+        2) model_run.config.ww3_shel.domain.start (v1 fallback)
+        3) model_run.config.ww3_multi.domain.start (v1 fallback)
+        4) model_run.period.start (converted to WW3 format)
 
         Returns:
             Optional[str]: Start date in 'YYYYMMDD HHMMSS' format, or None if not found
         """
+        # First try normalized_context (v2 sidecar)
+        ctx = getattr(model_run, "normalized_context", None)
+        if ctx is not None:
+            period_start = getattr(ctx, "period_start", None)
+            if period_start is not None:
+                try:
+                    return period_start.strftime("%Y%m%d %H%M%S")
+                except Exception:
+                    pass
+
+        # Fallback to config (v1 backward compat)
         config = getattr(model_run, "config", None)
         if config is None:
             return None
@@ -193,13 +221,25 @@ class WW3TransferPostprocessor:
         """Extract stop date from model_run configuration.
 
         Attempts to extract from:
-        1) model_run.config.ww3_shel.domain.stop
-        2) model_run.config.ww3_multi.domain.stop
-        3) model_run.period.stop (converted to WW3 format)
+        1) model_run.normalized_context.period_end (v2 sidecar)
+        2) model_run.config.ww3_shel.domain.stop (v1 fallback)
+        3) model_run.config.ww3_multi.domain.stop (v1 fallback)
+        4) model_run.period.stop (converted to WW3 format)
 
         Returns:
             Optional[str]: Stop date in 'YYYYMMDD HHMMSS' format, or None if not found
         """
+        # First try normalized_context (v2 sidecar)
+        ctx = getattr(model_run, "normalized_context", None)
+        if ctx is not None:
+            period_end = getattr(ctx, "period_end", None)
+            if period_end is not None:
+                try:
+                    return period_end.strftime("%Y%m%d %H%M%S")
+                except Exception:
+                    pass
+
+        # Fallback to config (v1 backward compat)
         config = getattr(model_run, "config", None)
         if config is None:
             return None
@@ -239,12 +279,28 @@ class WW3TransferPostprocessor:
         """Extract restart output stride from model_run configuration.
 
         Attempts to extract from:
-        1) model_run.config.ww3_shel.output_date.restart.stride
-        2) model_run.config.ww3_multi.output_date.restart.stride
+        1) model_run.normalized_context.extensions["ww3"]["restart_stride_seconds"] (v2 sidecar)
+        2) model_run.config.ww3_shel.output_date.restart.stride (v1 fallback)
+        3) model_run.config.ww3_multi.output_date.restart.stride (v1 fallback)
 
         Returns:
             Optional[int]: Output stride in seconds, or None if not found
         """
+        # First try normalized_context (v2 sidecar)
+        ctx = getattr(model_run, "normalized_context", None)
+        if ctx is not None:
+            extensions = getattr(ctx, "extensions", None)
+            if extensions and isinstance(extensions, dict):
+                ww3_ext = extensions.get("ww3", {})
+                if isinstance(ww3_ext, dict):
+                    stride = ww3_ext.get("restart_stride_seconds")
+                    if stride is not None:
+                        try:
+                            return int(stride)
+                        except (ValueError, TypeError):
+                            pass
+
+        # Fallback to config (v1 backward compat)
         config = getattr(model_run, "config", None)
         if config is None:
             return None
@@ -280,12 +336,23 @@ class WW3TransferPostprocessor:
 
         return None
 
+    def _coerce_ww3_date(self, value: Any) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value
+        try:
+            return value.strftime("%Y%m%d %H%M%S")
+        except Exception:
+            return None
+
     def process(
         self,
         model_run_result: Any,
         destinations: List[str],
         artifact_types: Optional[List[ArtifactType]] = None,
         failure_policy: str = "CONTINUE",
+        naming_policy: str = "restart_only",
         **kwargs,
     ) -> PostprocessResult:
         """Execute the transfer post-processing for a given model_run_result.
@@ -371,34 +438,35 @@ class WW3TransferPostprocessor:
             else:
                 resolved_paths.append(output_dir / artifact_path)
 
-        # Step 6: Compute datestamp for target naming - use fallback order
-        # Prepare fallback date sources
-        fallback_date_str: Optional[str] = None
+        if naming_policy not in {"restart_only", "datestamp_all"}:
+            raise ValueError(f"Invalid naming_policy: {naming_policy}")
 
-        # Fallback 1: timing.start_time from model_run_result
-        timing_info = getattr(model_run_result, "timing", None)
-        if timing_info is not None:
-            start_time_dt = getattr(timing_info, "start_time", None)
-            if start_time_dt is not None:
-                # Convert datetime to WW3 format YYYYMMDD HHMMSS
-                fallback_date_str = start_time_dt.strftime("%Y%m%d %H%M%S")
+        fallback_date_str = self._extract_start_date(model_run_result)
 
-        # Fallback 2: _extract_start_date from model_run_result (duck-typed model_run)
         if fallback_date_str is None:
-            fallback_date_str = self._extract_start_date(model_run_result)
+            timing_info = getattr(model_run_result, "timing", None)
+            if timing_info is not None:
+                start_time_dt = getattr(timing_info, "start_time", None)
+                fallback_date_str = self._coerce_ww3_date(start_time_dt)
 
         # Extract output_stride for restart handling
         output_stride = self._extract_output_stride(model_run_result)
+
+        logger.info(
+            "WW3 transfer preparing %s artifacts to %s destination(s) with naming_policy=%s",
+            len(artifacts),
+            len(destinations),
+            naming_policy,
+        )
 
         # Step 7: Build mapping from source file to target name
         name_map: Dict[Path, str] = {}
         for i, artifact in enumerate(artifacts):
             src_path = resolved_paths[i]
 
-            # Compute date_str for this artifact using the fallback order
-            artifact_date_str = fallback_date_str
-            if artifact.date is not None:
-                artifact_date_str = artifact.date
+            artifact_date_str = (
+                self._coerce_ww3_date(artifact.date) or fallback_date_str
+            )
 
             # Step 8: Detect restart files
             is_restart = False
@@ -419,7 +487,7 @@ class WW3TransferPostprocessor:
                 else:
                     target_name = src_path.name
             else:
-                if artifact_date_str is not None:
+                if naming_policy == "datestamp_all" and artifact_date_str is not None:
                     target_name = compute_target_name(
                         src_path, date_str=artifact_date_str
                     )
@@ -427,6 +495,9 @@ class WW3TransferPostprocessor:
                     target_name = src_path.name
 
             name_map[src_path] = target_name
+
+        for src_path, target_name in name_map.items():
+            logger.info("WW3 transfer target %s -> %s", src_path.name, target_name)
 
         # Step 9: Perform the transfers
         files = resolved_paths
@@ -436,6 +507,12 @@ class WW3TransferPostprocessor:
             destinations=destinations,
             name_map=name_map,
             policy=policy,
+        )
+
+        logger.info(
+            "WW3 transfer completed: %s succeeded, %s failed",
+            result.succeeded,
+            result.failed,
         )
 
         # Step 10: Build result - timing starts now

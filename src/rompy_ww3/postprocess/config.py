@@ -52,6 +52,13 @@ class WW3TransferConfig(BasePostprocessorConfig):
         "FAIL_FAST: stop on first error.",
     )
 
+    naming_policy: Literal["restart_only", "datestamp_all"] = Field(
+        "restart_only",
+        description="How transferred files are renamed. "
+        "restart_only: only restart files receive WW3-valid datestamps. "
+        "datestamp_all: apply datestamps to all files when a date source is available.",
+    )
+
     @field_validator("destinations")
     @classmethod
     def validate_destinations(cls, v):

@@ -17,6 +17,7 @@ def test_config_valid_minimal():
     assert config.destinations == ["file:///tmp/dest"]
     assert config.artifact_types is None
     assert config.failure_policy == "CONTINUE"
+    assert config.naming_policy == "restart_only"
 
 
 def test_config_valid_full():
@@ -25,12 +26,14 @@ def test_config_valid_full():
         destinations=["s3://bucket/prefix", "gs://bucket/prefix"],
         artifact_types=[ArtifactType.NETCDF, ArtifactType.RESTART],
         failure_policy="FAIL_FAST",
+        naming_policy="datestamp_all",
         timeout=7200,
         env_vars={"AWS_PROFILE": "default"},
     )
     assert config.destinations == ["s3://bucket/prefix", "gs://bucket/prefix"]
     assert config.artifact_types == [ArtifactType.NETCDF, ArtifactType.RESTART]
     assert config.failure_policy == "FAIL_FAST"
+    assert config.naming_policy == "datestamp_all"
     assert config.timeout == 7200
 
 

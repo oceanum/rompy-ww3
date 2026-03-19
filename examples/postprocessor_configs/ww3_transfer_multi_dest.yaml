@@ -2,8 +2,9 @@
 # This configuration demonstrates transferring WW3 outputs to multiple cloud
 # and local destinations with different output types.
 #
-# Usage:
-#   rompy postprocess --processor-config examples/postprocessor_configs/ww3_transfer_multi_dest.yaml
+# Usage (MODEL_CONFIG is your rompy model config YAML):
+#   rompy postprocess MODEL_CONFIG \
+#     --processor-config examples/postprocessor_configs/ww3_transfer_multi_dest.yaml
 #
 # Prerequisites:
 #   - For S3: AWS credentials configured (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)

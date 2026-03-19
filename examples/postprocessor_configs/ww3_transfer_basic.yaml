@@ -1,12 +1,15 @@
 # WW3 Transfer Postprocessor - Basic Example
-# This configuration file transfers WW3 restart files to a local backup directory.
+# This configuration file transfers WW3 outputs to a local backup directory.
+# By default, only restart files are renamed with WW3-valid datestamps.
 #
-# Usage:
-#   rompy postprocess --processor-config examples/postprocessor_configs/ww3_transfer_basic.yaml
+# Usage with an explicit run-result sidecar:
+#   rompy postprocess \
+#     --run-result simulations/glob3/run_result.json \
+#     --processor-config examples/postprocessor_configs/ww3_transfer_basic.yaml
 #
 # Or via Python:
 #   from rompy_ww3.postprocess import WW3TransferConfig
-#   config = WW3TransferConfig.parse_file("ww3_transfer_basic.yaml")
+#   config = WW3TransferConfig.model_validate(...)
 #   processor = config.get_postprocessor_class()()
 
 type: ww3_transfer
@@ -17,6 +20,9 @@ destinations:
 
 # Failure policy: continue on errors (log warnings but keep processing)
 failure_policy: CONTINUE
+
+# Naming policy: restart_only (default) or datestamp_all for legacy behavior
+naming_policy: restart_only
 
 # Optional: execution timeout in seconds (default: 3600)
 timeout: 3600

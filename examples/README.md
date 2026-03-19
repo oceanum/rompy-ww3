@@ -22,21 +22,25 @@ A complete `rompy` CLI-compatible example demonstrating how to transfer WW3 mode
 If you already have WW3 model outputs from a previous run:
 
 ```bash
-rompy postprocess examples/postprocess_transfer_example.yaml --processor ww3_transfer
+rompy postprocess examples/postprocess_transfer_example.yaml \
+  --processor-config examples/postprocessor_configs/ww3_transfer_multi_dest.yaml
 ```
 
 This will:
 - Load the model configuration
-- Discover WW3 output files (restart.ww3, field outputs, etc.)
+- Load `run_result.json` from the staging directory written by `rompy run`
 - Transfer them to configured destinations with datestamped filenames
 - Report transfer results
+
+Use `--run-result /path/to/run_result.json` to override the discovered sidecar
+location explicitly.
 
 #### 2. Run Full Pipeline
 
 To run the complete model workflow (generate → run → postprocess):
 
 ```bash
-rompy pipeline examples/postprocess_transfer_example.yaml --processor ww3_transfer
+rompy pipeline examples/postprocess_transfer_example.yaml
 ```
 
 This will:
@@ -185,7 +189,7 @@ If transfers fail:
 3. **Use verbose logging**:
    ```bash
    rompy postprocess examples/postprocess_transfer_example.yaml \
-     --processor ww3_transfer -vv
+      --processor-config examples/postprocessor_configs/ww3_transfer_multi_dest.yaml -vv
    ```
 
 4. **Change failure policy** to debug individual transfers:
