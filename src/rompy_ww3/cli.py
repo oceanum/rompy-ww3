@@ -1,15 +1,32 @@
 """Console script for rompy_ww3."""
 
-import typer
 from pathlib import Path
+from typing import List, Optional, cast
+
+import typer
 from rich.console import Console
 from rich.table import Table
+from rompy.core.responses import ArtifactType
 
+from .components.grid import Grid as GridComponent
 from .config import Config
-from .grid import Grid
+from .namelists.enums import GRID_TYPE
+from .namelists.grid import Grid as GridNamelist
+from .namelists.grid import Rect
+from .postprocess.lifecycle import run_transfer_postprocess
 
 app = typer.Typer()
 console = Console()
+
+
+def _parse_grid_type(value: str) -> GRID_TYPE:
+    for grid_type in GRID_TYPE:
+        if (
+            grid_type.name.lower() == value.lower()
+            or grid_type.value.lower() == value.lower()
+        ):
+            return grid_type
+    raise ValueError(f"Invalid grid type: {value}")
 
 
 @app.command()
@@ -26,17 +43,8 @@ def init(
 ):
     """Initialize a new WW3 model configuration."""
     console.print(f"Initializing WW3 model configuration in {output_dir}")
-
-    # Create a basic WW3 config
-    config = Config(
-        model_type="ww3",
-        template=str(Path(__file__).parent / "templates" / "base"),
-    )
-
-    # Save the config to the output directory
+    config = Config(template=str(Path(__file__).parent / "templates" / "base"))
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Write a basic configuration file
     config_file = output_dir / "config.json"
     with open(config_file, "w") as f:
         f.write(config.model_dump_json(indent=2))
@@ -62,12 +70,9 @@ def run(
         console.print(f"[red]✗[/red] Configuration file not found: {config_file}")
         raise typer.Exit(1)
 
-    # Load the WW3 configuration
     with open(config_file, "r") as f:
         config_data = f.read()
 
-    # In a real implementation, we would parse the config and execute the WW3 model
-    # For now, we'll just simulate the process
     config = Config.model_validate_json(config_data)
 
     console.print(
@@ -85,7 +90,6 @@ def run(
         )
     else:
         console.print("[green]✓[/green] WW3 simulation completed successfully")
-        # In a real implementation, we would actually run the model here
 
 
 @app.command()
@@ -106,23 +110,21 @@ def create_grid(
     """Create a WW3 grid configuration."""
     console.print(f"[blue]→[/blue] Creating WW3 grid configuration: {output_file}")
 
-    # Create a grid instance
-    grid = Grid(
-        model_type="ww3",
-        grid_type=grid_type,
-        nx=nx,
-        ny=ny,
-        x0=x0,
-        y0=y0,
-        x1=x1,
-        y1=y1,
+    parsed_grid_type = cast(GRID_TYPE, _parse_grid_type(grid_type))
+    grid = GridComponent(
+        grid=GridNamelist(type=parsed_grid_type),
+        rect=Rect(
+            nx=nx,
+            ny=ny,
+            x0=x0,
+            y0=y0,
+            sx=(x1 - x0) / max(nx - 1, 1),
+            sy=(y1 - y0) / max(ny - 1, 1),
+        ),
     )
 
-    # Generate and write the grid namelist files
     output_file.parent.mkdir(parents=True, exist_ok=True)
-
-    # Write the grid files
-    grid.write_grid_files(output_file.parent)
+    grid.write_nml(output_file.parent)
 
     console.print("[green]✓[/green] WW3 grid configuration created successfully")
     console.print(f"[green]✓[/green] Grid files written to: {output_file.parent}")
@@ -157,25 +159,25 @@ def validate_config(
         console.print(f"[red]✗[/red] Configuration file not found: {config_file}")
         raise typer.Exit(1)
 
-    # Load the WW3 configuration
     with open(config_file, "r") as f:
         config_data = f.read()
 
     try:
-        # Attempt to parse the configuration
         config = Config.model_validate_json(config_data)
+        domain = config.ww3_shel.domain if config.ww3_shel else None
+        grid = config.ww3_grid
+        timesteps = grid.timesteps if grid else None
 
-        # Validate the configuration
         issues = []
-        if config.domain is None:
+        if domain is None:
             issues.append("Missing domain configuration (required)")
-        elif config.domain.start is None or config.domain.stop is None:
+        elif domain.start is None or domain.stop is None:
             issues.append("Domain missing start or stop time")
 
-        if config.grid is None:
+        if grid is None:
             issues.append("Missing grid configuration")
 
-        if config.timesteps is None:
+        if timesteps is None:
             issues.append("Missing timesteps configuration (required)")
 
         if issues:
@@ -187,16 +189,103 @@ def validate_config(
         else:
             console.print("[green]✓[/green] Configuration is valid")
             console.print(f"[blue]→[/blue] Model type: {config.model_type}")
-            if config.domain:
+            if domain:
                 console.print(
-                    f"[blue]→[/blue] Model run: {config.domain.start} to {config.domain.stop}"
+                    f"[blue]→[/blue] Model run: {domain.start} to {domain.stop}"
                 )
-            if config.grid:
-                console.print(f"[blue]→[/blue] Grid type: {config.grid.grid_type}")
+            if grid and grid.grid:
+                console.print(f"[blue]→[/blue] Grid type: {grid.grid.type}")
 
     except Exception as e:
         console.print(f"[red]✗[/red] Configuration parsing failed: {str(e)}")
         raise typer.Exit(1)
+
+
+@app.command()
+def postprocess(
+    path: Path = typer.Argument(
+        ..., help="Path to an output directory or run_result.json file"
+    ),
+    destinations: List[str] = typer.Option(
+        ..., "--destination", "-d", help="Destination URI(s) to transfer outputs to"
+    ),
+    failure_policy: str = typer.Option(
+        "CONTINUE",
+        "--failure-policy",
+        "-p",
+        help="Failure policy: CONTINUE or FAIL_FAST",
+    ),
+    artifact_types: Optional[List[str]] = typer.Option(
+        None,
+        "--artifact-type",
+        "-a",
+        help="Optional artifact type filter (repeatable). Names from rompy.core.responses.ArtifactType",
+    ),
+):
+    p = Path(path)
+    if not p.exists():
+        console.print(f"[red]✗[/red] Persisted run not found: {p}")
+        raise typer.Exit(1)
+
+    normalized_failure_policy = failure_policy.upper()
+    if normalized_failure_policy not in {"CONTINUE", "FAIL_FAST"}:
+        console.print(f"[red]✗[/red] Unknown failure policy: {failure_policy}")
+        raise typer.Exit(1)
+
+    mapped_types = None
+    if artifact_types:
+        mapped = []
+        for at in artifact_types:
+            match = next(
+                (
+                    artifact_type
+                    for artifact_type in ArtifactType
+                    if artifact_type.name.lower() == at.lower()
+                    or str(artifact_type.value).lower() == at.lower()
+                ),
+                None,
+            )
+            if match is None:
+                console.print(f"[red]✗[/red] Unknown artifact type: {at}")
+                raise typer.Exit(1)
+            mapped.append(match)
+        mapped_types = mapped
+
+    try:
+        result = run_transfer_postprocess(
+            p,
+            destinations=destinations,
+            artifact_types=mapped_types,
+            failure_policy=normalized_failure_policy,
+        )
+    except FileNotFoundError as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]✗[/red] Postprocess failed: {e}")
+        raise typer.Exit(1)
+
+    meta = getattr(result, "metadata", {}) or {}
+    if meta.get("skipped"):
+        console.print(f"[yellow]→[/yellow] Skipped: transfer already completed for {p}")
+        raise typer.Exit(0)
+
+    if getattr(result, "success", False):
+        transferred = meta.get("transferred_count") or meta.get("transferred")
+        failed = meta.get("failed_count") or meta.get("failed")
+        console.print(
+            f"[green]✓[/green] Transfer completed: {getattr(result, 'message', '')}"
+        )
+        if transferred is not None:
+            console.print(f"[blue]→[/blue] Transferred: {transferred}")
+        if failed is not None:
+            console.print(f"[blue]→[/blue] Failed: {failed}")
+        raise typer.Exit(0)
+
+    console.print(
+        f"[red]✗[/red] Transfer failed: {getattr(result, 'message', 'unknown error')}"
+    )
+    raise typer.Exit(1)
 
 
 if __name__ == "__main__":
