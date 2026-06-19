@@ -48,7 +48,7 @@ class Ounp(WW3ComponentBaseModel):
             ),
             file_nml=PointFile(
                 prefix="ww3_points.",
-                netcdf=4
+                netcdf=4  # or 5 for NCZarr
             ),
             spectra_nml=Spectra(
                 output=1,

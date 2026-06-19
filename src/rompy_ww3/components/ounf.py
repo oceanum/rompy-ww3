@@ -25,7 +25,7 @@ class Ounf(WW3ComponentBaseModel):
     - **Field Output**: Configuration for field output generation
     - **Timing Control**: Control over field output timing (start, stride, stop)
     - **Field Selection**: Choice of which fields to output
-    - **Format Selection**: Choice of NetCDF format (version 3 or 4)
+    - **Format Selection**: Choice of NetCDF format (version 3, 4, or 5=NCZarr)
     - **File Management**: Field output file naming and organization
 
     Usage Examples:
@@ -43,7 +43,7 @@ class Ounf(WW3ComponentBaseModel):
             ),
             file=File(
                 prefix="ww3_field.",
-                netcdf=4
+                netcdf=4  # or 5 for NCZarr
             )
         )
 

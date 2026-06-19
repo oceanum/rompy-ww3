@@ -31,10 +31,11 @@ class File(NamelistBaseModel):
             "NetCDF version to use for output files:\n"
             "  3: NetCDF-3 format (classic)\n"
             "  4: NetCDF-4 format (with HDF5 features)\n"
+            "  5: NCZarr format (Zarr v2 directory store)\n"
             "This specifies the version of NetCDF format to use for the output files."
         ),
         ge=3,
-        le=4,
+        le=5,
     )
     ix0: Optional[int] = Field(
         default=1,
@@ -72,6 +73,26 @@ class File(NamelistBaseModel):
         ),
         ge=1,
     )
+    group: Optional[str] = Field(
+        default=None,
+        description=(
+            "Subgroup name for NCZarr output (NETCDF=5 only). "
+            "When set, variables are written to a named subgroup of the Zarr store "
+            "rather than the root group. Multiple runs with different GROUP values "
+            "can write separate forecasts into the same Zarr store. "
+            "Example: 'ens_001' for ensemble member 001."
+        ),
+    )
+    chunksizes: Optional[str] = Field(
+        default=None,
+        description=(
+            "Comma-separated chunk sizes for NCZarr output (NETCDF=5 only). "
+            "Controls the chunk shape of all output variables. "
+            "Chunk sizes are right-aligned to variable rank. "
+            "Example: '1,90,90' for 1 timestep, 90° lon, 90° lat per chunk. "
+            "Leave empty for default chunking (full dimension extents)."
+        ),
+    )
 
     def get_namelist_name(self) -> str:
         """Return the specific namelist name for FILE_NML."""
@@ -89,8 +110,8 @@ class File(NamelistBaseModel):
     @classmethod
     def validate_netcdf_version(cls, v):
         """Validate NetCDF version."""
-        if v is not None and v not in [3, 4]:
-            raise ValueError(f"NetCDF version must be 3 or 4, got {v}")
+        if v is not None and v not in [3, 4, 5]:
+            raise ValueError(f"NetCDF version must be 3, 4, or 5, got {v}")
         return v
 
     @field_validator("ixn")
