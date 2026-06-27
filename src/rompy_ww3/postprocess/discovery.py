@@ -100,27 +100,40 @@ def generate_manifest(
     start_date: Optional[str] = None,
     stop_date: Optional[str] = None,
     output_stride: Optional[int] = None,
-) -> List[Path]:
+    field_samefile: bool = True,
+    field_prefix: str = "ww3.",
+    field_timesplit: Optional[int] = None,
+    include_always_present: bool = True,
+) -> List[Artifact]:
     """Calculate manifest of WW3 output files based on timing configuration.
 
     Deterministically calculates which output files WW3 will create based on
     the configured output types and timing parameters. Does NOT scan filesystem.
 
     Args:
-        output_dir: Directory where WW3 output files will be located
+        output_dir: Directory where WW3 output files will be located.
         output_type_config: Dictionary with output type configuration
-        start_date: Simulation start date in 'YYYYMMDD HHMMSS' format
-        stop_date: Simulation stop date in 'YYYYMMDD HHMMSS' format
-        output_stride: Output stride in seconds
+            (keys: field, point, track, restart, ...).
+        start_date: Simulation start date in 'YYYYMMDD HHMMSS' format.
+        stop_date: Simulation stop date in 'YYYYMMDD HHMMSS' format.
+        output_stride: Restart output stride in seconds.
+        field_samefile: Whether field output uses single-file mode (True) or
+            split-file mode (False). Default True.
+        field_prefix: Prefix for field output filenames (e.g. ``"ww3."``).
+        field_timesplit: Time-splitting option for multi-file field output.
+            Ignored when field_samefile=True.
+        include_always_present: Whether to include always-present WW3 artifacts
+            (mod_def.ww3, log.ww3, namelist files, shell scripts). Default True.
 
     Returns:
-        List of Path objects for files that will be created
+        List of Artifact objects with relative paths and correct ArtifactType.
 
     Raises:
-        ValueError: If required timing parameters are missing for restart output
+        ValueError: If required timing parameters are missing for restart output.
     """
-    manifest: List[Path] = []
+    manifest: List[Artifact] = []
 
+    # --- Restart files ---
     if output_type_config.get("restart") is not None:
         if start_date is None or stop_date is None or output_stride is None:
             raise ValueError(
@@ -136,10 +149,112 @@ def generate_manifest(
         file_num = 1
 
         while current_dt <= stop_dt:
-            restart_file = output_dir / f"restart{file_num:03d}.ww3"
-            manifest.append(restart_file)
+            filename = f"restart{file_num:03d}.ww3"
+            manifest.append(
+                Artifact(
+                    path=filename,
+                    artifact_type=ArtifactType.RESTART,
+                )
+            )
             current_dt += stride_td
             file_num += 1
+
+    # --- Field output files ---
+    if output_type_config.get("field") is not None:
+        if start_date is not None:
+            # Derive YYYYMM suffix from start_date
+            try:
+                start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S")
+            except ValueError:
+                start_dt = datetime.strptime(start_date, "%Y%m%d")
+            date_suffix = start_dt.strftime("%Y%m")
+        else:
+            date_suffix = "000000"
+
+        if field_samefile:
+            # Single file: {prefix}YYYYMM.nc
+            filename = f"{field_prefix}{date_suffix}.nc"
+            manifest.append(
+                Artifact(
+                    path=filename,
+                    artifact_type=ArtifactType.NETCDF,
+                )
+            )
+        elif (
+            field_timesplit is not None
+            and start_date is not None
+            and stop_date is not None
+        ):
+            # Multi-file mode: split by timesplit interval
+            timesplit_map = {
+                4: ("yearly", "%Y"),
+                6: ("monthly", "%Y%m"),
+                8: ("daily", "%Y%m%d"),
+                10: ("hourly", "%Y%m%d%H"),
+            }
+            if field_timesplit not in timesplit_map:
+                # Fall back to single file
+                filename = f"{field_prefix}{date_suffix}.nc"
+                manifest.append(
+                    Artifact(
+                        path=filename,
+                        artifact_type=ArtifactType.NETCDF,
+                    )
+                )
+            else:
+                _, fmt = timesplit_map[field_timesplit]
+                start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S")
+                stop_dt = datetime.strptime(stop_date, "%Y%m%d %H%M%S")
+                delta_map = {
+                    4: timedelta(days=365),
+                    6: timedelta(days=31),
+                    8: timedelta(days=1),
+                    10: timedelta(hours=1),
+                }
+                step = delta_map[field_timesplit]
+                current = start_dt
+                while current <= stop_dt:
+                    date_suffix = current.strftime(fmt)
+                    filename = f"{field_prefix}{date_suffix}.nc"
+                    # Deduplicate
+                    if not any(a.path == filename for a in manifest):
+                        manifest.append(
+                            Artifact(
+                                path=filename,
+                                artifact_type=ArtifactType.NETCDF,
+                            )
+                        )
+                    current += step
+        else:
+            # No dates available, predict prefix only as a fallback
+            filename = f"{field_prefix}*.nc"
+            # Don't add wildcard patterns — skip
+
+    # --- Always-present artifacts ---
+    if include_always_present:
+        always_present = [
+            ("mod_def.ww3", ArtifactType.OTHER),
+            ("log.ww3", ArtifactType.TEXT),
+            ("ww3_grid.nml", ArtifactType.TEXT),
+            ("ww3_shel.nml", ArtifactType.TEXT),
+            ("ww3_ounf.nml", ArtifactType.TEXT),
+            ("namelists.nml", ArtifactType.TEXT),
+            ("full_ww3.sh", ArtifactType.TEXT),
+            ("preprocess_ww3.sh", ArtifactType.TEXT),
+            ("postprocess_ww3.sh", ArtifactType.TEXT),
+            ("run_ww3.sh", ArtifactType.TEXT),
+            ("ST4TABUHF2.bin", ArtifactType.OTHER),
+            ("mapsta.ww3", ArtifactType.OTHER),
+            ("mask.ww3", ArtifactType.OTHER),
+            ("out_grd.ww3", ArtifactType.OTHER),
+        ]
+        for filename, atype in always_present:
+            manifest.append(
+                Artifact(
+                    path=filename,
+                    artifact_type=atype,
+                )
+            )
 
     return manifest
 

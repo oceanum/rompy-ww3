@@ -485,6 +485,119 @@ echo "Workflow finished successfully."
             return "\n".join(lines)
         return None
 
+    def expected_artifacts(self) -> List["Artifact"]:
+        """Return the list of artifacts this multi-grid config expects to produce.
+
+        Generates a config-driven manifest using the Multi component's output
+        type and timing parameters plus global ounf/ounp settings.
+
+        Returns:
+            List[Artifact]: Expected artifacts with correct ArtifactType.
+        """
+        from rompy_ww3.postprocess.discovery import (
+            generate_manifest,
+            parse_output_type,
+        )
+
+        # Extract output_type configuration from the Multi component
+        output_type_config: Dict[str, Any] = {}
+        if self.multi and self.multi.output_type:
+            output_type_config = parse_output_type(self.multi.output_type)
+
+        # Extract domain timing (start/stop)
+        start_date: Optional[str] = None
+        stop_date: Optional[str] = None
+        if self.multi and self.multi.domain:
+            domain = self.multi.domain
+            if domain.start:
+                start_date = domain.start.strftime("%Y%m%d %H%M%S")
+            if domain.stop:
+                stop_date = domain.stop.strftime("%Y%m%d %H%M%S")
+
+        # Restart stride from output_date
+        output_stride: Optional[int] = None
+        if (
+            self.multi
+            and self.multi.output_date
+            and self.multi.output_date.restart
+            and self.multi.output_date.restart.stride is not None
+        ):
+            output_stride = self.multi.output_date.restart.stride
+
+        # If restart stride is set but output_type doesn't explicitly declare
+        # restart, treat it as active (WW3 convention)
+        if output_stride is not None and output_type_config.get("restart") is None:
+            output_type_config["restart"] = {}
+
+        # Field output configuration from global ounf
+        field_samefile: bool = True
+        field_prefix: str = "ww3."
+        field_timesplit: Optional[int] = None
+        if self.ounf:
+            if self.ounf.field and self.ounf.field.samefile is not None:
+                field_samefile = self.ounf.field.samefile
+            if self.ounf.field and self.ounf.field.timesplit is not None:
+                field_timesplit = self.ounf.field.timesplit
+            if self.ounf.file and self.ounf.file.prefix is not None:
+                field_prefix = self.ounf.file.prefix
+
+        output_dir = Path(".")
+
+        return generate_manifest(
+            output_dir=output_dir,
+            output_type_config=output_type_config,
+            start_date=start_date,
+            stop_date=stop_date,
+            output_stride=output_stride,
+            field_samefile=field_samefile,
+            field_prefix=field_prefix,
+            field_timesplit=field_timesplit,
+            include_always_present=True,
+        )
+
+    def validate_outputs(self, output_dir: Path | str) -> List["Artifact"]:
+        """Validate that expected artifacts exist in the output directory.
+
+        Generates the expected manifest from config via expected_artifacts(),
+        checks each expected file exists, warns for missing artifacts, and
+        returns the artifact list with filesystem metadata filled in.
+
+        Args:
+            output_dir: Directory to validate against.
+
+        Returns:
+            List[Artifact]: All expected artifacts with size_bytes filled
+            for those that exist on disk.
+        """
+        import warnings
+
+        output_dir = Path(output_dir)
+
+        # Get expected artifacts from config
+        expected = self.expected_artifacts()
+
+        validated: List["Artifact"] = []
+        for artifact in expected:
+            artifact_path = Path(artifact.path)
+            if not artifact_path.is_absolute():
+                artifact_path = output_dir / artifact_path
+
+            if artifact_path.exists() and artifact_path.is_file():
+                validated.append(
+                    artifact.model_copy(
+                        update={"size_bytes": artifact_path.stat().st_size}
+                    )
+                )
+            else:
+                warnings.warn(
+                    f"Expected artifact not found: {artifact.path}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                validated.append(artifact.model_copy())
+
+        return validated
+
     def infer_artifacts(
         self, files: List[Path], output_types: Dict[str, Any]
     ) -> List["Artifact"]:
@@ -823,13 +936,119 @@ class ShelConfig(BaseWW3Config):
     def expected_artifacts(self) -> List["Artifact"]:
         """Return the list of artifacts this config expects to produce.
 
-        Override in subclasses to declare expected output files. The base
-        implementation returns an empty list.
+        Generates a config-driven manifest using WW3 output type and timing
+        parameters. Calls generate_manifest() from the discovery module.
 
         Returns:
-            List[Artifact]: Expected artifacts (empty list in this implementation).
+            List[Artifact]: Expected artifacts with correct ArtifactType.
         """
-        return []
+        from rompy_ww3.postprocess.discovery import (
+            generate_manifest,
+            parse_output_type,
+        )
+
+        # Extract output_type configuration
+        output_type_config: Dict[str, Any] = {}
+        if self.ww3_shel and self.ww3_shel.output_type:
+            output_type_config = parse_output_type(self.ww3_shel.output_type)
+
+        # Extract domain timing (start/stop) — used for restart and field predictions
+        start_date: Optional[str] = None
+        stop_date: Optional[str] = None
+        if self.ww3_shel and self.ww3_shel.domain:
+            domain = self.ww3_shel.domain
+            if domain.start:
+                start_date = domain.start.strftime("%Y%m%d %H%M%S")
+            if domain.stop:
+                stop_date = domain.stop.strftime("%Y%m%d %H%M%S")
+
+        # Restart stride from output_date
+        output_stride: Optional[int] = None
+        if (
+            self.ww3_shel
+            and self.ww3_shel.output_date
+            and self.ww3_shel.output_date.restart
+            and self.ww3_shel.output_date.restart.stride is not None
+        ):
+            output_stride = self.ww3_shel.output_date.restart.stride
+
+        # If restart stride is set but output_type doesn't explicitly declare
+        # restart, treat it as active (WW3 convention: output_date.restart
+        # enables restart output even without an explicit output_type.restart)
+        if output_stride is not None and output_type_config.get("restart") is None:
+            output_type_config["restart"] = {}
+
+        # Field output configuration
+        field_samefile: bool = True
+        field_prefix: str = "ww3."
+        field_timesplit: Optional[int] = None
+        if self.ww3_ounf:
+            if self.ww3_ounf.field and self.ww3_ounf.field.samefile is not None:
+                field_samefile = self.ww3_ounf.field.samefile
+            if self.ww3_ounf.field and self.ww3_ounf.field.timesplit is not None:
+                field_timesplit = self.ww3_ounf.field.timesplit
+            if self.ww3_ounf.file and self.ww3_ounf.file.prefix is not None:
+                field_prefix = self.ww3_ounf.file.prefix
+
+        # Use a dummy output_dir — paths are relative, resolved later by validate_outputs
+        output_dir = Path(".")
+
+        return generate_manifest(
+            output_dir=output_dir,
+            output_type_config=output_type_config,
+            start_date=start_date,
+            stop_date=stop_date,
+            output_stride=output_stride,
+            field_samefile=field_samefile,
+            field_prefix=field_prefix,
+            field_timesplit=field_timesplit,
+            include_always_present=True,
+        )
+
+    def validate_outputs(self, output_dir: Path | str) -> List["Artifact"]:
+        """Validate that expected artifacts exist in the output directory.
+
+        Generates the expected manifest from config via expected_artifacts(),
+        checks each expected file exists, warns for missing artifacts, and
+        returns the artifact list with filesystem metadata filled in.
+
+        Args:
+            output_dir: Directory to validate against.
+
+        Returns:
+            List[Artifact]: All expected artifacts with size_bytes filled
+            for those that exist on disk.
+        """
+        import warnings
+
+        output_dir = Path(output_dir)
+
+        # Get expected artifacts from config
+        expected = self.expected_artifacts()
+
+        validated: List["Artifact"] = []
+        for artifact in expected:
+            artifact_path = Path(artifact.path)
+            # Resolve relative paths against output_dir
+            if not artifact_path.is_absolute():
+                artifact_path = output_dir / artifact_path
+
+            if artifact_path.exists() and artifact_path.is_file():
+                validated.append(
+                    artifact.model_copy(
+                        update={"size_bytes": artifact_path.stat().st_size}
+                    )
+                )
+            else:
+                warnings.warn(
+                    f"Expected artifact not found: {artifact.path}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                # Still include the artifact in results (without size)
+                validated.append(artifact.model_copy())
+
+        return validated
 
     def infer_artifacts(
         self, files: List[Path], output_types: Dict[str, Any]
