@@ -15,15 +15,15 @@ type: ww3_transfer
 
 # Multiple destinations: local backup + cloud archives
 destinations:
-  - "file:///local/ww3_backup/"           # Local filesystem backup
-  - "s3://my-bucket/ww3-outputs/"         # AWS S3 bucket
-  - "gs://my-gcs-bucket/model-runs/"      # Google Cloud Storage
-  - "az://my-container/ww3-data/"         # Azure Blob Storage
+    - "file:///tmp/ww3_backup/" # Local filesystem backup
+    # - "s3://my-bucket/ww3-outputs/"         # AWS S3 bucket
+    # - "gs://my-gcs-bucket/model-runs/"      # Google Cloud Storage
+    # - "az://my-container/ww3-data/"         # Azure Blob Storage
 
 # Only transfer restart and NetCDF output files
 artifact_types:
-  - restart
-  - netcdf
+    - restart
+    - netcdf
 
 # Failure policy: stop on first error (strict mode)
 failure_policy: FAIL_FAST
@@ -33,5 +33,5 @@ timeout: 7200
 
 # Environment variables: AWS profile selection
 env_vars:
-  AWS_PROFILE: "production"
-  AWS_REGION: "us-west-2"
+    AWS_PROFILE: "production"
+    AWS_REGION: "us-west-2"
