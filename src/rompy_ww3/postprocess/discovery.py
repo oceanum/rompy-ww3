@@ -282,10 +282,12 @@ def generate_manifest(
                 try:
                     parsed_start = datetime.strptime(
                         effective_start, "%Y%m%d %H%M%S"
-                    )
+                    ).replace(tzinfo=timezone.utc)
                 except ValueError:
-                    parsed_start = datetime.strptime(effective_start, "%Y%m%d")
-                suffix = parsed_start.replace(tzinfo=timezone.utc).strftime("%Y%m")
+                    parsed_start = datetime.strptime(
+                        effective_start, "%Y%m%d"
+                    ).replace(tzinfo=timezone.utc)
+                suffix = parsed_start.strftime("%Y%m")
             return [f"{prefix}{suffix}.nc"]
         formats = {4: "%Y", 6: "%Y%m", 8: "%Y%m%d", 10: "%Y%m%d%H"}
         deltas = {

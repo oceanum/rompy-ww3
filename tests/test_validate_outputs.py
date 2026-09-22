@@ -1,25 +1,26 @@
 """Tests for ShelConfig and MultiConfig validate_outputs / expected_artifacts."""
 
-import pytest
+from datetime import datetime, timezone
 from pathlib import Path
-from datetime import datetime
 
+import pytest
 from rompy.core.responses import ArtifactType
+
+from rompy_ww3.components.ounf import Ounf
+from rompy_ww3.components.shel import Shel
 from rompy_ww3.config import ShelConfig
+from rompy_ww3.namelists.domain import Domain
+from rompy_ww3.namelists.field import Field
+from rompy_ww3.namelists.output_date import (
+    OutputDate,
+    OutputDateRestart,
+)
+from rompy_ww3.namelists.output_file import File
 from rompy_ww3.namelists.output_type import (
     OutputType,
     OutputTypeField,
     OutputTypeRestart,
 )
-from rompy_ww3.namelists.output_date import (
-    OutputDate,
-    OutputDateRestart,
-)
-from rompy_ww3.namelists.domain import Domain
-from rompy_ww3.namelists.field import Field
-from rompy_ww3.namelists.output_file import File
-from rompy_ww3.components.shel import Shel
-from rompy_ww3.components.ounf import Ounf
 
 
 class TestShelConfigExpectedArtifacts:
@@ -30,8 +31,8 @@ class TestShelConfigExpectedArtifacts:
         config = ShelConfig(
             ww3_shel=Shel(
                 domain=Domain(
-                    start=datetime(2026, 6, 18, 0, 0),
-                    stop=datetime(2026, 6, 19, 0, 0),
+                    start=datetime(2026, 6, 18, 0, 0, tzinfo=timezone.utc).replace(tzinfo=None),
+                    stop=datetime(2026, 6, 19, 0, 0, tzinfo=timezone.utc).replace(tzinfo=None),
                 ),
                 output_type=OutputType(
                     field=OutputTypeField(list="DPT HS FP DIR SPR WND"),
@@ -79,8 +80,8 @@ class TestShelConfigExpectedArtifacts:
         config = ShelConfig(
             ww3_shel=Shel(
                 domain=Domain(
-                    start=datetime(2026, 6, 18),
-                    stop=datetime(2026, 6, 19),
+                    start=datetime(2026, 6, 18, tzinfo=timezone.utc).replace(tzinfo=None),
+                    stop=datetime(2026, 6, 19, tzinfo=timezone.utc).replace(tzinfo=None),
                 ),
                 output_type=OutputType(
                     field=OutputTypeField(list="HS"),
@@ -100,8 +101,8 @@ class TestShelConfigExpectedArtifacts:
         config = ShelConfig(
             ww3_shel=Shel(
                 domain=Domain(
-                    start=datetime(2026, 6, 18),
-                    stop=datetime(2026, 6, 19),
+                    start=datetime(2026, 6, 18, tzinfo=timezone.utc).replace(tzinfo=None),
+                    stop=datetime(2026, 6, 19, tzinfo=timezone.utc).replace(tzinfo=None),
                 ),
                 output_type=OutputType(
                     restart=OutputTypeRestart(extra="HS"),
@@ -152,8 +153,8 @@ class TestShelConfigValidateOutputs:
         config = ShelConfig(
             ww3_shel=Shel(
                 domain=Domain(
-                    start=datetime(2026, 6, 18),
-                    stop=datetime(2026, 6, 19),
+                    start=datetime(2026, 6, 18, tzinfo=timezone.utc).replace(tzinfo=None),
+                    stop=datetime(2026, 6, 19, tzinfo=timezone.utc).replace(tzinfo=None),
                 ),
                 output_type=OutputType(
                     restart=OutputTypeRestart(extra="HS"),
@@ -182,8 +183,8 @@ class TestShelConfigValidateOutputs:
         config = ShelConfig(
             ww3_shel=Shel(
                 domain=Domain(
-                    start=datetime(2026, 6, 18),
-                    stop=datetime(2026, 6, 19),
+                    start=datetime(2026, 6, 18, tzinfo=timezone.utc).replace(tzinfo=None),
+                    stop=datetime(2026, 6, 19, tzinfo=timezone.utc).replace(tzinfo=None),
                 ),
                 output_type=OutputType(
                     restart=OutputTypeRestart(extra="HS"),

@@ -1,6 +1,6 @@
 """Issue #15 expected/observed/missing artifact contract coverage."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -15,8 +15,6 @@ from rompy_ww3.namelists.domain import Domain
 from rompy_ww3.namelists.field import Field
 from rompy_ww3.namelists.output_date import OutputDate, OutputDateRestart
 from rompy_ww3.namelists.output_file import File
-from rompy_ww3.namelists.point import Point, PointFile
-from rompy_ww3.namelists.track import Track
 from rompy_ww3.namelists.output_type import (
     OutputType,
     OutputTypeField,
@@ -24,6 +22,8 @@ from rompy_ww3.namelists.output_type import (
     OutputTypeRestart,
     OutputTypeTrack,
 )
+from rompy_ww3.namelists.point import Point, PointFile
+from rompy_ww3.namelists.track import Track
 
 
 @pytest.mark.parametrize(
@@ -38,8 +38,8 @@ def test_shel_expected_observed_missing_matrix(tmp_path, samefile, timesplit, ex
     config = ShelConfig(
         ww3_shel=Shel(
             domain=Domain(
-                start=datetime(2023, 1, 1),
-                stop=datetime(2023, 1, 2),
+                start=datetime(2023, 1, 1, tzinfo=timezone.utc).replace(tzinfo=None),
+                stop=datetime(2023, 1, 2, tzinfo=timezone.utc).replace(tzinfo=None),
             ),
             output_type=OutputType(
                 field=OutputTypeField(list="HS"),
@@ -88,8 +88,8 @@ def test_shel_expected_point_track_and_restart_types():
     config = ShelConfig(
         ww3_shel=Shel(
             domain=Domain(
-                start=datetime(2023, 1, 1),
-                stop=datetime(2023, 1, 2),
+                start=datetime(2023, 1, 1, tzinfo=timezone.utc).replace(tzinfo=None),
+                stop=datetime(2023, 1, 2, tzinfo=timezone.utc).replace(tzinfo=None),
             ),
             output_type=OutputType(
                 point=OutputTypePoint(file="points.inp"),
@@ -173,8 +173,8 @@ def test_multiconfig_expected_and_observed_use_same_contract(tmp_path):
         multi=SimpleNamespace(
             output_type=output_type,
             domain=Domain(
-                start=datetime(2023, 1, 1),
-                stop=datetime(2023, 1, 2),
+                start=datetime(2023, 1, 1, tzinfo=timezone.utc).replace(tzinfo=None),
+                stop=datetime(2023, 1, 2, tzinfo=timezone.utc).replace(tzinfo=None),
             ),
             output_date=None,
         ),
