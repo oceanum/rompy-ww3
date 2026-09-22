@@ -29,6 +29,8 @@ from rompy_ww3.postprocess.lifecycle import run_transfer_postprocess
 from rompy_ww3.postprocess.persistence import (
     build_persisted,
     load_postprocess,
+    load_postprocess_state,
+    record_postprocess_state,
     write_persisted,
 )
 from rompy_ww3.postprocess.processor import WW3TransferPostprocessor
@@ -336,6 +338,279 @@ def test_cli_displays_canonical_failure_error_and_exits_nonzero(
     assert error in result.stdout
     assert "Transfer completed" not in result.stdout
     assert "Skipped" not in result.stdout
+
+
+def test_identical_replay_reuses_only_valid_prior_success(tmp_path, monkeypatch):
+    root = tmp_path / "run-replay"
+    root.mkdir()
+    (root / "field.txt").write_text("field")
+    destination = f"file://{tmp_path / 'destination-replay'}"
+    model_run = _run(root, [Artifact(path="field.txt", artifact_type=ArtifactType.TEXT)])
+    write_persisted(build_persisted(model_run), root)
+    first = run_transfer_postprocess(root, [destination])
+    assert isinstance(first, PostprocessSuccess)
+
+    calls = []
+    monkeypatch.setattr(
+        "rompy_ww3.postprocess.processor.TransferManager",
+        lambda: (_ for _ in ()).throw(AssertionError("replay transferred")),
+    )
+    second = run_transfer_postprocess(root, [destination])
+    assert isinstance(second, PostprocessSuccess)
+    assert second.metadata["transfer_identity"] == first.metadata["transfer_identity"]
+    assert second.metadata["transferred_count"] == 1
+    assert not calls
+
+
+def test_partial_retry_skips_audited_success_and_merges_evidence(tmp_path, monkeypatch):
+    root = tmp_path / "run-retry"
+    root.mkdir()
+    (root / "ok.txt").write_text("ok")
+    (root / "bad.txt").write_text("bad")
+    destination = "mock://destination"
+    attempts = [
+        TransferBatchResult(
+            total=2,
+            succeeded=1,
+            failed=1,
+            items=[
+                TransferItemResult(root / "ok.txt", destination, "ok.txt", destination + "/ok.txt", True),
+                TransferItemResult(root / "bad.txt", destination, "bad.txt", destination + "/bad.txt", False, "denied"),
+            ],
+        ),
+        TransferBatchResult(
+            total=1,
+            succeeded=1,
+            failed=0,
+            items=[
+                TransferItemResult(root / "bad.txt", destination, "bad.txt", destination + "/bad.txt", True),
+            ],
+        ),
+    ]
+    calls = []
+
+    class RetryManager:
+        def transfer_files(self, **kwargs):
+            calls.append(kwargs)
+            return attempts.pop(0)
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", RetryManager)
+    model_run = _run(
+        root,
+        [Artifact(path="ok.txt"), Artifact(path="bad.txt")],
+    )
+    write_persisted(build_persisted(model_run), root)
+    first = run_transfer_postprocess(root, [destination])
+    assert isinstance(first, PostprocessFailure)
+    second = run_transfer_postprocess(root, [destination])
+    assert isinstance(second, PostprocessSuccess)
+    assert len(calls) == 2
+    assert [path.name for path in calls[1]["files"]] == ["bad.txt"]
+    assert second.metadata["transferred_count"] == 2
+    assert len(second.metadata["transfer_records"]) == 2
+    assert len(second.metadata["retry_history"]) == 1
+
+
+def test_request_identity_covers_run_destination_policy_filter_required_remote_and_options(
+    tmp_path, monkeypatch
+):
+    root = tmp_path / "identity"
+    root.mkdir()
+    (root / "field.txt").write_text("field")
+    base = _run(
+        root,
+        [Artifact(path="field.txt", artifact_type=ArtifactType.TEXT)],
+    )
+
+    class IdentityManager:
+        def transfer_files(self, **kwargs):
+            items = [
+                TransferItemResult(
+                    source,
+                    destination,
+                    target,
+                    f"{destination}/{target}",
+                    True,
+                )
+                for source in kwargs["files"]
+                for destination in kwargs["destinations"]
+                for target in [kwargs["name_map"][source]]
+            ]
+            return TransferBatchResult(
+                total=len(items), succeeded=len(items), failed=0, items=items
+            )
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", IdentityManager)
+    processor = WW3TransferPostprocessor()
+    remote_a = RemoteArtifact(uri="s3://bucket/a", artifact_type=ArtifactType.TEXT)
+    remote_b = RemoteArtifact(uri="s3://bucket/b", artifact_type=ArtifactType.TEXT)
+    variants = [
+        (base, ["mock://a"], None, "restart_only", "expected_outputs_required", {}),
+        (base.model_copy(update={"run_id": "other"}), ["mock://a"], None, "restart_only", "expected_outputs_required", {}),
+        (base, ["mock://b"], None, "restart_only", "expected_outputs_required", {}),
+        (base, ["mock://a"], None, "datestamp_all", "expected_outputs_required", {}),
+        (base, ["mock://a"], [ArtifactType.NETCDF], "restart_only", "expected_outputs_required", {}),
+        (base, ["mock://a"], None, "restart_only", "optional", {}),
+        (base, ["mock://a"], None, "restart_only", "expected_outputs_required", {"compression": "gzip"}),
+        (base.model_copy(update={"artifacts": [remote_a]}), ["mock://a"], None, "restart_only", "expected_outputs_required", {}),
+        (base.model_copy(update={"artifacts": [remote_b]}), ["mock://a"], None, "restart_only", "expected_outputs_required", {}),
+    ]
+    identities = []
+    for run, destinations, filters, naming, required, options in variants:
+        result = processor.process(
+            run,
+            destinations=destinations,
+            artifact_types=filters,
+            naming_policy=naming,
+            required_policy=required,
+            **options,
+        )
+        identities.append(result.metadata["transfer_identity"])
+    assert len(set(identities)) == len(identities)
+    assert all("gzip" not in identity and "202" not in identity for identity in identities)
+    token_a = processor.process(base, ["mock://credentials?token=one"])
+    token_b = processor.process(base, ["mock://credentials?token=two"])
+    assert token_a.metadata["transfer_identity"] == token_b.metadata["transfer_identity"]
+
+
+def test_request_identity_changes_for_source_path_and_declared_size(tmp_path, monkeypatch):
+    root = tmp_path / "identity-source"
+    root.mkdir()
+    (root / "one.txt").write_text("one")
+    (root / "two.txt").write_text("one")
+
+    class IdentityManager:
+        def transfer_files(self, **kwargs):
+            items = [
+                TransferItemResult(
+                    source, destination, kwargs["name_map"][source],
+                    f"{destination}/{kwargs['name_map'][source]}", True
+                )
+                for source in kwargs["files"]
+                for destination in kwargs["destinations"]
+            ]
+            return TransferBatchResult(len(items), len(items), 0, items)
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", IdentityManager)
+    processor = WW3TransferPostprocessor()
+    first = processor.process(
+        _run(root, [Artifact(path="one.txt", size_bytes=3)]), ["mock://source"]
+    )
+    second = processor.process(
+        _run(root, [Artifact(path="two.txt", size_bytes=3)]), ["mock://source"]
+    )
+    third = processor.process(
+        _run(root, [Artifact(path="one.txt", size_bytes=99)]), ["mock://source"]
+    )
+    assert len({first.metadata["transfer_identity"], second.metadata["transfer_identity"], third.metadata["transfer_identity"]}) == 3
+
+
+def test_source_checksum_change_invalidates_replay_identity(tmp_path):
+    root = tmp_path / "run-checksum"
+    root.mkdir()
+    (root / "field.txt").write_text("before")
+    destination = f"file://{tmp_path / 'destination-checksum'}"
+    model_run = _run(root, [Artifact(path="field.txt", artifact_type=ArtifactType.TEXT)])
+    write_persisted(build_persisted(model_run), root)
+    first = run_transfer_postprocess(root, [destination])
+    assert isinstance(first, PostprocessSuccess)
+    (root / "field.txt").write_text("after")
+    second = run_transfer_postprocess(root, [destination])
+    assert isinstance(second, PostprocessSuccess)
+    assert second.metadata["transfer_identity"] != first.metadata["transfer_identity"]
+    assert (tmp_path / "destination-checksum" / "field.txt").read_text() == "after"
+
+
+def test_incomplete_or_malformed_state_never_reuses_success_sidecar(tmp_path, monkeypatch):
+    root = tmp_path / "run-state"
+    root.mkdir()
+    (root / "field.txt").write_text("field")
+    model_run = _run(root, [Artifact(path="field.txt", artifact_type=ArtifactType.TEXT)])
+    destination = f"file://{tmp_path / 'destination-state'}"
+    processor = WW3TransferPostprocessor()
+    first = processor.process(model_run, [destination])
+    assert isinstance(first, PostprocessSuccess)
+    record_postprocess_state(
+        root,
+        "transfer",
+        completed=False,
+        state={"identity": first.metadata["transfer_identity"]},
+    )
+    calls = []
+
+    class StateManager:
+        def transfer_files(self, **kwargs):
+            calls.append(kwargs)
+            return TransferBatchResult(
+                total=1,
+                succeeded=1,
+                failed=0,
+                items=[
+                    TransferItemResult(
+                        root / "field.txt", destination, "field.txt",
+                        destination + "/field.txt", True
+                    )
+                ],
+            )
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", StateManager)
+    retried = processor.process(model_run, [destination])
+    assert isinstance(retried, PostprocessSuccess)
+    assert calls
+    (root / "postprocess_state.json").write_text("not json")
+    retried_again = processor.process(model_run, [destination])
+    assert isinstance(retried_again, PostprocessSuccess)
+    assert len(calls) == 2
+
+
+def test_destination_disappearance_invalidates_recorded_success(tmp_path, monkeypatch):
+    root = tmp_path / "run-destination"
+    root.mkdir()
+    (root / "field.txt").write_text("field")
+    destination_root = tmp_path / "destination-disappears"
+    destination = f"file://{destination_root}"
+    model_run = _run(root, [Artifact(path="field.txt", artifact_type=ArtifactType.TEXT)])
+    processor = WW3TransferPostprocessor()
+    first = processor.process(model_run, [destination])
+    assert isinstance(first, PostprocessSuccess)
+    (destination_root / "field.txt").unlink()
+    calls = []
+
+    class DestinationManager:
+        def transfer_files(self, **kwargs):
+            calls.append(kwargs)
+            destination_root.mkdir(exist_ok=True)
+            (destination_root / "field.txt").write_text("field")
+            return TransferBatchResult(
+                1, 1, 0,
+                [TransferItemResult(root / "field.txt", destination, "field.txt", destination + "/field.txt", True)],
+            )
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", DestinationManager)
+    second = processor.process(model_run, [destination])
+    assert isinstance(second, PostprocessSuccess)
+    assert calls
+
+
+def test_atomic_state_updates_remain_valid_under_concurrent_writes(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    root = tmp_path / "run-atomic"
+    root.mkdir()
+
+    def write_state(index):
+        record_postprocess_state(
+            root,
+            "transfer",
+            completed=index % 2 == 0,
+            state={"identity": f"identity-{index}", "index": index},
+        )
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        list(executor.map(write_state, range(32)))
+    entry = load_postprocess_state(root)
+    assert entry is not None
+    assert isinstance(entry.get("state"), dict)
+    assert (root / "postprocess_state.json").read_text().endswith("\n")
 
 
 def test_cli_and_lifecycle_use_same_canonical_sidecar(tmp_path):

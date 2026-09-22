@@ -1,5 +1,9 @@
 """Tests for WW3 output file discovery module."""
 
+from pathlib import Path
+
+from rompy.core.responses import ArtifactType
+
 from rompy_ww3.namelists.output_type import (
     OutputType,
     OutputTypeCoupling,
@@ -13,8 +17,6 @@ from rompy_ww3.postprocess.discovery import (
     generate_manifest,
     parse_output_type,
 )
-from rompy.core.responses import ArtifactType
-from pathlib import Path
 
 
 def test_parse_output_type_with_field():
@@ -284,8 +286,8 @@ def test_generate_manifest_field_outputs_empty(tmp_path):
     assert result[0].artifact_type == ArtifactType.NETCDF
 
 
-def test_generate_manifest_point_outputs_empty(tmp_path):
-    """Test generate_manifest skips point output (not implemented for point yet)."""
+def test_generate_manifest_point_outputs(tmp_path):
+    """Test generate_manifest predicts deterministic point NetCDF output."""
     output_dir = tmp_path / "output"
     output_dir.mkdir()
 
@@ -301,12 +303,13 @@ def test_generate_manifest_point_outputs_empty(tmp_path):
         include_always_present=False,
     )
 
-    # Point output prediction not yet implemented — manifest empty
-    assert len(result) == 0
+    assert len(result) == 1
+    assert result[0].path == "points.202301.nc"
+    assert result[0].artifact_type == ArtifactType.NETCDF
 
 
-def test_generate_manifest_track_outputs_empty(tmp_path):
-    """Test generate_manifest skips track output (not implemented for track yet)."""
+def test_generate_manifest_track_outputs(tmp_path):
+    """Test generate_manifest predicts deterministic track NetCDF output."""
     output_dir = tmp_path / "output"
     output_dir.mkdir()
 
@@ -322,8 +325,9 @@ def test_generate_manifest_track_outputs_empty(tmp_path):
         include_always_present=False,
     )
 
-    # Track output prediction not yet implemented — manifest empty
-    assert len(result) == 0
+    assert len(result) == 1
+    assert result[0].path == "track.202301.nc"
+    assert result[0].artifact_type == ArtifactType.NETCDF
 
 
 def test_generate_manifest_always_present_no_duplicates():

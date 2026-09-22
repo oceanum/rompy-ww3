@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from rompy.core.responses import (
     Artifact,
@@ -22,7 +24,14 @@ from rompy.transfer import TransferFailurePolicy, TransferManager
 from rompy.transfer.manager import TransferBatchResult
 
 from rompy_ww3.postprocess.naming import compute_target_name
-from rompy_ww3.postprocess.persistence import persist_postprocess, require_model_run
+from rompy_ww3.postprocess.persistence import (
+    SCHEMA_VERSION,
+    load_postprocess,
+    load_postprocess_state,
+    persist_postprocess,
+    record_postprocess_state,
+    require_model_run,
+)
 
 logger = logging.getLogger(__name__)
 ModelRunPayload = ModelRunSuccess | ModelRunFailure
@@ -113,6 +122,196 @@ class WW3TransferPostprocessor:
     def _evidence(artifacts: list[Any]) -> list[dict[str, Any]]:
         return [artifact.model_dump(mode="json") for artifact in artifacts]
 
+    @staticmethod
+    def _destination_identity(destination: str) -> str:
+        """Normalize a destination without persisting mutable credentials."""
+        parsed = urlsplit(destination)
+        netloc = parsed.hostname or ""
+        if parsed.port is not None:
+            netloc = f"{netloc}:{parsed.port}"
+        query = [
+            (key, value)
+            for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+            if key.lower() not in {"token", "access_token", "secret", "password", "signature", "sig", "key"}
+        ]
+        return urlunsplit((parsed.scheme.lower(), netloc, parsed.path, urlencode(query), ""))
+
+    @staticmethod
+    def _artifact_type_identity(value: Any) -> str:
+        return getattr(value, "value", str(value))
+
+    @classmethod
+    def _identity_value(cls, value: Any, key: str = "") -> Any:
+        """Return JSON-safe request options with credential fields removed."""
+        if isinstance(value, dict):
+            return {
+                str(item_key): cls._identity_value(item_value, str(item_key))
+                for item_key, item_value in sorted(value.items(), key=lambda item: str(item[0]))
+                if str(item_key).lower() not in {
+                    "token", "access_token", "secret", "password", "signature", "sig", "key",
+                    "timestamp", "created_at", "updated_at", "at",
+                }
+            }
+        if isinstance(value, (list, tuple)):
+            return [cls._identity_value(item, key) for item in value]
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        return str(value)
+
+    def _request_identity(
+        self,
+        model_run: ModelRunPayload,
+        *,
+        local_artifacts: list[Artifact],
+        remote_artifacts: list[Any],
+        required_missing: list[Artifact],
+        destinations: list[str],
+        name_map: dict[Path, str],
+        source_checksums: dict[str, str],
+        artifact_types: list[ArtifactType] | None,
+        naming_policy: str,
+        failure_policy: str,
+        required_policy: str,
+        transfer_options: dict[str, Any],
+    ) -> str:
+        """Hash every input that can alter transfer work, excluding credentials."""
+        sources = []
+        workspace = Path(model_run.workspace_dir or model_run.output_dir or "").resolve()
+        for artifact in local_artifacts:
+            raw_path = Path(artifact.path)
+            source = raw_path if raw_path.is_absolute() else workspace / raw_path
+            try:
+                canonical_path = source.resolve().relative_to(workspace).as_posix()
+            except ValueError:
+                canonical_path = source.resolve().as_posix()
+            target_name = name_map.get(source)
+            if target_name is None:
+                fallback_path = (
+                    raw_path
+                    if raw_path.is_absolute()
+                    else Path(model_run.workspace_dir or model_run.output_dir or "")
+                    / raw_path
+                )
+                target_name = name_map[fallback_path]
+            sources.append(
+                {
+                    "path": canonical_path,
+                    "type": self._artifact_type_identity(artifact.artifact_type),
+                    "declared_size_bytes": artifact.size_bytes,
+                    "size_bytes": source.stat().st_size if source.is_file() else None,
+                    "checksum": source_checksums.get(artifact.path, ""),
+                    "target_name": target_name,
+                }
+            )
+        remotes = [
+            {
+                "uri": self._destination_identity(artifact.uri),
+                "type": self._artifact_type_identity(artifact.artifact_type),
+                "size_bytes": artifact.size_bytes,
+            }
+            for artifact in remote_artifacts
+        ]
+        payload = {
+            "schema_version": SCHEMA_VERSION,
+            "run_id": model_run.run_id,
+            "sources": sorted(sources, key=lambda item: item["path"]),
+            "remote_sources": sorted(remotes, key=lambda item: item["uri"]),
+            "required_missing": sorted(
+                [
+                    {
+                        "path": artifact.path,
+                        "type": self._artifact_type_identity(artifact.artifact_type),
+                    }
+                    for artifact in required_missing
+                ],
+                key=lambda item: item["path"],
+            ),
+            "destinations": sorted(self._destination_identity(item) for item in destinations),
+            "artifact_types": sorted(
+                self._artifact_type_identity(item) for item in artifact_types or []
+            ),
+            "required_policy": required_policy,
+            "naming_policy": naming_policy,
+            "failure_policy": failure_policy,
+            "transfer_options": self._identity_value(transfer_options),
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
+
+    @staticmethod
+    def _file_destination_path(record: dict[str, Any]) -> Path | None:
+        destination = str(record.get("destination", ""))
+        if not destination.startswith("file://"):
+            return None
+        parsed = urlsplit(destination)
+        return Path(parsed.path) / str(record.get("target_name", ""))
+
+    @classmethod
+    def _file_destination_exists(cls, record: dict[str, Any]) -> bool:
+        """Validate recorded local transfers when their destination is inspectable."""
+        path = cls._file_destination_path(record)
+        if path is None:
+            return True
+        return path.is_file()
+
+    def _record_valid(
+        self,
+        record: dict[str, Any],
+        *,
+        source: Path,
+        source_checksum: str,
+        destination: str,
+        target_name: str,
+    ) -> bool:
+        """Check one prior success against current source and destination evidence."""
+        destination_path = self._file_destination_path(record)
+        destination_valid = self._file_destination_exists(record)
+        if destination_path is not None and destination_valid:
+            recorded_checksum = record.get("destination_checksum")
+            recorded_size = record.get("destination_size_bytes")
+            destination_valid = (
+                (recorded_checksum is None or self._checksum(destination_path) == recorded_checksum)
+                and (recorded_size is None or destination_path.stat().st_size == recorded_size)
+            )
+        return (
+            record.get("path") == str(source)
+            and record.get("destination") == self._destination_identity(destination)
+            and record.get("target_name") == target_name
+            and record.get("source_checksum") == source_checksum
+            and bool(source_checksum)
+            and source.is_file()
+            and (
+                record.get("source_size_bytes") is None
+                or record.get("source_size_bytes") == source.stat().st_size
+            )
+            and destination_valid
+        )
+
+    def _persist_transfer_state(
+        self,
+        persistence_path: Path | None,
+        result: PostprocessResult,
+        metadata: dict[str, Any],
+    ) -> PostprocessResult:
+        """Persist identity and incomplete/success status outside core evidence."""
+        if persistence_path is None:
+            return result
+        try:
+            record_postprocess_state(
+                persistence_path,
+                "transfer",
+                completed=isinstance(result, PostprocessSuccess) and result.success,
+                state={
+                    "identity": metadata.get("transfer_identity"),
+                    "status": "success" if result.success else "failed",
+                    "transfer_records": metadata.get("transfer_records", []),
+                    "retry_history": metadata.get("retry_history", []),
+                },
+            )
+        except (OSError, ValueError) as exc:
+            logger.warning("Unable to persist WW3 transfer state: %s", exc)
+        return result
+
     def _result(
         self,
         model_run: ModelRunPayload,
@@ -157,10 +356,13 @@ class WW3TransferPostprocessor:
         # happened to transfer.  The primary run/transfer error is retained by
         # the core persistence adapter if writing the postprocess sidecar fails.
         if persistence_dir is not None or output_dir is not None:
-            return persist_postprocess(
+            persisted = persist_postprocess(
                 result,
                 persistence_dir or output_dir,  # type: ignore[arg-type]
                 primary_error=error,
+            )
+            return self._persist_transfer_state(
+                persistence_dir or output_dir, persisted, metadata
             )
         return result
 
@@ -172,10 +374,15 @@ class WW3TransferPostprocessor:
         failure_policy: str = "CONTINUE",
         naming_policy: str = "restart_only",
         persistence_dir: Path | str | None = None,
+        required_policy: str = "expected_outputs_required",
         **kwargs: Any,
     ) -> PostprocessResult:
         """Transfer local typed artifacts and persist the canonical result."""
-        del kwargs
+        transfer_options = dict(kwargs)
+        if required_policy not in {"expected_outputs_required", "optional"}:
+            raise ValueError(
+                "Invalid required_policy; expected 'expected_outputs_required' or 'optional'"
+            )
         model_run = require_model_run(model_run_result)
         persistence_path = Path(persistence_dir) if persistence_dir is not None else None
         if not destinations:
@@ -194,7 +401,10 @@ class WW3TransferPostprocessor:
         output_dir = Path(model_run.output_dir) if model_run.output_dir else None
         workspace_dir = Path(model_run.workspace_dir or model_run.output_dir or "")
         observed = self._evidence(model_run.artifacts)
-        remote = [item for item in observed if item.get("kind") == "remote"]
+        remote_artifacts = [
+            item for item in model_run.artifacts if item.kind == "remote"
+        ]
+        remote = self._evidence(remote_artifacts)
         local_artifacts = [
             artifact
             for artifact in model_run.artifacts
@@ -215,13 +425,16 @@ class WW3TransferPostprocessor:
             )
         selected_types = set(artifact_types) if artifact_types is not None else None
         observed_local_paths = {artifact.path for artifact in local_artifacts}
-        required_missing = [
+        missing_required = [
             artifact
             for artifact in model_run.expected_outputs
             if artifact.kind == "local"
             and artifact.path not in observed_local_paths
             and (selected_types is None or artifact.artifact_type in selected_types)
         ]
+        required_missing = (
+            missing_required if required_policy == "expected_outputs_required" else []
+        )
 
         metadata: dict[str, Any] = {
             "destinations": list(destinations),
@@ -237,14 +450,34 @@ class WW3TransferPostprocessor:
             "observed_artifacts": observed,
             "remote_observed_artifacts": remote,
             "skipped_artifacts": skipped_artifacts,
+            "missing_sources": self._evidence(missing_required),
             "missing_required_sources": self._evidence(required_missing),
             "required_missing_count": len(required_missing),
+            "required_policy": required_policy,
             "name_map": {},
             "source_checksums": {},
             "transferred_artifacts": [],
+            "transfer_records": [],
+            "retry_history": [],
+            "transfer_identity": None,
+            "reused_count": 0,
         }
         if isinstance(model_run.metadata.get("artifact_checksums"), dict):
             metadata["source_checksums"].update(model_run.metadata["artifact_checksums"])
+        metadata["transfer_identity"] = self._request_identity(
+            model_run,
+            local_artifacts=[],
+            remote_artifacts=remote_artifacts,
+            required_missing=missing_required,
+            destinations=destinations,
+            name_map={},
+            source_checksums={},
+            artifact_types=artifact_types,
+            naming_policy=naming_policy,
+            failure_policy=failure_policy,
+            required_policy=required_policy,
+            transfer_options=transfer_options,
+        )
 
         start_time = datetime.now(timezone.utc)
         if required_missing and not local_artifacts:
@@ -322,8 +555,7 @@ class WW3TransferPostprocessor:
             source = source if source.is_absolute() else workspace_dir / source
             resolved_paths.append(source)
             checksum = self._checksum(source)
-            if checksum:
-                source_checksums[artifact.path] = checksum
+            source_checksums[artifact.path] = checksum
             date = self._coerce_ww3_date(artifact.date) or fallback_date
             restart = artifact.artifact_type == ArtifactType.RESTART or (
                 source.name.startswith("restart") and source.name.endswith(".ww3")
@@ -344,23 +576,142 @@ class WW3TransferPostprocessor:
 
         metadata["name_map"] = {str(path): name for path, name in name_map.items()}
         metadata["source_checksums"] = source_checksums
+        metadata["transfer_identity"] = self._request_identity(
+            model_run,
+            local_artifacts=local_artifacts,
+            remote_artifacts=remote_artifacts,
+            required_missing=missing_required,
+            destinations=destinations,
+            name_map=name_map,
+            source_checksums=source_checksums,
+            artifact_types=artifact_types,
+            naming_policy=naming_policy,
+            failure_policy=failure_policy,
+            required_policy=required_policy,
+            transfer_options=transfer_options,
+        )
+
+        # Prior failures are retry evidence, never completion evidence.  A
+        # success can be reused only when every recorded destination can still
+        # be validated under the same deterministic identity.
+        prior = None
+        if persistence_path is not None:
+            try:
+                prior = load_postprocess(persistence_path)
+            except (FileNotFoundError, OSError, ValueError, TypeError):
+                prior = None
+        prior_metadata = getattr(prior, "metadata", {}) or {}
+        state_entry = load_postprocess_state(persistence_path) if persistence_path else None
+        state_identity = None
+        if state_entry is not None:
+            nested_state = state_entry.get("state")
+            state_identity = state_entry.get("identity")
+            if state_identity is None and isinstance(nested_state, dict):
+                state_identity = nested_state.get("identity")
+        identity_matches = (
+            prior is not None
+            and prior.run_id == model_run.run_id
+            and prior_metadata.get("transfer_identity") == metadata["transfer_identity"]
+        )
+        state_matches = (
+            state_entry is not None
+            and state_identity == metadata["transfer_identity"]
+        )
+        same_identity = identity_matches and state_matches
+        prior_records = (
+            list(prior_metadata.get("transfer_records", []))
+            if same_identity
+            and isinstance(prior_metadata.get("transfer_records", []), list)
+            else []
+        )
+        if same_identity and isinstance(prior_metadata.get("retry_history"), list):
+            metadata["retry_history"] = list(prior_metadata["retry_history"])
+
+        pair_records: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for record in prior_records:
+            if not isinstance(record, dict):
+                continue
+            for artifact, source in zip(local_artifacts, resolved_paths):
+                target = name_map[source]
+                for destination in destinations:
+                    key = (
+                        artifact.path,
+                        self._destination_identity(destination),
+                        target,
+                    )
+                    if self._record_valid(
+                        record,
+                        source=source,
+                        source_checksum=source_checksums.get(artifact.path, ""),
+                        destination=destination,
+                        target_name=target,
+                    ):
+                        pair_records[key] = record
+
+        all_pairs = [
+            (artifact, source, name_map[source], destination)
+            for artifact, source in zip(local_artifacts, resolved_paths)
+            for destination in destinations
+        ]
+        pending_pairs = [
+            pair
+            for pair in all_pairs
+            if (
+                pair[0].path,
+                self._destination_identity(pair[3]),
+                pair[2],
+            )
+            not in pair_records
+        ]
+        metadata["transfer_records"] = list(pair_records.values())
+        metadata["reused_count"] = len(pair_records)
+        metadata["skipped_count"] += len(pair_records)
+        metadata["requested_transfer_count"] = len(all_pairs)
+        metadata["requested_count"] = len(local_artifacts) + len(required_missing)
+
+        # A complete prior result is reusable only when every requested pair is
+        # still valid.  Failure sidecars and incomplete state never enter this
+        # branch.
+        if (
+            isinstance(prior, PostprocessSuccess)
+            and prior.success
+            and same_identity
+            and state_entry is not None
+            and state_entry.get("completed") is True
+            and len(pair_records) == len(all_pairs)
+            and not required_missing
+        ):
+            return prior
+
         primary_error: str | None = None
-        successful_paths: set[Path] = set()
+        successful_paths: set[Path] = {
+            source
+            for artifact, source, target, destination in all_pairs
+            if (
+                artifact.path,
+                self._destination_identity(destination),
+                target,
+            ) in pair_records
+        }
         try:
             manager = TransferManager()
-            if policy is TransferFailurePolicy.FAIL_FAST:
-                # The manager's batch FAIL_FAST raises and discards its partial
-                # result. Execute one observable CONTINUE batch per file/dest,
-                # stopping after the first failed item instead.
-                items = []
-                succeeded = 0
-                failed = 0
-                for source in resolved_paths:
-                    for destination in destinations:
+            if not pending_pairs:
+                batch = TransferBatchResult(total=0, succeeded=0, failed=0, items=[])
+            elif len(pending_pairs) == len(all_pairs):
+                # Preserve the manager's efficient batch path for a first
+                # attempt.  Retry paths are split into pairs below so an
+                # already successful destination is never duplicated.
+                if policy is TransferFailurePolicy.FAIL_FAST:
+                    # The manager's batch FAIL_FAST raises and discards its
+                    # partial result, so observe each item before stopping.
+                    items = []
+                    succeeded = 0
+                    failed = 0
+                    for artifact, source, target, destination in pending_pairs:
                         single = manager.transfer_files(
                             files=[source],
                             destinations=[destination],
-                            name_map={source: name_map[source]},
+                            name_map={source: target},
                             policy=TransferFailurePolicy.CONTINUE,
                         )
                         items.extend(single.items)
@@ -368,7 +719,34 @@ class WW3TransferPostprocessor:
                         failed += single.failed
                         if single.failed:
                             break
-                    if failed:
+                    batch = TransferBatchResult(
+                        total=succeeded + failed,
+                        succeeded=succeeded,
+                        failed=failed,
+                        items=items,
+                    )
+                else:
+                    batch = manager.transfer_files(
+                        files=resolved_paths,
+                        destinations=destinations,
+                        name_map=name_map,
+                        policy=policy,
+                    )
+            else:
+                items = []
+                succeeded = 0
+                failed = 0
+                for artifact, source, target, destination in pending_pairs:
+                    single = manager.transfer_files(
+                        files=[source],
+                        destinations=[destination],
+                        name_map={source: target},
+                        policy=TransferFailurePolicy.CONTINUE,
+                    )
+                    items.extend(single.items)
+                    succeeded += single.succeeded
+                    failed += single.failed
+                    if failed and policy is TransferFailurePolicy.FAIL_FAST:
                         break
                 batch = TransferBatchResult(
                     total=succeeded + failed,
@@ -376,18 +754,40 @@ class WW3TransferPostprocessor:
                     failed=failed,
                     items=items,
                 )
-            else:
-                batch = manager.transfer_files(
-                    files=resolved_paths,
-                    destinations=destinations,
-                    name_map=name_map,
-                    policy=policy,
-                )
-            metadata["transferred_count"] = int(batch.succeeded)
+            metadata["transferred_count"] = len(pair_records) + int(batch.succeeded)
             metadata["failed_count"] = int(batch.failed)
             for item in batch.items:
+                requested_destination = item.dest_prefix or next(
+                    (
+                        destination
+                        for artifact, source, target, destination in pending_pairs
+                        if source == item.local_path and target == item.target_name
+                    ),
+                    destinations[0],
+                )
                 if item.ok:
                     successful_paths.add(item.local_path)
+                    record = {
+                        "path": str(item.local_path),
+                        "destination": self._destination_identity(requested_destination),
+                        "target_name": item.target_name,
+                        "source_size_bytes": item.local_path.stat().st_size
+                        if item.local_path.is_file()
+                        else None,
+                        "source_checksum": source_checksums.get(
+                            next(
+                                (artifact.path for artifact, source, target, destination in pending_pairs if source == item.local_path),
+                                "",
+                            ),
+                            "",
+                        ),
+                        "dest_uri": item.dest_uri,
+                    }
+                    destination_path = self._file_destination_path(record)
+                    if destination_path is not None and destination_path.is_file():
+                        record["destination_size_bytes"] = destination_path.stat().st_size
+                        record["destination_checksum"] = self._checksum(destination_path)
+                    metadata["transfer_records"].append(record)
                 else:
                     metadata["transfer_failures"].append(
                         {
@@ -423,7 +823,11 @@ class WW3TransferPostprocessor:
             )
 
         transferred_artifacts = [
-            artifact
+            artifact.model_copy(
+                update={"size_bytes": source.stat().st_size}
+            )
+            if source.is_file()
+            else artifact
             for artifact, source in zip(local_artifacts, resolved_paths)
             if source in successful_paths
         ]
@@ -449,6 +853,15 @@ class WW3TransferPostprocessor:
             )
         if isinstance(model_run, ModelRunFailure) and primary_error is None:
             primary_error = f"Model run failed: {model_run.error}"
+        if primary_error is not None:
+            metadata["retry_history"].append(
+                {
+                    "identity": metadata["transfer_identity"],
+                    "error": primary_error,
+                    "failed_count": metadata["failed_count"],
+                    "transfer_failures": list(metadata["transfer_failures"]),
+                }
+            )
         if primary_error is None:
             return self._result(
                 model_run,

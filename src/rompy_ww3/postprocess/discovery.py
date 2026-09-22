@@ -104,6 +104,8 @@ def generate_manifest(
     field_samefile: bool = True,
     field_prefix: str = "ww3.",
     field_timesplit: int | None = None,
+    point_prefix: str = "points.",
+    track_prefix: str = "track.",
     include_always_present: bool = True,
 ) -> list[Artifact]:
     """Calculate manifest of WW3 output files based on timing configuration.
@@ -123,6 +125,8 @@ def generate_manifest(
         field_prefix: Prefix for field output filenames (e.g. ``"ww3."``).
         field_timesplit: Time-splitting option for multi-file field output.
             Ignored when field_samefile=True.
+        point_prefix: Prefix for deterministic point NetCDF output.
+        track_prefix: Prefix for deterministic track NetCDF output.
         include_always_present: Whether to include always-present WW3 artifacts
             (mod_def.ww3, log.ww3, namelist files, shell scripts). Default True.
 
@@ -243,6 +247,33 @@ def generate_manifest(
             filename = f"{field_prefix}*.nc"
             # Don't add wildcard patterns — skip
 
+    # --- Point and track NetCDF outputs ---
+    # ww3_ounp and ww3_trnc use one deterministic file for a run unless the
+    # namelist explicitly asks the executable to split it.  The prefix is kept
+    # as an input so callers can represent custom output names without scanning.
+    if "date_suffix" not in locals():
+        if start_date is not None:
+            try:
+                suffix = datetime.strptime(
+                    start_date, "%Y%m%d %H%M%S"
+                ).replace(tzinfo=timezone.utc).strftime("%Y%m")
+            except ValueError:
+                suffix = datetime.strptime(start_date, "%Y%m%d").replace(
+                    tzinfo=timezone.utc
+                ).strftime("%Y%m")
+        else:
+            suffix = "000000"
+    else:
+        suffix = date_suffix
+    if output_type_config.get("point") is not None:
+        manifest.append(
+            Artifact(path=f"{point_prefix}{suffix}.nc", artifact_type=ArtifactType.NETCDF)
+        )
+    if output_type_config.get("track") is not None:
+        manifest.append(
+            Artifact(path=f"{track_prefix}{suffix}.nc", artifact_type=ArtifactType.NETCDF)
+        )
+
     # --- Always-present artifacts ---
     if include_always_present:
         always_present = [
@@ -270,86 +301,3 @@ def generate_manifest(
             )
 
     return manifest
-
-
-def infer_artifacts_from_files(
-    files: list[Path], output_types: dict[str, Any], root: Path | str
-) -> list[Artifact]:
-    """Infer artifact types from files relative to an explicit workspace root.
-
-    This function determines the artifact type for each file based on its filename
-    and the configured output types. It follows WW3 naming conventions:
-    - restart* files are classified as OTHER
-    - ww3.*.nc files are NETCDF if 'field' is in output_types
-    - points.*.nc files are NETCDF if 'point' is in output_types
-    - track.*.nc files are NETCDF if 'track' is in output_types
-    - All other files are classified as OTHER
-
-    ``root`` is the canonical workspace/staging directory for the run. It must be
-    supplied by the caller; deriving a root from the observed files can silently
-    discard directory prefixes and turn colliding paths into the same artifact.
-    Files which resolve outside that root are skipped.
-
-    Args:
-        files: List of Path objects representing files to analyze.
-        output_types: Dict mapping output type names to their configurations.
-        root: Canonical workspace/staging root for relative artifact paths.
-
-    Returns:
-        List[Artifact]: List of artifacts with inferred types and sizes.
-    """
-    artifacts: list[Artifact] = []
-    resolved_root = Path(root).resolve()
-    for file_path in files:
-        file_path = Path(file_path)
-        resolved_file = file_path.resolve()
-        try:
-            relative_path = resolved_file.relative_to(resolved_root).as_posix()
-        except ValueError:
-            # Local artifacts must remain bounded by the declared workspace.
-            continue
-
-        # Determine artifact type from filename and configured output types
-        filename = file_path.name
-
-        if filename.startswith("restart"):
-            # Restart files
-            artifact_type = ArtifactType.OTHER
-        elif filename.startswith("ww3.") and filename.endswith(".nc"):
-            # Field output: ww3.*.nc
-            artifact_type = (
-                ArtifactType.NETCDF if "field" in output_types else ArtifactType.OTHER
-            )
-        elif filename.startswith("points.") and filename.endswith(".nc"):
-            # Point output: points.*.nc
-            artifact_type = (
-                ArtifactType.NETCDF if "point" in output_types else ArtifactType.OTHER
-            )
-        elif filename.startswith("track.") and filename.endswith(".nc"):
-            # Track output: track.*.nc
-            artifact_type = (
-                ArtifactType.NETCDF if "track" in output_types else ArtifactType.OTHER
-            )
-        else:
-            # Other files (e.g., spec.nc, arbitrary *.nc)
-            artifact_type = ArtifactType.OTHER
-
-        # Determine size if file exists; be resilient if it does not
-        try:
-            size_bytes = file_path.stat().st_size
-        except (OSError, FileNotFoundError):
-            size_bytes = None
-
-        artifacts.append(
-            Artifact(
-                # Canonical local artifact paths are relative to the run output.
-                # The inference API has no output-dir argument, so retain the
-                # staging-relative filename rather than emitting an invalid absolute path.
-                path=relative_path,
-                artifact_type=artifact_type,
-                size_bytes=size_bytes,
-                description=None,
-            )
-        )
-
-    return artifacts

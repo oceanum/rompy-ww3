@@ -533,6 +533,8 @@ echo "Workflow finished successfully."
         field_samefile: bool = True
         field_prefix: str = "ww3."
         field_timesplit: int | None = None
+        point_prefix: str = "points."
+        track_prefix: str = "track."
         if self.ounf:
             if self.ounf.field and self.ounf.field.samefile is not None:
                 field_samefile = self.ounf.field.samefile
@@ -552,6 +554,8 @@ echo "Workflow finished successfully."
             field_samefile=field_samefile,
             field_prefix=field_prefix,
             field_timesplit=field_timesplit,
+            point_prefix=point_prefix,
+            track_prefix=track_prefix,
             include_always_present=True,
         )
 
@@ -598,20 +602,6 @@ echo "Workflow finished successfully."
 
         return validated
 
-    def infer_artifacts(
-        self,
-        files: list[Path],
-        output_types: dict[str, Any],
-        root: Path | str,
-    ) -> list[Artifact]:
-        """Infer artifacts relative to the supplied workspace/staging root.
-
-        Files outside ``root`` are skipped by the discovery policy. The root is
-        explicit so nested paths and repeated basenames remain unambiguous.
-        """
-        from rompy_ww3.postprocess.discovery import infer_artifacts_from_files
-
-        return infer_artifacts_from_files(files, output_types, root)
 
 
 class BaseWW3Config(BaseConfig):
@@ -973,6 +963,8 @@ class ShelConfig(BaseWW3Config):
         field_samefile: bool = True
         field_prefix: str = "ww3."
         field_timesplit: int | None = None
+        point_prefix: str = "points."
+        track_prefix: str = "track."
         if self.ww3_ounf:
             if self.ww3_ounf.field and self.ww3_ounf.field.samefile is not None:
                 field_samefile = self.ww3_ounf.field.samefile
@@ -993,6 +985,8 @@ class ShelConfig(BaseWW3Config):
             field_samefile=field_samefile,
             field_prefix=field_prefix,
             field_timesplit=field_timesplit,
+            point_prefix=point_prefix,
+            track_prefix=track_prefix,
             include_always_present=True,
         )
 
@@ -1041,20 +1035,7 @@ class ShelConfig(BaseWW3Config):
 
         return validated
 
-    def infer_artifacts(
-        self,
-        files: list[Path],
-        output_types: dict[str, Any],
-        root: Path | str,
-    ) -> list[Artifact]:
-        """Infer artifacts relative to the supplied workspace/staging root.
 
-        Files outside ``root`` are skipped by the discovery policy. The root is
-        explicit so nested paths and repeated basenames remain unambiguous.
-        """
-        from rompy_ww3.postprocess.discovery import infer_artifacts_from_files
-
-        return infer_artifacts_from_files(files, output_types, root)
 
     def _set_default_dates(self, runtime):
         """Set default start and end dates from the runtime period if not already set in components."""

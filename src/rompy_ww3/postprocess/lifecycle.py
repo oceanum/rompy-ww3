@@ -20,6 +20,7 @@ def run_transfer_postprocess(
     destinations: list[str],
     artifact_types: list[Any] | None = None,
     failure_policy: str = "CONTINUE",
+    required_policy: str = "expected_outputs_required",
 ) -> PostprocessResult:
     """Run the WW3 transfer postprocess for a persisted run result.
 
@@ -51,6 +52,7 @@ def run_transfer_postprocess(
             destinations=destinations,
             artifact_types=artifact_types,
             failure_policy=failure_policy,
+            required_policy=required_policy,
             persistence_dir=p if p.is_dir() else p.parent,
         )
     )
