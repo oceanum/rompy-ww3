@@ -1,18 +1,22 @@
 """Issue #15 expected/observed/missing artifact contract coverage."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 from rompy.core.responses import Artifact, ArtifactType
 
 from rompy_ww3.components.ounf import Ounf
+from rompy_ww3.components.ounp import Ounp
 from rompy_ww3.components.shel import Shel
+from rompy_ww3.components.trnc import Trnc
 from rompy_ww3.config import MultiConfig, ShelConfig
 from rompy_ww3.namelists.domain import Domain
 from rompy_ww3.namelists.field import Field
 from rompy_ww3.namelists.output_date import OutputDate, OutputDateRestart
 from rompy_ww3.namelists.output_file import File
+from rompy_ww3.namelists.point import Point, PointFile
+from rompy_ww3.namelists.track import Track
 from rompy_ww3.namelists.output_type import (
     OutputType,
     OutputTypeField,
@@ -34,9 +38,10 @@ def test_shel_expected_observed_missing_matrix(tmp_path, samefile, timesplit, ex
     config = ShelConfig(
         ww3_shel=Shel(
             domain=Domain(
-                start=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                stop=datetime(2023, 1, 2, tzinfo=timezone.utc),
-            ),            output_type=OutputType(
+                start=datetime(2023, 1, 1),
+                stop=datetime(2023, 1, 2),
+            ),
+            output_type=OutputType(
                 field=OutputTypeField(list="HS"),
                 point=OutputTypePoint(file="points.inp"),
                 track=OutputTypeTrack(format=True),
@@ -46,6 +51,11 @@ def test_shel_expected_observed_missing_matrix(tmp_path, samefile, timesplit, ex
                 restart=OutputDateRestart(stride=43200),
             ),
         ),
+        ww3_ounp=Ounp(
+            point_nml=Point(timesplit=8, samefile=False),
+            file_nml=PointFile(prefix="custom-points."),
+        ),
+        ww3_track=Trnc(track=Track(timesplit=8)),
     )
     # The configured field prefix is nested and remains staging-relative.
     config.ww3_ounf = Ounf(
@@ -54,6 +64,8 @@ def test_shel_expected_observed_missing_matrix(tmp_path, samefile, timesplit, ex
     )
     expected_artifacts = config.expected_artifacts()
     assert expected in {artifact.path for artifact in expected_artifacts}
+    assert "custom-points.20230101.nc" in {a.path for a in expected_artifacts}
+    assert "track.20230101.nc" in {a.path for a in expected_artifacts}
     assert any(a.artifact_type is ArtifactType.NETCDF for a in expected_artifacts)
     assert any(a.artifact_type is ArtifactType.RESTART for a in expected_artifacts)
     assert any(a.artifact_type is ArtifactType.TEXT for a in expected_artifacts)
@@ -67,8 +79,8 @@ def test_shel_expected_observed_missing_matrix(tmp_path, samefile, timesplit, ex
         observed = config.validate_outputs(tmp_path)
     observed_by_path = {artifact.path: artifact for artifact in observed}
     assert observed_by_path[expected].size_bytes == 5
-    assert observed_by_path["log.ww3"].size_bytes == 3
-    assert observed_by_path["mod_def.ww3"].size_bytes is None
+    assert "log.ww3" not in observed_by_path
+    assert "mod_def.ww3" not in observed_by_path
     assert all(not Path(artifact.path).is_absolute() for artifact in observed)
 
 
@@ -76,8 +88,8 @@ def test_shel_expected_point_track_and_restart_types():
     config = ShelConfig(
         ww3_shel=Shel(
             domain=Domain(
-                start=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                stop=datetime(2023, 1, 2, tzinfo=timezone.utc),
+                start=datetime(2023, 1, 1),
+                stop=datetime(2023, 1, 2),
             ),
             output_type=OutputType(
                 point=OutputTypePoint(file="points.inp"),
@@ -85,13 +97,29 @@ def test_shel_expected_point_track_and_restart_types():
                 restart=OutputTypeRestart(extra="HS"),
             ),
             output_date=OutputDate(restart=OutputDateRestart(stride=43200)),
-        )
+        ),
+        ww3_ounp=Ounp(point_nml=Point(samefile=True)),
+        ww3_track=Trnc(track=Track(timesplit=6)),
     )
     artifacts = config.expected_artifacts()
     paths = {artifact.path: artifact.artifact_type for artifact in artifacts}
     assert paths["points.202301.nc"] is ArtifactType.NETCDF
     assert paths["track.202301.nc"] is ArtifactType.NETCDF
     assert paths["restart001.ww3"] is ArtifactType.RESTART
+
+
+def test_shel_expected_controls_match_actual_generation(tmp_path):
+    from types import SimpleNamespace
+
+    config = ShelConfig(ww3_shel=Shel())
+    runtime = SimpleNamespace(staging_dir=tmp_path, period=None)
+    config(runtime)
+    expected_paths = {artifact.path for artifact in config.expected_artifacts()}
+    generated_paths = {path.name for path in tmp_path.iterdir() if path.is_file()}
+    assert expected_paths <= generated_paths
+    assert "ww3_shel.nml" in expected_paths
+    assert "ww3_grid.nml" not in expected_paths
+    assert "ww3_ounp.nml" not in expected_paths
 
 
 def test_validate_outputs_preserves_yaml_text_and_missing_evidence(tmp_path, monkeypatch):
@@ -145,8 +173,8 @@ def test_multiconfig_expected_and_observed_use_same_contract(tmp_path):
         multi=SimpleNamespace(
             output_type=output_type,
             domain=Domain(
-                start=datetime(2023, 1, 1, tzinfo=timezone.utc),
-                stop=datetime(2023, 1, 2, tzinfo=timezone.utc),
+                start=datetime(2023, 1, 1),
+                stop=datetime(2023, 1, 2),
             ),
             output_date=None,
         ),
@@ -160,7 +188,7 @@ def test_multiconfig_expected_and_observed_use_same_contract(tmp_path):
         observed = config.validate_outputs(tmp_path)
     by_path = {artifact.path: artifact for artifact in observed}
     assert by_path["ww3.202301.nc"].size_bytes == 2
-    assert by_path["mod_def.ww3"].size_bytes is None
+    assert "mod_def.ww3" not in by_path
 
 
 def test_legacy_inference_surface_and_callers_are_absent():

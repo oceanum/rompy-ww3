@@ -68,10 +68,11 @@ class TestShelConfigExpectedArtifacts:
         assert len(field_artifacts) == 1
         assert field_artifacts[0].path == "ww3.202606.nc"
 
-        # Check always-present
+        # Check configured controls/scripts only
         paths = {a.path for a in artifacts}
-        assert "mod_def.ww3" in paths
-        assert "log.ww3" in paths
+        assert "ww3_shel.nml" in paths
+        assert "mod_def.ww3" not in paths
+        assert "log.ww3" not in paths
 
     def test_no_restart_when_not_configured(self):
         """No restart artifacts when output_type.restart is None."""
@@ -124,9 +125,15 @@ class TestShelConfigExpectedArtifacts:
 
         artifacts = config.expected_artifacts()
 
-        # Should have always-present files but no restart/field
+        # A bare config expects only the scripts it generates; no absent
+        # component control is treated as required evidence.
         paths = {a.path for a in artifacts}
-        assert "mod_def.ww3" in paths
+        assert paths == {
+            "full_ww3.sh",
+            "preprocess_ww3.sh",
+            "postprocess_ww3.sh",
+            "run_ww3.sh",
+        }
         assert all(a.artifact_type != ArtifactType.RESTART for a in artifacts)
         assert all(a.artifact_type != ArtifactType.NETCDF for a in artifacts)
 

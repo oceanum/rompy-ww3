@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -129,11 +130,23 @@ class WW3TransferPostprocessor:
         netloc = parsed.hostname or ""
         if parsed.port is not None:
             netloc = f"{netloc}:{parsed.port}"
-        query = [
-            (key, value)
-            for key, value in parse_qsl(parsed.query, keep_blank_values=True)
-            if key.lower() not in {"token", "access_token", "secret", "password", "signature", "sig", "key"}
-        ]
+        query = sorted(
+            (
+                (key, value)
+                for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+                if key.lower()
+                not in {
+                    "token",
+                    "access_token",
+                    "secret",
+                    "password",
+                    "signature",
+                    "sig",
+                    "key",
+                }
+            ),
+            key=lambda item: (item[0], item[1]),
+        )
         return urlunsplit((parsed.scheme.lower(), netloc, parsed.path, urlencode(query), ""))
 
     @staticmethod
@@ -366,7 +379,49 @@ class WW3TransferPostprocessor:
             )
         return result
 
+    @staticmethod
+    @contextmanager
+    def _operation_lock(path_or_dir: Path):
+        """Serialize one run's read/transfer/write lifecycle with flock."""
+        import fcntl
+
+        root = path_or_dir if path_or_dir.is_dir() else path_or_dir.parent
+        root.mkdir(parents=True, exist_ok=True)
+        lock_path = root / ".postprocess-operation.lock"
+        with lock_path.open("a+") as stream:
+            fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
     def process(
+        self,
+        model_run_result: ModelRunSuccess | ModelRunFailure,
+        destinations: list[str],
+        artifact_types: list[ArtifactType] | None = None,
+        failure_policy: str = "CONTINUE",
+        naming_policy: str = "restart_only",
+        persistence_dir: Path | str | None = None,
+        required_policy: str = "expected_outputs_required",
+        **kwargs: Any,
+    ) -> PostprocessResult:
+        """Serialize a public transfer request for safe replay/retry."""
+        model_run = require_model_run(model_run_result)
+        lock_root = Path(persistence_dir or model_run.output_dir or model_run.workspace_dir or ".")
+        with self._operation_lock(lock_root):
+            return self._process_unlocked(
+                model_run,
+                destinations,
+                artifact_types=artifact_types,
+                failure_policy=failure_policy,
+                naming_policy=naming_policy,
+                persistence_dir=persistence_dir,
+                required_policy=required_policy,
+                **kwargs,
+            )
+
+    def _process_unlocked(
         self,
         model_run_result: ModelRunSuccess | ModelRunFailure,
         destinations: list[str],
@@ -384,7 +439,11 @@ class WW3TransferPostprocessor:
                 "Invalid required_policy; expected 'expected_outputs_required' or 'optional'"
             )
         model_run = require_model_run(model_run_result)
-        persistence_path = Path(persistence_dir) if persistence_dir is not None else None
+        persistence_path = (
+            Path(persistence_dir)
+            if persistence_dir is not None
+            else (Path(model_run.output_dir) if model_run.output_dir else None)
+        )
         if not destinations:
             raise ValueError("destinations must be a non-empty list of strings")
         if any(not isinstance(destination, str) or not destination for destination in destinations):
@@ -851,8 +910,14 @@ class WW3TransferPostprocessor:
                 if primary_error is not None
                 else required_error
             )
-        if isinstance(model_run, ModelRunFailure) and primary_error is None:
-            primary_error = f"Model run failed: {model_run.error}"
+        if isinstance(model_run, ModelRunFailure):
+            model_error = f"Model run failed: {model_run.error}"
+            if primary_error is not None:
+                metadata["transfer_diagnostic"] = {
+                    "error": primary_error,
+                    "failures": list(metadata["transfer_failures"]),
+                }
+            primary_error = model_error
         if primary_error is not None:
             metadata["retry_history"].append(
                 {

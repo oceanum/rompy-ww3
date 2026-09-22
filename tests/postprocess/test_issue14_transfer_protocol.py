@@ -6,6 +6,8 @@ import json
 import os
 import subprocess
 import sys
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -505,6 +507,87 @@ def test_request_identity_changes_for_source_path_and_declared_size(tmp_path, mo
     assert len({first.metadata["transfer_identity"], second.metadata["transfer_identity"], third.metadata["transfer_identity"]}) == 3
 
 
+def test_destination_query_order_is_canonical_and_credentials_are_excluded():
+    processor = WW3TransferPostprocessor()
+    first = processor._destination_identity(
+        "s3://bucket/path?z=2&a=1&a=0&token=first"
+    )
+    second = processor._destination_identity(
+        "s3://bucket/path?a=0&token=second&a=1&z=2"
+    )
+    assert first == second
+    assert "token" not in first
+    assert processor._destination_identity("s3://bucket/path?a=1") != first
+
+
+def test_model_failure_remains_primary_with_transfer_failure_diagnostic(tmp_path, monkeypatch):
+    root = tmp_path / "run-model-failure"
+    root.mkdir()
+    (root / "bad.txt").write_text("bad")
+    destination = "mock://destination"
+    _fake_batch(
+        monkeypatch,
+        TransferBatchResult(
+            1,
+            0,
+            1,
+            [TransferItemResult(root / "bad.txt", destination, "bad.txt", destination + "/bad.txt", False, "denied")],
+        ),
+    )
+    result = WW3TransferPostprocessor().process(
+        _run(root, [Artifact(path="bad.txt")], success=False), [destination]
+    )
+    assert isinstance(result, PostprocessFailure)
+    assert result.error == "Model run failed: model failed"
+    assert result.metadata["transfer_diagnostic"]["failures"][0]["error"] == "denied"
+    assert result.metadata["retry_history"][0]["error"] == result.error
+
+
+def test_concurrent_public_replay_transfers_each_pair_once(tmp_path, monkeypatch):
+    root = tmp_path / "run-concurrent"
+    root.mkdir()
+    (root / "field.txt").write_text("field")
+    destination = "mock://destination"
+    model_run = _run(root, [Artifact(path="field.txt")])
+    write_persisted(build_persisted(model_run), root)
+    calls = []
+    calls_lock = threading.Lock()
+
+    class SlowManager:
+        def transfer_files(self, **kwargs):
+            with calls_lock:
+                calls.append(kwargs)
+            time.sleep(0.1)
+            source = kwargs["files"][0]
+            target = kwargs["name_map"][source]
+            return TransferBatchResult(
+                1,
+                1,
+                0,
+                [TransferItemResult(source, destination, target, destination + "/" + target, True)],
+            )
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", SlowManager)
+    results = []
+    barrier = threading.Barrier(2)
+
+    def invoke():
+        barrier.wait()
+        results.append(run_transfer_postprocess(root, [destination]))
+
+    threads = [threading.Thread(target=invoke) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert len(calls) == 1
+    assert len(results) == 2
+    assert all(isinstance(result, PostprocessSuccess) for result in results)
+    state = json.loads((root / "postprocess_state.json").read_text())
+    assert state["steps"]["transfer"]["completed"] is True
+    assert isinstance(load_postprocess(root), PostprocessSuccess)
+
+
 def test_source_checksum_change_invalidates_replay_identity(tmp_path):
     root = tmp_path / "run-checksum"
     root.mkdir()
@@ -530,17 +613,14 @@ def test_incomplete_or_malformed_state_never_reuses_success_sidecar(tmp_path, mo
     processor = WW3TransferPostprocessor()
     first = processor.process(model_run, [destination])
     assert isinstance(first, PostprocessSuccess)
-    record_postprocess_state(
-        root,
-        "transfer",
-        completed=False,
-        state={"identity": first.metadata["transfer_identity"]},
-    )
     calls = []
 
     class StateManager:
         def transfer_files(self, **kwargs):
             calls.append(kwargs)
+            destination_path = Path(destination.removeprefix("file://"))
+            destination_path.mkdir(parents=True, exist_ok=True)
+            (destination_path / "field.txt").write_text("field")
             return TransferBatchResult(
                 total=1,
                 succeeded=1,
@@ -554,13 +634,37 @@ def test_incomplete_or_malformed_state_never_reuses_success_sidecar(tmp_path, mo
             )
 
     monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", StateManager)
-    retried = processor.process(model_run, [destination])
-    assert isinstance(retried, PostprocessSuccess)
-    assert calls
     (root / "postprocess_state.json").write_text("not json")
     retried_again = processor.process(model_run, [destination])
     assert isinstance(retried_again, PostprocessSuccess)
-    assert len(calls) == 2
+    assert len(calls) == 1
+    recovered_state = load_postprocess_state(root)
+    assert recovered_state is not None
+    assert recovered_state.get("completed") is True
+    assert recovered_state.get("identity") == retried_again.metadata["transfer_identity"]
+    assert len(retried_again.metadata["transfer_records"]) == 1
+    record = retried_again.metadata["transfer_records"][0]
+    assert record["destination"] == destination
+    assert processor._record_valid(
+        record,
+        source=root / "field.txt",
+        source_checksum=retried_again.metadata["source_checksums"]["field.txt"],
+        destination=destination,
+        target_name="field.txt",
+    )
+    loaded_retry = load_postprocess(root)
+    assert len(loaded_retry.metadata["transfer_records"]) == 1
+    assert loaded_retry.metadata["transfer_identity"] == recovered_state.get("identity")
+    assert processor._record_valid(
+        loaded_retry.metadata["transfer_records"][0],
+        source=root / "field.txt",
+        source_checksum=loaded_retry.metadata["source_checksums"]["field.txt"],
+        destination=destination,
+        target_name="field.txt",
+    )
+    replay = processor.process(model_run, [destination])
+    assert isinstance(replay, PostprocessSuccess)
+    assert len(calls) == 1
 
 
 def test_destination_disappearance_invalidates_recorded_success(tmp_path, monkeypatch):

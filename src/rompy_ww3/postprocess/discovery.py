@@ -106,6 +106,14 @@ def generate_manifest(
     field_timesplit: int | None = None,
     point_prefix: str = "points.",
     track_prefix: str = "track.",
+    point_samefile: bool = True,
+    point_timesplit: int | None = None,
+    point_start_date: str | None = None,
+    point_stop_date: str | None = None,
+    track_timesplit: int | None = None,
+    track_start_date: str | None = None,
+    track_stop_date: str | None = None,
+    always_present: list[tuple[str, ArtifactType]] | None = None,
     include_always_present: bool = True,
 ) -> list[Artifact]:
     """Calculate manifest of WW3 output files based on timing configuration.
@@ -127,6 +135,14 @@ def generate_manifest(
             Ignored when field_samefile=True.
         point_prefix: Prefix for deterministic point NetCDF output.
         track_prefix: Prefix for deterministic track NetCDF output.
+        point_samefile: Whether point output uses one file.
+        point_timesplit: Point split code (4/6/8/10) when split.
+        point_start_date: Point output start date, falling back to ``start_date``.
+        point_stop_date: Point output stop date, falling back to ``stop_date``.
+        track_timesplit: Track split code (4/6/8/10) when split.
+        track_start_date: Track output start date, falling back to ``start_date``.
+        track_stop_date: Track output stop date, falling back to ``stop_date``.
+        always_present: Explicit component-generated always-present artifacts.
         include_always_present: Whether to include always-present WW3 artifacts
             (mod_def.ww3, log.ww3, namelist files, shell scripts). Default True.
 
@@ -247,51 +263,96 @@ def generate_manifest(
             filename = f"{field_prefix}*.nc"
             # Don't add wildcard patterns — skip
 
+    def split_output_names(
+        prefix: str,
+        samefile: bool,
+        timesplit: int | None,
+        split_start: str | None,
+        split_stop: str | None,
+        fallback_start: str | None,
+        fallback_stop: str | None,
+    ) -> list[str]:
+        """Return one or deterministic split-period output names."""
+        effective_start = split_start or fallback_start
+        effective_stop = split_stop or fallback_stop
+        if samefile or timesplit is None or timesplit == 0 or not effective_start:
+            if effective_start is None:
+                suffix = "000000"
+            else:
+                try:
+                    parsed_start = datetime.strptime(
+                        effective_start, "%Y%m%d %H%M%S"
+                    )
+                except ValueError:
+                    parsed_start = datetime.strptime(effective_start, "%Y%m%d")
+                suffix = parsed_start.replace(tzinfo=timezone.utc).strftime("%Y%m")
+            return [f"{prefix}{suffix}.nc"]
+        formats = {4: "%Y", 6: "%Y%m", 8: "%Y%m%d", 10: "%Y%m%d%H"}
+        deltas = {
+            4: timedelta(days=365),
+            6: timedelta(days=31),
+            8: timedelta(days=1),
+            10: timedelta(hours=1),
+        }
+        if timesplit not in formats or not effective_stop:
+            return split_output_names(prefix, True, None, effective_start, effective_stop, None, None)
+        current = datetime.strptime(effective_start, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
+        stop = datetime.strptime(effective_stop, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
+        names: list[str] = []
+        while current <= stop:
+            name = f"{prefix}{current.strftime(formats[timesplit])}.nc"
+            if name not in names:
+                names.append(name)
+            current += deltas[timesplit]
+        return names
+
     # --- Point and track NetCDF outputs ---
-    # ww3_ounp and ww3_trnc use one deterministic file for a run unless the
-    # namelist explicitly asks the executable to split it.  The prefix is kept
-    # as an input so callers can represent custom output names without scanning.
-    if "date_suffix" not in locals():
-        if start_date is not None:
-            try:
-                suffix = datetime.strptime(
-                    start_date, "%Y%m%d %H%M%S"
-                ).replace(tzinfo=timezone.utc).strftime("%Y%m")
-            except ValueError:
-                suffix = datetime.strptime(start_date, "%Y%m%d").replace(
-                    tzinfo=timezone.utc
-                ).strftime("%Y%m")
-        else:
-            suffix = "000000"
-    else:
-        suffix = date_suffix
     if output_type_config.get("point") is not None:
-        manifest.append(
-            Artifact(path=f"{point_prefix}{suffix}.nc", artifact_type=ArtifactType.NETCDF)
+        manifest.extend(
+            Artifact(path=name, artifact_type=ArtifactType.NETCDF)
+            for name in split_output_names(
+                point_prefix,
+                point_samefile,
+                point_timesplit,
+                point_start_date,
+                point_stop_date,
+                start_date,
+                stop_date,
+            )
         )
     if output_type_config.get("track") is not None:
-        manifest.append(
-            Artifact(path=f"{track_prefix}{suffix}.nc", artifact_type=ArtifactType.NETCDF)
+        manifest.extend(
+            Artifact(path=name, artifact_type=ArtifactType.NETCDF)
+            for name in split_output_names(
+                track_prefix,
+                False,
+                track_timesplit,
+                track_start_date,
+                track_stop_date,
+                start_date,
+                stop_date,
+            )
         )
 
     # --- Always-present artifacts ---
     if include_always_present:
-        always_present = [
-            ("mod_def.ww3", ArtifactType.OTHER),
-            ("log.ww3", ArtifactType.TEXT),
-            ("ww3_grid.nml", ArtifactType.TEXT),
-            ("ww3_shel.nml", ArtifactType.TEXT),
-            ("ww3_ounf.nml", ArtifactType.TEXT),
-            ("namelists.nml", ArtifactType.TEXT),
-            ("full_ww3.sh", ArtifactType.TEXT),
-            ("preprocess_ww3.sh", ArtifactType.TEXT),
-            ("postprocess_ww3.sh", ArtifactType.TEXT),
-            ("run_ww3.sh", ArtifactType.TEXT),
-            ("ST4TABUHF2.bin", ArtifactType.OTHER),
-            ("mapsta.ww3", ArtifactType.OTHER),
-            ("mask.ww3", ArtifactType.OTHER),
-            ("out_grd.ww3", ArtifactType.OTHER),
-        ]
+        if always_present is None:
+            always_present = [
+                ("mod_def.ww3", ArtifactType.OTHER),
+                ("log.ww3", ArtifactType.TEXT),
+                ("ww3_grid.nml", ArtifactType.TEXT),
+                ("ww3_shel.nml", ArtifactType.TEXT),
+                ("ww3_ounf.nml", ArtifactType.TEXT),
+                ("namelists.nml", ArtifactType.TEXT),
+                ("full_ww3.sh", ArtifactType.TEXT),
+                ("preprocess_ww3.sh", ArtifactType.TEXT),
+                ("postprocess_ww3.sh", ArtifactType.TEXT),
+                ("run_ww3.sh", ArtifactType.TEXT),
+                ("ST4TABUHF2.bin", ArtifactType.OTHER),
+                ("mapsta.ww3", ArtifactType.OTHER),
+                ("mask.ww3", ArtifactType.OTHER),
+                ("out_grd.ww3", ArtifactType.OTHER),
+            ]
         for filename, atype in always_present:
             manifest.append(
                 Artifact(

@@ -228,8 +228,13 @@ def _update_state(
                 if marker.exists()
                 else {}
             )
-        except (OSError, json.JSONDecodeError) as exc:
-            raise ValueError(f"Invalid WW3 postprocess state {marker}: {exc}") from exc
+        except json.JSONDecodeError:
+            # A torn/manual state file is evidence of an incomplete operation,
+            # never a reason to skip. Recover it as an empty state while holding
+            # the lock, then atomically replace it below.
+            payload = {}
+        except OSError as exc:
+            raise ValueError(f"Unable to read WW3 postprocess state {marker}: {exc}") from exc
         if not isinstance(payload, dict):
             payload = {}
         steps = payload.setdefault("steps", {})
