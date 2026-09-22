@@ -41,7 +41,11 @@ def test_processor_initialization():
 def test_processor_invalid_policy():
     """Test processor raises on invalid failure policy during process()."""
     processor = WW3TransferPostprocessor()
-    model_run = SimpleNamespace(output_dir="/tmp/fake", artifacts=[])
+    model_run = ModelRunSuccess(
+        run_id="invalid-policy", backend_used="local", output_dir="/tmp/fake",
+        workspace_dir="/tmp/fake", artifacts=[], expected_outputs=[], missing_outputs=[],
+        timing=TimingInfo(start_time=datetime.now(timezone.utc), end_time=datetime.now(timezone.utc)),
+    )
 
     with pytest.raises(ValueError, match="Invalid failure_policy"):
         processor.process(
@@ -54,7 +58,11 @@ def test_processor_invalid_policy():
 def test_processor_empty_destinations():
     """Test processor raises on empty destinations list during process()."""
     processor = WW3TransferPostprocessor()
-    model_run = SimpleNamespace(output_dir="/tmp/fake", artifacts=[])
+    model_run = ModelRunSuccess(
+        run_id="empty-destination", backend_used="local", output_dir="/tmp/fake",
+        workspace_dir="/tmp/fake", artifacts=[], expected_outputs=[], missing_outputs=[],
+        timing=TimingInfo(start_time=datetime.now(timezone.utc), end_time=datetime.now(timezone.utc)),
+    )
 
     with pytest.raises(ValueError, match="destinations must be a non-empty list"):
         processor.process(
@@ -152,11 +160,15 @@ def test_multi_destination_transfer(tmp_path):
 
 
 def test_output_dir_resolution_direct(tmp_path):
-    """Test output_dir resolved from model_run.output_dir."""
+    """Test output_dir resolved from a canonical model run result."""
     output_dir = tmp_path / "output"
     output_dir.mkdir()
 
-    model_run = SimpleNamespace(output_dir=str(output_dir))
+    model_run = ModelRunSuccess(
+        run_id="output-dir", backend_used="local", output_dir=str(output_dir),
+        workspace_dir=str(output_dir), artifacts=[], expected_outputs=[], missing_outputs=[],
+        timing=TimingInfo(start_time=datetime.now(timezone.utc), end_time=datetime.now(timezone.utc)),
+    )
 
     processor = WW3TransferPostprocessor()
 
@@ -165,11 +177,15 @@ def test_output_dir_resolution_direct(tmp_path):
 
 
 def test_output_dir_resolution_run_dir(tmp_path):
-    """Test output_dir resolved from model_run.run_dir."""
+    """Test output_dir resolved from a canonical model run result."""
     run_dir = tmp_path / "run"
     run_dir.mkdir()
 
-    model_run = SimpleNamespace(run_dir=str(run_dir))
+    model_run = ModelRunSuccess(
+        run_id="run-dir", backend_used="local", output_dir=str(run_dir),
+        workspace_dir=str(run_dir), artifacts=[], expected_outputs=[], missing_outputs=[],
+        timing=TimingInfo(start_time=datetime.now(timezone.utc), end_time=datetime.now(timezone.utc)),
+    )
 
     processor = WW3TransferPostprocessor()
 
@@ -183,17 +199,17 @@ def test_output_dir_resolution_rejects_private_config(tmp_path):
     output_dir.mkdir()
     model_run = SimpleNamespace(config=SimpleNamespace(output_dir=str(output_dir)))
     processor = WW3TransferPostprocessor()
-    with pytest.raises(AttributeError, match="Cannot determine output directory"):
+    with pytest.raises(TypeError, match="ModelRunSuccess or ModelRunFailure"):
         processor._get_output_dir(model_run)
 
 
 def test_output_dir_resolution_missing():
-    """Test output_dir resolution raises when not found."""
+    """Arbitrary objects are rejected rather than duck-typed."""
     model_run = SimpleNamespace()
 
     processor = WW3TransferPostprocessor()
 
-    with pytest.raises(AttributeError, match="Cannot determine output directory"):
+    with pytest.raises(TypeError, match="ModelRunSuccess or ModelRunFailure"):
         processor._get_output_dir(model_run)
 
 
@@ -374,7 +390,7 @@ def test_processor_v1_sidecar_is_not_an_accepted_result_contract():
             destinations=["file:///tmp/dest"],
             failure_policy="CONTINUE",
         )
-    with pytest.raises(AttributeError, match="Cannot determine output directory"):
+    with pytest.raises(TypeError, match="ModelRunSuccess or ModelRunFailure"):
         processor._get_output_dir(model_run_result)
 
 

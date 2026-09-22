@@ -57,21 +57,21 @@ def test_run_transfer_postprocess_creates_marker(tmp_path):
     assert state["steps"]["transfer"]["completed"] is True
 
 
-def test_run_transfer_postprocess_skips_if_completed(tmp_path):
+def test_run_transfer_postprocess_reexecutes_existing_marker_for_new_request(tmp_path):
     out = tmp_path / "out2"
     out.mkdir()
     (out / "a.txt").write_text("x")
     _persisted_run(out, "a.txt", ArtifactType.TEXT)
 
-    destination = f"file://{tmp_path / 'dest'}"
-    run_transfer_postprocess(out, destinations=[destination])
+    first_destination = f"file://{tmp_path / 'dest-first'}"
+    run_transfer_postprocess(out, destinations=[first_destination])
     assert is_step_completed(out, "transfer")
 
     before = json.loads((out / "run_result.json").read_text())
-    state_before = json.loads((out / "postprocess_state.json").read_text())
-    result = run_transfer_postprocess(out, destinations=[destination])
+    second_destination = f"file://{tmp_path / 'dest-second'}"
+    result = run_transfer_postprocess(out, destinations=[second_destination])
     after = json.loads((out / "run_result.json").read_text())
-    state_after = json.loads((out / "postprocess_state.json").read_text())
     assert before == after
-    assert state_before["steps"]["transfer"]["state"] == state_after["steps"]["transfer"]["state"]
-    assert result.metadata["skipped"] is True
+    assert result.success is True
+    assert result.metadata.get("skipped") is None
+    assert (tmp_path / "dest-second" / "a.txt").exists()

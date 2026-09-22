@@ -21,13 +21,18 @@ from rompy.core.responses import (
     ModelRunFailure,
     ModelRunSuccess,
     NormalizedContext,
+    PostprocessFailure,
+    PostprocessResultSidecar,
+    PostprocessSuccess,
     RunResultSidecar,
 )
 
 RUN_JSON = result_persistence.RUN_RESULT_FILENAME
+POSTPROCESS_JSON = result_persistence.POSTPROCESS_RESULT_FILENAME
 SCHEMA_VERSION = 2
 POSTPROCESS_STATE_JSON = "postprocess_state.json"
 ModelRunPayload = ModelRunSuccess | ModelRunFailure
+PostprocessPayload = PostprocessSuccess | PostprocessFailure
 
 
 def _atomic_write(path: Path, data: bytes) -> None:
@@ -51,6 +56,16 @@ def require_model_run(result: Any) -> ModelRunPayload:
         raise TypeError(
             "WW3 persistence requires rompy.core ModelRunSuccess or "
             "ModelRunFailure; regenerate a canonical schema-v2 run result"
+        )
+    return result
+
+
+def require_postprocess(result: Any) -> PostprocessPayload:
+    """Require a concrete canonical core postprocess result instance."""
+    if not isinstance(result, (PostprocessSuccess, PostprocessFailure)):
+        raise TypeError(
+            "WW3 postprocess persistence requires rompy.core PostprocessSuccess "
+            "or PostprocessFailure"
         )
     return result
 
@@ -85,6 +100,59 @@ def write_persisted(
         result if isinstance(result, RunResultSidecar) else build_persisted(result)
     )
     return result_persistence.write_run_result(Path(output_dir), sidecar)
+
+
+def build_postprocess_persisted(result: PostprocessPayload) -> PostprocessResultSidecar:
+    """Build the core schema-v2 envelope for a typed postprocess result."""
+    payload = require_postprocess(result)
+    return PostprocessResultSidecar(
+        run_id=payload.run_id,
+        status="success" if payload.success else "failed",
+        success=payload.success,
+        error=getattr(payload, "error", None),
+        staging_dir=payload.output_dir,
+        payload=payload,
+    )
+
+
+def persist_postprocess(
+    result: PostprocessPayload,
+    output_dir: Path,
+    *,
+    primary_error: str | None = None,
+) -> PostprocessPayload:
+    """Persist a typed postprocess result through the core public adapter.
+
+    ``persist_result`` converts writer failures into a typed failure and keeps
+    ``primary_error`` as the operation error when transfer and persistence both
+    fail.  The result is checked after the adapter so arbitrary values cannot
+    cross the persistence boundary.
+    """
+    payload = require_postprocess(result)
+    sidecar = build_postprocess_persisted(payload)
+    persisted = result_persistence.persist_result(
+        payload,
+        sidecar,
+        Path(output_dir),
+        primary_error=primary_error,
+    )
+    return require_postprocess(persisted)
+
+
+def write_postprocess(
+    result: PostprocessPayload,
+    output_dir: Path,
+    *,
+    primary_error: str | None = None,
+) -> PostprocessPayload:
+    """Persist a canonical postprocess result and return its typed payload."""
+    return persist_postprocess(result, output_dir, primary_error=primary_error)
+
+
+def load_postprocess(path_or_dir: Path) -> PostprocessPayload:
+    """Load the canonical typed postprocess payload from its core sidecar."""
+    sidecar = result_persistence.load_postprocess_result(Path(path_or_dir))
+    return require_postprocess(sidecar.payload)
 
 
 def load_persisted(path_or_dir: Path) -> ModelRunPayload:

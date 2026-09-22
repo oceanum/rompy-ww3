@@ -1,15 +1,8 @@
-"""WW3 post-processing transfer postprocessor.
-
-This module provides a postprocessor that consumes ModelRunResult.artifacts
-directly and delegates file transfers to the rompy TransferManager.
-
-The postprocessor follows the rompy postprocessor framework pattern where
-configuration parameters are passed via the process() method rather than
-__init__(), enabling standalone postprocessor configuration files.
-"""
+"""Canonical WW3 output transfer postprocessor."""
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,110 +19,65 @@ from rompy.core.responses import (
     TimingInfo,
 )
 from rompy.transfer import TransferFailurePolicy, TransferManager
+from rompy.transfer.manager import TransferBatchResult
 
 from rompy_ww3.postprocess.naming import compute_target_name
-from rompy_ww3.postprocess.persistence import require_model_run
+from rompy_ww3.postprocess.persistence import persist_postprocess, require_model_run
 
 logger = logging.getLogger(__name__)
+ModelRunPayload = ModelRunSuccess | ModelRunFailure
 
 
 class WW3TransferPostprocessor:
-    """Post-process WW3 run results by transferring output files.
+    """Transfer typed WW3 run evidence to one or more destinations.
 
-    This postprocessor follows the rompy postprocessor framework pattern,
-    accepting configuration parameters via the process() method rather than
-    __init__(). All configuration is provided by WW3TransferConfig.
-
-    The postprocessor:
-    - Consumes ModelRunResult.artifacts directly (no file discovery)
-    - Generates datestamped target names for each artifact
-    - Transfers files to multiple destinations using rompy TransferManager
-    - Handles failures according to the specified policy
+    The processor has one wire contract in every execution mode: it accepts a
+    concrete core ``ModelRunSuccess`` or ``ModelRunFailure`` and returns a
+    concrete core ``PostprocessSuccess`` or ``PostprocessFailure``.  The
+    canonical postprocess sidecar is written before returning.
     """
 
     def __init__(self) -> None:
-        """Initialize the postprocessor.
-
-        Note: This follows the new rompy postprocessor pattern where
-        configuration parameters are passed via process(), not __init__().
-        """
+        """Initialize a stateless transfer processor."""
 
     def _create_artifact(self, path: Path, output_dir: Path) -> Artifact:
-        """Create an Artifact object from a file path.
-
-        Maps WW3 file types to ArtifactType enum, extracts file size,
-        and generates a human-readable description.
-
-        Args:
-            path: Path to the file (relative to the workspace or absolute)
-            output_dir: Base output directory for metadata and compatibility
-
-        Returns:
-            Artifact object with metadata
-        """
-        # Resolve to absolute path if relative
-        if not path.is_absolute():
-            abs_path = output_dir / path
-        else:
-            abs_path = path
-
-        # Determine artifact type from file extension
+        """Create a typed local artifact from a path (legacy helper)."""
         suffix = path.suffix.lower()
-        if suffix == ".nc":
-            artifact_type = ArtifactType.NETCDF
-        elif suffix == ".yaml" or suffix == ".yml":
-            artifact_type = ArtifactType.YAML
-        elif suffix == ".ww3":
-            artifact_type = ArtifactType.OTHER  # Binary restart file
-        elif suffix in [".txt", ".list", ".nml"]:
-            artifact_type = ArtifactType.TEXT
-        else:
-            artifact_type = ArtifactType.OTHER
-
-        # Extract file size if file exists
-        size_bytes = None
-        if abs_path.exists():
-            size_bytes = abs_path.stat().st_size
-
-        # Generate description based on file type and name
-        name = path.name
-        if suffix == ".ww3":
-            description = f"WW3 binary restart file: {name}"
-        elif suffix == ".nc":
-            description = f"WW3 NetCDF output: {name}"
-        elif suffix == ".yaml" or suffix == ".yml":
-            description = f"WW3 configuration file: {name}"
-        else:
-            description = f"WW3 output file: {name}"
-
+        artifact_type = {
+            ".nc": ArtifactType.NETCDF,
+            ".yaml": ArtifactType.YAML,
+            ".yml": ArtifactType.YAML,
+            ".txt": ArtifactType.TEXT,
+            ".list": ArtifactType.TEXT,
+            ".nml": ArtifactType.TEXT,
+        }.get(suffix, ArtifactType.OTHER)
+        absolute = path if path.is_absolute() else output_dir / path
+        size_bytes = absolute.stat().st_size if absolute.exists() else None
         return Artifact(
-            path=str(path),
+            path=path.as_posix(),
             artifact_type=artifact_type,
             size_bytes=size_bytes,
-            description=description,
+            description=f"WW3 output file: {path.name}",
             date=None,
         )
 
-    def _get_output_dir(self, model_run: Any) -> Path:
-        """Resolve only direct in-memory output directory attributes."""
-        value = getattr(model_run, "output_dir", None) or getattr(
-            model_run, "run_dir", None
-        )
+    def _get_output_dir(self, model_run: ModelRunPayload) -> Path:
+        """Return the canonical output directory from a typed run result."""
+        payload = require_model_run(model_run)
+        value = payload.output_dir
         if not value:
             raise AttributeError("Cannot determine output directory from model_run")
         return Path(value)
 
-    def _extract_start_date(
-        self, model_run: ModelRunSuccess | ModelRunFailure
-    ) -> str | None:
-        """Use only typed core timing as the transfer date fallback."""
-        return self._coerce_ww3_date(model_run.timing.start_time)
+    def _extract_start_date(self, model_run: ModelRunPayload) -> str | None:
+        """Use typed core timing as the transfer date fallback."""
+        payload = require_model_run(model_run)
+        return self._coerce_ww3_date(payload.timing.start_time)
 
-    def _extract_output_stride(
-        self, model_run: ModelRunSuccess | ModelRunFailure
-    ) -> int | None:
-        """Read an optional WW3 stride from validated result metadata only."""
-        ww3_metadata = model_run.metadata.get("ww3", {})
+    def _extract_output_stride(self, model_run: ModelRunPayload) -> int | None:
+        """Read an optional WW3 stride from validated result metadata."""
+        payload = require_model_run(model_run)
+        ww3_metadata = payload.metadata.get("ww3", {})
         if not isinstance(ww3_metadata, dict):
             return None
         stride = ww3_metadata.get("restart_stride_seconds")
@@ -140,7 +88,8 @@ class WW3TransferPostprocessor:
         except (TypeError, ValueError):
             return None
 
-    def _coerce_ww3_date(self, value: Any) -> str | None:
+    @staticmethod
+    def _coerce_ww3_date(value: Any) -> str | None:
         if value is None:
             return None
         if isinstance(value, str):
@@ -150,282 +99,371 @@ class WW3TransferPostprocessor:
         except (AttributeError, TypeError):
             return None
 
+    @staticmethod
+    def _checksum(path: Path) -> str | None:
+        if not path.is_file():
+            return None
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return f"sha256:{digest.hexdigest()}"
+
+    @staticmethod
+    def _evidence(artifacts: list[Any]) -> list[dict[str, Any]]:
+        return [artifact.model_dump(mode="json") for artifact in artifacts]
+
+    def _result(
+        self,
+        model_run: ModelRunPayload,
+        *,
+        output_dir: Path | None,
+        artifacts: list[Artifact],
+        metadata: dict[str, Any],
+        start_time: datetime,
+        error: str | None = None,
+        persistence_dir: Path | None = None,
+    ) -> PostprocessResult:
+        """Construct and persist one canonical typed postprocess result."""
+        end_time = datetime.now(timezone.utc)
+        timing = TimingInfo(start_time=start_time, end_time=end_time)
+        common = {
+            "run_id": model_run.run_id,
+            "artifacts": artifacts,
+            "expected_outputs": list(model_run.expected_outputs),
+            "missing_outputs": list(model_run.missing_outputs),
+            "timing": timing,
+            "metadata": metadata,
+        }
+        if error is None:
+            if output_dir is None:
+                raise ValueError("successful postprocess requires an output directory")
+            result: PostprocessResult = PostprocessSuccess(
+                success=True,
+                output_dir=str(output_dir),
+                validated=False,
+                file_count=len(artifacts),
+                **common,
+            )
+        else:
+            result = PostprocessFailure(
+                success=False,
+                error=error,
+                output_dir=str(output_dir) if output_dir is not None else None,
+                **common,
+            )
+
+        # A run failure has no valid success path, even when optional evidence
+        # happened to transfer.  The primary run/transfer error is retained by
+        # the core persistence adapter if writing the postprocess sidecar fails.
+        if persistence_dir is not None or output_dir is not None:
+            return persist_postprocess(
+                result,
+                persistence_dir or output_dir,  # type: ignore[arg-type]
+                primary_error=error,
+            )
+        return result
+
     def process(
         self,
-        model_run_result: Any,
+        model_run_result: ModelRunSuccess | ModelRunFailure,
         destinations: list[str],
         artifact_types: list[ArtifactType] | None = None,
         failure_policy: str = "CONTINUE",
         naming_policy: str = "restart_only",
-        **kwargs,
+        persistence_dir: Path | str | None = None,
+        **kwargs: Any,
     ) -> PostprocessResult:
-        """Execute the transfer post-processing for a given model_run_result.
-
-        Args:
-            model_run_result: ModelRunResult object with artifacts list
-            destinations: List of destination URIs for file transfers
-            artifact_types: Optional filter for artifact types to transfer
-            failure_policy: How to react to transfer failures ("CONTINUE" or "FAIL_FAST")
-            **kwargs: Additional parameters (ignored)
-
-        Returns:
-            PostprocessSuccess or PostprocessFailure with transfer metadata.
-
-        Steps:
-        1. Validate the typed core ModelRunResult and destinations
-        2. Resolve local artifact paths from model_run_result.workspace_dir
-        3. Filter local typed artifacts by artifact_types if specified
-        4. Return early with success if no artifacts to transfer
-        5. Resolve source paths (absolute or relative to output_dir)
-        6. Compute datestamp from artifact evidence or typed timing
-        7. Detect restart files and compute target names
-        8. Build name_map and invoke TransferManager
-        9. Return PostprocessSuccess or PostprocessFailure based on transfer results
-        """
-
-        # Step 1: Validate destinations
+        """Transfer local typed artifacts and persist the canonical result."""
+        del kwargs
+        model_run = require_model_run(model_run_result)
+        persistence_path = Path(persistence_dir) if persistence_dir is not None else None
         if not destinations:
             raise ValueError("destinations must be a non-empty list of strings")
-
-        # Convert string policy to enum understood by the transfer backend
+        if any(not isinstance(destination, str) or not destination for destination in destinations):
+            raise ValueError("destinations must be a non-empty list of strings")
         if failure_policy == "CONTINUE":
             policy = TransferFailurePolicy.CONTINUE
         elif failure_policy == "FAIL_FAST":
             policy = TransferFailurePolicy.FAIL_FAST
         else:
             raise ValueError(f"Invalid failure_policy: {failure_policy}")
-
-        model_run_result = require_model_run(model_run_result)
-
-        # Step 2: Resolve local artifacts against the canonical workspace root.
-        output_dir = Path(model_run_result.output_dir)
-        workspace_dir = Path(
-            model_run_result.workspace_dir or model_run_result.output_dir
-        )
-
-        # Step 3: Get artifacts from model_run_result and apply artifact_types filter
-        # Remote evidence is preserved by the core model but is not a local
-        # transfer input; only local ArtifactIdentity values have ``path``.
-        artifacts = [
-            artifact
-            for artifact in model_run_result.artifacts
-            if getattr(artifact, "kind", "local") == "local"
-        ]
-        if artifact_types is not None:
-            artifacts = [
-                a
-                for a in artifacts
-                if a.artifact_type is not None and a.artifact_type in artifact_types
-            ]
-
-        observed_evidence = [
-            artifact.model_dump(mode="json") for artifact in model_run_result.artifacts
-        ]
-        remote_evidence = [
-            evidence
-            for evidence in observed_evidence
-            if evidence.get("kind") == "remote"
-        ]
-        evidence_metadata = {
-            "observed_artifacts": observed_evidence,
-            "remote_observed_artifacts": remote_evidence,
-        }
-
-        # Step 4: Return early if no artifacts to transfer
-        if not artifacts:
-            # Extract run_id
-            run_id = getattr(model_run_result, "run_id", "unknown")
-
-            # Build timing
-            start_time = datetime.now(timezone.utc)
-            end_time = datetime.now(timezone.utc)
-            timing = TimingInfo(start_time=start_time, end_time=end_time)
-
-            return PostprocessSuccess(
-                success=True,
-                run_id=run_id,
-                output_dir=str(output_dir),
-                validated=False,
-                file_count=0,
-                artifacts=[],
-                expected_outputs=list(model_run_result.expected_outputs),
-                missing_outputs=list(model_run_result.missing_outputs),
-                message=None,
-                metadata={
-                    "transferred_count": 0,
-                    "failed_count": 0,
-                    "destinations": destinations,
-                    **evidence_metadata,
-                },
-                timing=timing,
-            )
-
-        # Step 5: Resolve source paths for all artifacts
-        resolved_paths: list[Path] = []
-        for artifact in artifacts:
-            artifact_path = Path(artifact.path)
-            if artifact_path.is_absolute():
-                resolved_paths.append(artifact_path)
-            else:
-                resolved_paths.append(workspace_dir / artifact_path)
-
         if naming_policy not in {"restart_only", "datestamp_all"}:
             raise ValueError(f"Invalid naming_policy: {naming_policy}")
 
-        fallback_date_str = self._extract_start_date(model_run_result)
-
-        if fallback_date_str is None:
-            timing_info = getattr(model_run_result, "timing", None)
-            if timing_info is not None:
-                start_time_dt = getattr(timing_info, "start_time", None)
-                fallback_date_str = self._coerce_ww3_date(start_time_dt)
-
-        # Extract output_stride for restart handling
-        output_stride = self._extract_output_stride(model_run_result)
-
-        logger.info(
-            "WW3 transfer preparing %s artifacts to %s destination(s) with naming_policy=%s",
-            len(artifacts),
-            len(destinations),
-            naming_policy,
-        )
-
-        # Step 7: Build mapping from source file to target name
-        name_map: dict[Path, str] = {}
-        for i, artifact in enumerate(artifacts):
-            src_path = resolved_paths[i]
-
-            artifact_date_str = (
-                self._coerce_ww3_date(artifact.date) or fallback_date_str
+        output_dir = Path(model_run.output_dir) if model_run.output_dir else None
+        workspace_dir = Path(model_run.workspace_dir or model_run.output_dir or "")
+        observed = self._evidence(model_run.artifacts)
+        remote = [item for item in observed if item.get("kind") == "remote"]
+        local_artifacts = [
+            artifact
+            for artifact in model_run.artifacts
+            if artifact.kind == "local"
+        ]
+        skipped_artifacts = list(remote)
+        if artifact_types is not None:
+            before = local_artifacts
+            local_artifacts = [
+                artifact
+                for artifact in local_artifacts
+                if artifact.artifact_type in artifact_types
+            ]
+            skipped_artifacts.extend(
+                artifact.model_dump(mode="json")
+                for artifact in before
+                if artifact not in local_artifacts
             )
-
-            # Step 8: Detect restart files
-            is_restart = False
-            if (
-                artifact.artifact_type == ArtifactType.RESTART
-                or src_path.name.startswith("restart")
-                and src_path.name.endswith(".ww3")
-            ):
-                is_restart = True
-
-            if is_restart:
-                if artifact_date_str is not None and output_stride is not None:
-                    target_name = compute_target_name(
-                        src_path,
-                        is_restart=True,
-                        start_date=artifact_date_str,
-                        output_stride=output_stride,
-                        restart_path=src_path,
-                    )
-                else:
-                    target_name = src_path.name
-            else:
-                if naming_policy == "datestamp_all" and artifact_date_str is not None:
-                    target_name = compute_target_name(
-                        src_path, date_str=artifact_date_str
-                    )
-                else:
-                    target_name = src_path.name
-
-            name_map[src_path] = target_name
-
-        for src_path, target_name in name_map.items():
-            logger.info("WW3 transfer target %s -> %s", src_path.name, target_name)
-
-        # Step 9: Perform the transfers
-        files = resolved_paths
-        manager = TransferManager()
-        result = manager.transfer_files(
-            files=files,
-            destinations=destinations,
-            name_map=name_map,
-            policy=policy,
-        )
-
-        logger.info(
-            "WW3 transfer completed: %s succeeded, %s failed",
-            result.succeeded,
-            result.failed,
-        )
-
-        # Step 10: Build result - timing starts now
-        start_time = datetime.now(timezone.utc)
-
-        # Extract run_id with fallback
-        run_id = getattr(model_run_result, "run_id", "unknown")
-
-        # Build transfer metadata with detailed failure information
-        transfer_failures = []
-        for item in result.items:
-            if not item.ok:
-                transfer_failures.append(
-                    {
-                        "local_path": str(item.local_path),
-                        "target_name": item.target_name,
-                        "dest_uri": item.dest_uri,
-                        "error": item.error or "Unknown error",
-                    }
-                )
-
-        metadata = {
-            "transferred_count": int(result.succeeded),
-            "failed_count": int(result.failed),
-            "destinations": destinations,
-            "name_map": {str(k): v for k, v in name_map.items()},
-            "transfer_failures": transfer_failures,
-            **evidence_metadata,
-        }
-
-        # Calculate timing
-        end_time = datetime.now(timezone.utc)
-        timing = TimingInfo(
-            start_time=start_time,
-            end_time=end_time,
-        )
-
-        # Step 11: Build result artifacts from successfully transferred artifacts only
-        successful_paths = {item.local_path for item in result.items if item.ok}
-        result_artifacts = [
-            artifacts[i]
-            for i, src_path in enumerate(resolved_paths)
-            if src_path in successful_paths
+        selected_types = set(artifact_types) if artifact_types is not None else None
+        observed_local_paths = {artifact.path for artifact in local_artifacts}
+        required_missing = [
+            artifact
+            for artifact in model_run.expected_outputs
+            if artifact.kind == "local"
+            and artifact.path not in observed_local_paths
+            and (selected_types is None or artifact.artifact_type in selected_types)
         ]
 
-        # Return success or failure based on transfer result
-        if result.all_succeeded():
-            return PostprocessSuccess(
-                success=True,
-                run_id=run_id,
-                output_dir=str(output_dir),
-                validated=False,
-                file_count=len(artifacts),
-                artifacts=result_artifacts,
-                expected_outputs=list(model_run_result.expected_outputs),
-                missing_outputs=list(model_run_result.missing_outputs),
-                message=None,
-                metadata=metadata,
-                timing=timing,
-            )
-        else:
-            # Extract error message from failed transfers
-            error_msg = (
-                f"Transfer failed: {result.failed} of {len(artifacts)} files failed"
-            )
-            if result.items:
-                failed_items = [item for item in result.items if not item.ok]
-                if failed_items and failed_items[0].error:
-                    error_msg += f". First error: {failed_items[0].error}"
+        metadata: dict[str, Any] = {
+            "destinations": list(destinations),
+            "destination_count": len(destinations),
+            "requested_count": len(local_artifacts) + len(required_missing),
+            "requested_transfer_count": (len(local_artifacts) + len(required_missing)) * len(destinations),
+            "local_count": len(local_artifacts),
+            "remote_count": len(remote),
+            "skipped_count": len(skipped_artifacts),
+            "transferred_count": 0,
+            "failed_count": 0,
+            "transfer_failures": [],
+            "observed_artifacts": observed,
+            "remote_observed_artifacts": remote,
+            "skipped_artifacts": skipped_artifacts,
+            "missing_required_sources": self._evidence(required_missing),
+            "required_missing_count": len(required_missing),
+            "name_map": {},
+            "source_checksums": {},
+            "transferred_artifacts": [],
+        }
+        if isinstance(model_run.metadata.get("artifact_checksums"), dict):
+            metadata["source_checksums"].update(model_run.metadata["artifact_checksums"])
 
-            # For failures, artifacts list contains only successfully transferred files
-            return PostprocessFailure(
-                success=False,
-                run_id=run_id,
-                error=error_msg,
-                output_dir=str(output_dir),
-                artifacts=result_artifacts,
-                expected_outputs=list(model_run_result.expected_outputs),
-                missing_outputs=list(model_run_result.missing_outputs),
-                message=None,
+        start_time = datetime.now(timezone.utc)
+        if required_missing and not local_artifacts:
+            metadata["failed_count"] = len(required_missing) * len(destinations)
+            metadata["transfer_failures"] = [
+                {
+                    "path": artifact.path,
+                    "target_name": artifact.path.rsplit("/", 1)[-1],
+                    "error": "required source artifact was not observed",
+                    "reason": "missing_required_source",
+                }
+                for artifact in required_missing
+            ]
+            return self._result(
+                model_run,
+                output_dir=output_dir,
+                artifacts=[],
                 metadata=metadata,
-                timing=timing,
+                start_time=start_time,
+                error=(
+                    f"Required transfer source missing: {len(required_missing)} artifact(s)"
+                ),
+                persistence_dir=persistence_path,
             )
+        if not local_artifacts:
+            if isinstance(model_run, ModelRunFailure):
+                error = f"Model run failed: {model_run.error}"
+                return self._result(
+                    model_run,
+                    output_dir=output_dir,
+                    artifacts=[],
+                    metadata=metadata,
+                    start_time=start_time,
+                    error=error,
+                    persistence_dir=persistence_path,
+                )
+            return self._result(
+                model_run,
+                output_dir=output_dir,
+                artifacts=[],
+                metadata=metadata,
+                start_time=start_time,
+                persistence_dir=persistence_path,
+            )
+
+        if output_dir is None:
+            error = "Cannot transfer local artifacts without a model output directory"
+            metadata["failed_count"] = metadata["requested_transfer_count"]
+            metadata["transfer_failures"] = [
+                {
+                    "path": artifact.path,
+                    "target_name": artifact.path.rsplit("/", 1)[-1],
+                    "error": error,
+                    "reason": "missing_output_directory",
+                }
+                for artifact in local_artifacts
+            ]
+            return self._result(
+                model_run,
+                output_dir=None,
+                artifacts=[],
+                metadata=metadata,
+                start_time=start_time,
+                error=error,
+                persistence_dir=persistence_path,
+            )
+
+        fallback_date = self._extract_start_date(model_run)
+        output_stride = self._extract_output_stride(model_run)
+        resolved_paths: list[Path] = []
+        name_map: dict[Path, str] = {}
+        source_checksums: dict[str, str] = dict(metadata["source_checksums"])
+        for artifact in local_artifacts:
+            source = Path(artifact.path)
+            source = source if source.is_absolute() else workspace_dir / source
+            resolved_paths.append(source)
+            checksum = self._checksum(source)
+            if checksum:
+                source_checksums[artifact.path] = checksum
+            date = self._coerce_ww3_date(artifact.date) or fallback_date
+            restart = artifact.artifact_type == ArtifactType.RESTART or (
+                source.name.startswith("restart") and source.name.endswith(".ww3")
+            )
+            if restart and date is not None and output_stride is not None:
+                target = compute_target_name(
+                    source,
+                    is_restart=True,
+                    start_date=date,
+                    output_stride=output_stride,
+                    restart_path=source,
+                )
+            elif not restart and naming_policy == "datestamp_all" and date is not None:
+                target = compute_target_name(source, date_str=date)
+            else:
+                target = source.name
+            name_map[source] = target
+
+        metadata["name_map"] = {str(path): name for path, name in name_map.items()}
+        metadata["source_checksums"] = source_checksums
+        primary_error: str | None = None
+        successful_paths: set[Path] = set()
+        try:
+            manager = TransferManager()
+            if policy is TransferFailurePolicy.FAIL_FAST:
+                # The manager's batch FAIL_FAST raises and discards its partial
+                # result. Execute one observable CONTINUE batch per file/dest,
+                # stopping after the first failed item instead.
+                items = []
+                succeeded = 0
+                failed = 0
+                for source in resolved_paths:
+                    for destination in destinations:
+                        single = manager.transfer_files(
+                            files=[source],
+                            destinations=[destination],
+                            name_map={source: name_map[source]},
+                            policy=TransferFailurePolicy.CONTINUE,
+                        )
+                        items.extend(single.items)
+                        succeeded += single.succeeded
+                        failed += single.failed
+                        if single.failed:
+                            break
+                    if failed:
+                        break
+                batch = TransferBatchResult(
+                    total=succeeded + failed,
+                    succeeded=succeeded,
+                    failed=failed,
+                    items=items,
+                )
+            else:
+                batch = manager.transfer_files(
+                    files=resolved_paths,
+                    destinations=destinations,
+                    name_map=name_map,
+                    policy=policy,
+                )
+            metadata["transferred_count"] = int(batch.succeeded)
+            metadata["failed_count"] = int(batch.failed)
+            for item in batch.items:
+                if item.ok:
+                    successful_paths.add(item.local_path)
+                else:
+                    metadata["transfer_failures"].append(
+                        {
+                            "path": str(item.local_path),
+                            "local_path": str(item.local_path),
+                            "target_name": item.target_name,
+                            "destination": item.dest_prefix,
+                            "dest_uri": item.dest_uri,
+                            "error": item.error or "Unknown error",
+                            "reason": "missing_source"
+                            if not item.local_path.is_file()
+                            else "transfer_failed",
+                        }
+                    )
+            if batch.failed:
+                primary_error = (
+                    f"Transfer failed: {batch.failed} of {batch.total} transfers failed"
+                )
+                first = metadata["transfer_failures"][0]
+                primary_error += f". First error: {first['error']}"
+        except Exception as exc:  # noqa: BLE001 - fail-fast must become typed evidence
+            primary_error = f"Transfer failed: {type(exc).__name__}: {exc}"
+            metadata["failed_count"] = 1
+            metadata["transfer_failures"].append(
+                {
+                    "path": str(resolved_paths[0]),
+                    "target_name": name_map[resolved_paths[0]],
+                    "destination": destinations[0],
+                    "dest_uri": destinations[0],
+                    "error": str(exc),
+                    "reason": "transfer_failed",
+                }
+            )
+
+        transferred_artifacts = [
+            artifact
+            for artifact, source in zip(local_artifacts, resolved_paths)
+            if source in successful_paths
+        ]
+        metadata["transferred_artifacts"] = self._evidence(transferred_artifacts)
+        if required_missing:
+            metadata["failed_count"] += len(required_missing) * len(destinations)
+            metadata["transfer_failures"].extend(
+                {
+                    "path": artifact.path,
+                    "target_name": artifact.path.rsplit("/", 1)[-1],
+                    "error": "required source artifact was not observed",
+                    "reason": "missing_required_source",
+                }
+                for artifact in required_missing
+            )
+            required_error = (
+                f"Required transfer source missing: {len(required_missing)} artifact(s)"
+            )
+            primary_error = (
+                f"{primary_error}; {required_error}"
+                if primary_error is not None
+                else required_error
+            )
+        if isinstance(model_run, ModelRunFailure) and primary_error is None:
+            primary_error = f"Model run failed: {model_run.error}"
+        if primary_error is None:
+            return self._result(
+                model_run,
+                output_dir=output_dir,
+                artifacts=transferred_artifacts,
+                metadata=metadata,
+                start_time=start_time,
+                persistence_dir=persistence_path,
+            )
+        return self._result(
+            model_run,
+            output_dir=output_dir,
+            artifacts=transferred_artifacts,
+            metadata=metadata,
+            start_time=start_time,
+            error=primary_error,
+            persistence_dir=persistence_path,
+        )
