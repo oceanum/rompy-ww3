@@ -10,22 +10,25 @@ __init__(), enabling standalone postprocessor configuration files.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
-import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from rompy.core.responses import (
-    PostprocessResult,
-    PostprocessSuccess,
-    PostprocessFailure,
     Artifact,
     ArtifactType,
+    ModelRunFailure,
+    ModelRunSuccess,
+    PostprocessFailure,
+    PostprocessResult,
+    PostprocessSuccess,
     TimingInfo,
 )
-from rompy.transfer import TransferManager, TransferFailurePolicy
-from rompy_ww3.postprocess.naming import compute_target_name
+from rompy.transfer import TransferFailurePolicy, TransferManager
 
+from rompy_ww3.postprocess.naming import compute_target_name
+from rompy_ww3.postprocess.persistence import require_model_run
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +53,6 @@ class WW3TransferPostprocessor:
         Note: This follows the new rompy postprocessor pattern where
         configuration parameters are passed via process(), not __init__().
         """
-        pass
 
     def _create_artifact(self, path: Path, output_dir: Path) -> Artifact:
         """Create an Artifact object from a file path.
@@ -59,8 +61,8 @@ class WW3TransferPostprocessor:
         and generates a human-readable description.
 
         Args:
-            path: Path to the file (relative to output_dir or absolute)
-            output_dir: Base output directory for the model run
+            path: Path to the file (relative to the workspace or absolute)
+            output_dir: Base output directory for metadata and compatibility
 
         Returns:
             Artifact object with metadata
@@ -109,248 +111,50 @@ class WW3TransferPostprocessor:
         )
 
     def _get_output_dir(self, model_run: Any) -> Path:
-        """Resolve the output directory from a model_run object.
-
-        The resolution order mirrors sidecar-first contract:
-        1) model_run.normalized_context.output_dir (v2 sidecar)
-        2) model_run.output_dir (direct attribute)
-        3) model_run.run_dir (legacy attribute)
-        4) model_run.config.output_dir (v1 fallback)
-
-        If a run_id is present, it will be appended to form the actual
-        simulation output directory (e.g., simulations/glob3/).
-        """
-        base_dir = None
-
-        # First try normalized_context (v2 sidecar)
-        ctx = getattr(model_run, "normalized_context", None)
-        if ctx is not None:
-            output_dir = getattr(ctx, "output_dir", None)
-            if output_dir:
-                base_dir = Path(output_dir)
-
-        # Fallback to direct attributes
-        if base_dir is None:
-            for attr in ("output_dir", "run_dir"):
-                value = getattr(model_run, attr, None)
-                if value:
-                    base_dir = Path(value)
-                    break
-
-        # Fallback to config (v1 backward compat)
-        if base_dir is None:
-            config = getattr(model_run, "config", None)
-            if config is not None:
-                od = getattr(config, "output_dir", None)
-                if od:
-                    base_dir = Path(od)
-
-        if base_dir is None:
+        """Resolve only direct in-memory output directory attributes."""
+        value = getattr(model_run, "output_dir", None) or getattr(
+            model_run, "run_dir", None
+        )
+        if not value:
             raise AttributeError("Cannot determine output directory from model_run")
+        return Path(value)
 
-        # Check for run_id and append it to form the actual output directory
-        run_id = getattr(model_run, "run_id", None)
-        if run_id:
-            base_dir = base_dir / run_id
+    def _extract_start_date(
+        self, model_run: ModelRunSuccess | ModelRunFailure
+    ) -> str | None:
+        """Use only typed core timing as the transfer date fallback."""
+        return self._coerce_ww3_date(model_run.timing.start_time)
 
-        return base_dir
-
-    def _extract_start_date(self, model_run: Any) -> Optional[str]:
-        """Extract start date from model_run configuration.
-
-        Attempts to extract from:
-        1) model_run.normalized_context.period_start (v2 sidecar)
-        2) model_run.config.ww3_shel.domain.start (v1 fallback)
-        3) model_run.config.ww3_multi.domain.start (v1 fallback)
-        4) model_run.period.start (converted to WW3 format)
-
-        Returns:
-            Optional[str]: Start date in 'YYYYMMDD HHMMSS' format, or None if not found
-        """
-        # First try normalized_context (v2 sidecar)
-        ctx = getattr(model_run, "normalized_context", None)
-        if ctx is not None:
-            period_start = getattr(ctx, "period_start", None)
-            if period_start is not None:
-                try:
-                    return period_start.strftime("%Y%m%d %H%M%S")
-                except Exception:
-                    pass
-
-        # Fallback to config (v1 backward compat)
-        config = getattr(model_run, "config", None)
-        if config is None:
+    def _extract_output_stride(
+        self, model_run: ModelRunSuccess | ModelRunFailure
+    ) -> int | None:
+        """Read an optional WW3 stride from validated result metadata only."""
+        ww3_metadata = model_run.metadata.get("ww3", {})
+        if not isinstance(ww3_metadata, dict):
+            return None
+        stride = ww3_metadata.get("restart_stride_seconds")
+        if isinstance(stride, bool):
+            return None
+        try:
+            return int(stride) if stride is not None else None
+        except (TypeError, ValueError):
             return None
 
-        # Try ww3_shel component
-        ww3_shel = getattr(config, "ww3_shel", None)
-        if ww3_shel is not None:
-            domain = getattr(ww3_shel, "domain", None)
-            if domain is not None:
-                start = getattr(domain, "start", None)
-                if start is not None:
-                    return start
-
-        # Try ww3_multi component
-        ww3_multi = getattr(config, "ww3_multi", None)
-        if ww3_multi is not None:
-            domain = getattr(ww3_multi, "domain", None)
-            if domain is not None:
-                start = getattr(domain, "start", None)
-                if start is not None:
-                    return start
-
-        # Try period object (from rompy ModelRun)
-        period = getattr(model_run, "period", None)
-        if period is not None:
-            start = getattr(period, "start", None)
-            if start is not None:
-                # Convert datetime to WW3 format
-                try:
-                    from datetime import datetime
-
-                    if isinstance(start, str):
-                        start = datetime.fromisoformat(start)
-                    return start.strftime("%Y%m%d %H%M%S")
-                except Exception:
-                    pass
-
-        return None
-
-    def _extract_stop_date(self, model_run: Any) -> Optional[str]:
-        """Extract stop date from model_run configuration.
-
-        Attempts to extract from:
-        1) model_run.normalized_context.period_end (v2 sidecar)
-        2) model_run.config.ww3_shel.domain.stop (v1 fallback)
-        3) model_run.config.ww3_multi.domain.stop (v1 fallback)
-        4) model_run.period.stop (converted to WW3 format)
-
-        Returns:
-            Optional[str]: Stop date in 'YYYYMMDD HHMMSS' format, or None if not found
-        """
-        # First try normalized_context (v2 sidecar)
-        ctx = getattr(model_run, "normalized_context", None)
-        if ctx is not None:
-            period_end = getattr(ctx, "period_end", None)
-            if period_end is not None:
-                try:
-                    return period_end.strftime("%Y%m%d %H%M%S")
-                except Exception:
-                    pass
-
-        # Fallback to config (v1 backward compat)
-        config = getattr(model_run, "config", None)
-        if config is None:
-            return None
-
-        ww3_shel = getattr(config, "ww3_shel", None)
-        if ww3_shel is not None:
-            domain = getattr(ww3_shel, "domain", None)
-            if domain is not None:
-                stop = getattr(domain, "stop", None)
-                if stop is not None:
-                    return stop
-
-        ww3_multi = getattr(config, "ww3_multi", None)
-        if ww3_multi is not None:
-            domain = getattr(ww3_multi, "domain", None)
-            if domain is not None:
-                stop = getattr(domain, "stop", None)
-                if stop is not None:
-                    return stop
-
-        period = getattr(model_run, "period", None)
-        if period is not None:
-            stop = getattr(period, "stop", None)
-            if stop is not None:
-                try:
-                    from datetime import datetime
-
-                    if isinstance(stop, str):
-                        stop = datetime.fromisoformat(stop)
-                    return stop.strftime("%Y%m%d %H%M%S")
-                except Exception:
-                    pass
-
-        return None
-
-    def _extract_output_stride(self, model_run: Any) -> Optional[int]:
-        """Extract restart output stride from model_run configuration.
-
-        Attempts to extract from:
-        1) model_run.normalized_context.extensions["ww3"]["restart_stride_seconds"] (v2 sidecar)
-        2) model_run.config.ww3_shel.output_date.restart.stride (v1 fallback)
-        3) model_run.config.ww3_multi.output_date.restart.stride (v1 fallback)
-
-        Returns:
-            Optional[int]: Output stride in seconds, or None if not found
-        """
-        # First try normalized_context (v2 sidecar)
-        ctx = getattr(model_run, "normalized_context", None)
-        if ctx is not None:
-            extensions = getattr(ctx, "extensions", None)
-            if extensions and isinstance(extensions, dict):
-                ww3_ext = extensions.get("ww3", {})
-                if isinstance(ww3_ext, dict):
-                    stride = ww3_ext.get("restart_stride_seconds")
-                    if stride is not None:
-                        try:
-                            return int(stride)
-                        except (ValueError, TypeError):
-                            pass
-
-        # Fallback to config (v1 backward compat)
-        config = getattr(model_run, "config", None)
-        if config is None:
-            return None
-
-        # Try ww3_shel component
-        ww3_shel = getattr(config, "ww3_shel", None)
-        if ww3_shel is not None:
-            output_date = getattr(ww3_shel, "output_date", None)
-            if output_date is not None:
-                restart = getattr(output_date, "restart", None)
-                if restart is not None:
-                    stride = getattr(restart, "stride", None)
-                    if stride is not None:
-                        # Convert string to int (WW3 stores as string)
-                        try:
-                            return int(stride)
-                        except (ValueError, TypeError):
-                            pass
-
-        # Try ww3_multi component
-        ww3_multi = getattr(config, "ww3_multi", None)
-        if ww3_multi is not None:
-            output_date = getattr(ww3_multi, "output_date", None)
-            if output_date is not None:
-                restart = getattr(output_date, "restart", None)
-                if restart is not None:
-                    stride = getattr(restart, "stride", None)
-                    if stride is not None:
-                        try:
-                            return int(stride)
-                        except (ValueError, TypeError):
-                            pass
-
-        return None
-
-    def _coerce_ww3_date(self, value: Any) -> Optional[str]:
+    def _coerce_ww3_date(self, value: Any) -> str | None:
         if value is None:
             return None
         if isinstance(value, str):
             return value
         try:
             return value.strftime("%Y%m%d %H%M%S")
-        except Exception:
+        except (AttributeError, TypeError):
             return None
 
     def process(
         self,
         model_run_result: Any,
-        destinations: List[str],
-        artifact_types: Optional[List[ArtifactType]] = None,
+        destinations: list[str],
+        artifact_types: list[ArtifactType] | None = None,
         failure_policy: str = "CONTINUE",
         naming_policy: str = "restart_only",
         **kwargs,
@@ -368,12 +172,12 @@ class WW3TransferPostprocessor:
             PostprocessSuccess or PostprocessFailure with transfer metadata.
 
         Steps:
-        1. Validate destinations and convert failure_policy to enum
-        2. Get output_dir from model_run_result.output_dir
-        3. Filter artifacts by artifact_types if specified
+        1. Validate the typed core ModelRunResult and destinations
+        2. Resolve local artifact paths from model_run_result.workspace_dir
+        3. Filter local typed artifacts by artifact_types if specified
         4. Return early with success if no artifacts to transfer
         5. Resolve source paths (absolute or relative to output_dir)
-        6. Compute datestamp for each artifact (artifact.date → timing.start_time → config fallback)
+        6. Compute datestamp from artifact evidence or typed timing
         7. Detect restart files and compute target names
         8. Build name_map and invoke TransferManager
         9. Return PostprocessSuccess or PostprocessFailure based on transfer results
@@ -391,17 +195,41 @@ class WW3TransferPostprocessor:
         else:
             raise ValueError(f"Invalid failure_policy: {failure_policy}")
 
-        # Step 2: Get output_dir from ModelRunResult
+        model_run_result = require_model_run(model_run_result)
+
+        # Step 2: Resolve local artifacts against the canonical workspace root.
         output_dir = Path(model_run_result.output_dir)
+        workspace_dir = Path(
+            model_run_result.workspace_dir or model_run_result.output_dir
+        )
 
         # Step 3: Get artifacts from model_run_result and apply artifact_types filter
-        artifacts = model_run_result.artifacts
+        # Remote evidence is preserved by the core model but is not a local
+        # transfer input; only local ArtifactIdentity values have ``path``.
+        artifacts = [
+            artifact
+            for artifact in model_run_result.artifacts
+            if getattr(artifact, "kind", "local") == "local"
+        ]
         if artifact_types is not None:
             artifacts = [
                 a
                 for a in artifacts
                 if a.artifact_type is not None and a.artifact_type in artifact_types
             ]
+
+        observed_evidence = [
+            artifact.model_dump(mode="json") for artifact in model_run_result.artifacts
+        ]
+        remote_evidence = [
+            evidence
+            for evidence in observed_evidence
+            if evidence.get("kind") == "remote"
+        ]
+        evidence_metadata = {
+            "observed_artifacts": observed_evidence,
+            "remote_observed_artifacts": remote_evidence,
+        }
 
         # Step 4: Return early if no artifacts to transfer
         if not artifacts:
@@ -420,23 +248,26 @@ class WW3TransferPostprocessor:
                 validated=False,
                 file_count=0,
                 artifacts=[],
+                expected_outputs=list(model_run_result.expected_outputs),
+                missing_outputs=list(model_run_result.missing_outputs),
                 message=None,
                 metadata={
                     "transferred_count": 0,
                     "failed_count": 0,
                     "destinations": destinations,
+                    **evidence_metadata,
                 },
                 timing=timing,
             )
 
         # Step 5: Resolve source paths for all artifacts
-        resolved_paths: List[Path] = []
+        resolved_paths: list[Path] = []
         for artifact in artifacts:
             artifact_path = Path(artifact.path)
             if artifact_path.is_absolute():
                 resolved_paths.append(artifact_path)
             else:
-                resolved_paths.append(output_dir / artifact_path)
+                resolved_paths.append(workspace_dir / artifact_path)
 
         if naming_policy not in {"restart_only", "datestamp_all"}:
             raise ValueError(f"Invalid naming_policy: {naming_policy}")
@@ -460,7 +291,7 @@ class WW3TransferPostprocessor:
         )
 
         # Step 7: Build mapping from source file to target name
-        name_map: Dict[Path, str] = {}
+        name_map: dict[Path, str] = {}
         for i, artifact in enumerate(artifacts):
             src_path = resolved_paths[i]
 
@@ -470,9 +301,11 @@ class WW3TransferPostprocessor:
 
             # Step 8: Detect restart files
             is_restart = False
-            if artifact.artifact_type == ArtifactType.RESTART:
-                is_restart = True
-            elif src_path.name.startswith("restart") and src_path.name.endswith(".ww3"):
+            if (
+                artifact.artifact_type == ArtifactType.RESTART
+                or src_path.name.startswith("restart")
+                and src_path.name.endswith(".ww3")
+            ):
                 is_restart = True
 
             if is_restart:
@@ -540,6 +373,7 @@ class WW3TransferPostprocessor:
             "destinations": destinations,
             "name_map": {str(k): v for k, v in name_map.items()},
             "transfer_failures": transfer_failures,
+            **evidence_metadata,
         }
 
         # Calculate timing
@@ -566,6 +400,8 @@ class WW3TransferPostprocessor:
                 validated=False,
                 file_count=len(artifacts),
                 artifacts=result_artifacts,
+                expected_outputs=list(model_run_result.expected_outputs),
+                missing_outputs=list(model_run_result.missing_outputs),
                 message=None,
                 metadata=metadata,
                 timing=timing,
@@ -587,6 +423,8 @@ class WW3TransferPostprocessor:
                 error=error_msg,
                 output_dir=str(output_dir),
                 artifacts=result_artifacts,
+                expected_outputs=list(model_run_result.expected_outputs),
+                missing_outputs=list(model_run_result.missing_outputs),
                 message=None,
                 metadata=metadata,
                 timing=timing,

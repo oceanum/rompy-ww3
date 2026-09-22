@@ -10,6 +10,18 @@
 
 The `rompy-ww3` package provides a plugin for the [rompy](https://github.com/rom-py/rompy) framework to facilitate the setup, configuration, and execution of WAVEWATCH III (WW3) models. It leverages rompy's modular architecture to streamline the creation of WW3 model control files, input datasets, and boundary conditions using templated configurations and pydantic validation.
 
+## Canonical run-result sidecars
+
+WW3 consumes the canonical rompy response-schema **v2** `run_result.json`
+envelope through core's strict public loader. The dependency is pinned to core
+merge `e4fca8d6193a4315684417a31ccd101cba8c2b1c`; this is a source commit pin,
+not a claimed released rompy version. Distributable PyPI publication remains
+blocked until a compatible rompy 2.0 alpha/final release is available; clean
+installation publication proof belongs to the #16 integration gate. Missing,
+malformed, legacy v1, wrong-kind, wrong-version, and envelope-mismatch sidecars
+are rejected and must be regenerated. WW3 does not migrate or rewrite
+run-result documents.
+
 ## Development Status
 
 **⚠️ ACTIVE DEVELOPMENT - UNRELEASED**

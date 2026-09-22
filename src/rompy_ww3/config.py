@@ -5,26 +5,26 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Optional, List, Dict, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from rompy.core.responses import Artifact
-from pydantic import BaseModel, Field as PydanticField, model_validator, ConfigDict
-
+from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import Field as PydanticField
 from rompy.core.config import BaseConfig
 from rompy.core.types import RompyBaseModel
 
 from .components import (
-    Shel,
+    Bounc,
     Grid,
     Multi,
-    Bounc,
-    Prnc,
-    Trnc,
+    Namelists,
     Ounf,
     Ounp,
+    Prnc,
+    Shel,
+    Trnc,
     Uptstr,
-    Namelists,
 )
 
 logger = logging.getLogger(__name__)
@@ -75,10 +75,10 @@ class GridSpec(BaseModel):
     grid: Grid = PydanticField(
         ..., description="Grid component for ww3_grid_{name}.nml"
     )
-    prnc: Optional[Prnc] = PydanticField(
+    prnc: Prnc | None = PydanticField(
         default=None, description="Optional input preprocessing"
     )
-    bounc: Optional[Bounc] = PydanticField(
+    bounc: Bounc | None = PydanticField(
         default=None, description="Optional boundary conditions"
     )
 
@@ -141,16 +141,16 @@ class MultiConfig(BaseConfig):
     multi: Multi = PydanticField(
         ..., description="Multi-grid namelist configuration (ww3_multi.nml)"
     )
-    grids: List[GridSpec] = PydanticField(
+    grids: list[GridSpec] = PydanticField(
         ..., description="Per-grid specifications with Grid, Prnc, and Bounc components"
     )
-    ounf: Optional[Ounf] = PydanticField(
+    ounf: Ounf | None = PydanticField(
         default=None, description="Optional field output configuration (ww3_ounf.nml)"
     )
-    ounp: Optional[Ounp] = PydanticField(
+    ounp: Ounp | None = PydanticField(
         default=None, description="Optional point output configuration (ww3_ounp.nml)"
     )
-    namelists: Optional[Namelists] = PydanticField(
+    namelists: Namelists | None = PydanticField(
         default=None, description="Optional physics parameters (namelists.nml)"
     )
 
@@ -208,7 +208,7 @@ class MultiConfig(BaseConfig):
         return self
 
     @property
-    def components(self) -> List[str]:
+    def components(self) -> list[str]:
         """Return list of component names for template rendering."""
         return ["multi", "grids", "ounf", "ounp"]
 
@@ -321,7 +321,7 @@ class MultiConfig(BaseConfig):
 
         return run_path
 
-    def get_normalized_extensions(self) -> Dict[str, Any]:
+    def get_normalized_extensions(self) -> dict[str, Any]:
         """Extract WW3-specific extensions for normalized_context.
 
         Returns:
@@ -363,7 +363,7 @@ class MultiConfig(BaseConfig):
                 sidecar.normalized_context.extensions.update(extensions)
                 write_generate_result(runtime.staging_dir, sidecar)
         except Exception:
-            pass
+            logger.debug("Unable to update generate_result extensions", exc_info=True)
 
     def __call__(self, runtime) -> dict:
         """Callable invoked by rompy to generate namelists and scripts."""
@@ -485,7 +485,7 @@ echo "Workflow finished successfully."
             return "\n".join(lines)
         return None
 
-    def expected_artifacts(self) -> List["Artifact"]:
+    def expected_artifacts(self) -> list[Artifact]:
         """Return the list of artifacts this multi-grid config expects to produce.
 
         Generates a config-driven manifest using the Multi component's output
@@ -500,13 +500,13 @@ echo "Workflow finished successfully."
         )
 
         # Extract output_type configuration from the Multi component
-        output_type_config: Dict[str, Any] = {}
+        output_type_config: dict[str, Any] = {}
         if self.multi and self.multi.output_type:
             output_type_config = parse_output_type(self.multi.output_type)
 
         # Extract domain timing (start/stop)
-        start_date: Optional[str] = None
-        stop_date: Optional[str] = None
+        start_date: str | None = None
+        stop_date: str | None = None
         if self.multi and self.multi.domain:
             domain = self.multi.domain
             if domain.start:
@@ -515,7 +515,7 @@ echo "Workflow finished successfully."
                 stop_date = domain.stop.strftime("%Y%m%d %H%M%S")
 
         # Restart stride from output_date
-        output_stride: Optional[int] = None
+        output_stride: int | None = None
         if (
             self.multi
             and self.multi.output_date
@@ -532,7 +532,7 @@ echo "Workflow finished successfully."
         # Field output configuration from global ounf
         field_samefile: bool = True
         field_prefix: str = "ww3."
-        field_timesplit: Optional[int] = None
+        field_timesplit: int | None = None
         if self.ounf:
             if self.ounf.field and self.ounf.field.samefile is not None:
                 field_samefile = self.ounf.field.samefile
@@ -555,7 +555,7 @@ echo "Workflow finished successfully."
             include_always_present=True,
         )
 
-    def validate_outputs(self, output_dir: Path | str) -> List["Artifact"]:
+    def validate_outputs(self, output_dir: Path | str) -> list[Artifact]:
         """Validate that expected artifacts exist in the output directory.
 
         Generates the expected manifest from config via expected_artifacts(),
@@ -576,7 +576,7 @@ echo "Workflow finished successfully."
         # Get expected artifacts from config
         expected = self.expected_artifacts()
 
-        validated: List["Artifact"] = []
+        validated: list[Artifact] = []
         for artifact in expected:
             artifact_path = Path(artifact.path)
             if not artifact_path.is_absolute():
@@ -599,28 +599,19 @@ echo "Workflow finished successfully."
         return validated
 
     def infer_artifacts(
-        self, files: List[Path], output_types: Dict[str, Any]
-    ) -> List["Artifact"]:
-        """Infer artifact types from a list of file paths based on WW3 output conventions.
+        self,
+        files: list[Path],
+        output_types: dict[str, Any],
+        root: Path | str,
+    ) -> list[Artifact]:
+        """Infer artifacts relative to the supplied workspace/staging root.
 
-        This method determines the artifact type for each file based on its filename
-        and the configured output types. It follows WW3 naming conventions:
-        - restart* files are classified as OTHER
-        - ww3.*.nc files are NETCDF if 'field' is in output_types
-        - points.*.nc files are NETCDF if 'point' is in output_types
-        - track.*.nc files are NETCDF if 'track' is in output_types
-        - All other files are classified as OTHER
-
-        Args:
-            files: List of Path objects representing files to analyze
-            output_types: Dict mapping output type names to their configurations
-
-        Returns:
-            List[Artifact]: List of artifacts with inferred types and sizes
+        Files outside ``root`` are skipped by the discovery policy. The root is
+        explicit so nested paths and repeated basenames remain unambiguous.
         """
         from rompy_ww3.postprocess.discovery import infer_artifacts_from_files
 
-        return infer_artifacts_from_files(files, output_types)
+        return infer_artifacts_from_files(files, output_types, root)
 
 
 class BaseWW3Config(BaseConfig):
@@ -636,7 +627,7 @@ class BaseWW3Config(BaseConfig):
     )
 
     @property
-    def components(self) -> List[str]:
+    def components(self) -> list[str]:
         """Return a list of component names for WW3 namelists."""
         return [
             "ww3_grid",
@@ -747,38 +738,38 @@ class ShelConfig(BaseWW3Config):
         return str(HERE / "templates" / "base" / "ww3_shel.nml")
 
     # WW3-specific component configurations
-    ww3_shel: Optional[Shel] = PydanticField(
+    ww3_shel: Shel | None = PydanticField(
         default=None, description="Shell component (ww3_shel.nml) configuration"
     )
-    ww3_grid: Optional[Grid] = PydanticField(
+    ww3_grid: Grid | None = PydanticField(
         default=None, description="Grid component (ww3_grid.nml) configuration"
     )
-    multi_component: Optional[Multi] = PydanticField(
+    multi_component: Multi | None = PydanticField(
         default=None, description="Multi-grid component (ww3_multi.nml) configuration"
     )
-    ww3_bounc: Optional[Bounc] = PydanticField(
+    ww3_bounc: Bounc | None = PydanticField(
         default=None,
         description="Boundary component (ww3_bounc.nml) configuration",
     )
-    ww3_prnc: Optional[list[Prnc]] = PydanticField(
+    ww3_prnc: list[Prnc] | None = PydanticField(
         default=None,
         description="Field preprocessor component (ww3_prnc.nml) configuration",
     )
-    ww3_track: Optional[Trnc] = PydanticField(
+    ww3_track: Trnc | None = PydanticField(
         default=None, description="Track component (ww3_trnc.nml) configuration"
     )
-    ww3_ounf: Optional[Ounf] = PydanticField(
+    ww3_ounf: Ounf | None = PydanticField(
         default=None,
         description="Field output component (ww3_ounf.nml) configuration",
     )
-    ww3_ounp: Optional[Ounp] = PydanticField(
+    ww3_ounp: Ounp | None = PydanticField(
         default=None, description="Point output component (ww3_ounp.nml) configuration"
     )
-    ww3_upstr: Optional[Uptstr] = PydanticField(
+    ww3_upstr: Uptstr | None = PydanticField(
         default=None,
         description="Restart update component (ww3_uprstr.nml) configuration",
     )
-    namelists: Optional[Namelists] = PydanticField(
+    namelists: Namelists | None = PydanticField(
         default=None, description="Namelists component (namelists.nml) configuration"
     )
 
@@ -849,7 +840,7 @@ class ShelConfig(BaseWW3Config):
                             active_forcings[forcing_type] = "T"
 
             # Apply all active forcings to the shel input
-            if active_forcings:  # If we found any active forcings
+            if active_forcings:  # noqa: SIM102 - nested setup preserves optional objects
                 # Ensure ww3_shel exists
                 if self.ww3_shel:
                     # Ensure input_nml exists
@@ -875,7 +866,7 @@ class ShelConfig(BaseWW3Config):
                             )
         return self
 
-    def get_normalized_extensions(self) -> Dict[str, Any]:
+    def get_normalized_extensions(self) -> dict[str, Any]:
         """Extract WW3-specific extensions for normalized_context.
 
         Returns:
@@ -917,7 +908,7 @@ class ShelConfig(BaseWW3Config):
                 sidecar.normalized_context.extensions.update(extensions)
                 write_generate_result(runtime.staging_dir, sidecar)
         except Exception:
-            pass
+            logger.debug("Unable to update generate_result extensions", exc_info=True)
 
     def __call__(self, runtime) -> dict:
         """Callable where data and config are interfaced and CMD is rendered."""
@@ -933,7 +924,7 @@ class ShelConfig(BaseWW3Config):
 
         self._update_sidecar_extensions(runtime)
 
-    def expected_artifacts(self) -> List["Artifact"]:
+    def expected_artifacts(self) -> list[Artifact]:
         """Return the list of artifacts this config expects to produce.
 
         Generates a config-driven manifest using WW3 output type and timing
@@ -948,13 +939,13 @@ class ShelConfig(BaseWW3Config):
         )
 
         # Extract output_type configuration
-        output_type_config: Dict[str, Any] = {}
+        output_type_config: dict[str, Any] = {}
         if self.ww3_shel and self.ww3_shel.output_type:
             output_type_config = parse_output_type(self.ww3_shel.output_type)
 
         # Extract domain timing (start/stop) — used for restart and field predictions
-        start_date: Optional[str] = None
-        stop_date: Optional[str] = None
+        start_date: str | None = None
+        stop_date: str | None = None
         if self.ww3_shel and self.ww3_shel.domain:
             domain = self.ww3_shel.domain
             if domain.start:
@@ -963,7 +954,7 @@ class ShelConfig(BaseWW3Config):
                 stop_date = domain.stop.strftime("%Y%m%d %H%M%S")
 
         # Restart stride from output_date
-        output_stride: Optional[int] = None
+        output_stride: int | None = None
         if (
             self.ww3_shel
             and self.ww3_shel.output_date
@@ -981,7 +972,7 @@ class ShelConfig(BaseWW3Config):
         # Field output configuration
         field_samefile: bool = True
         field_prefix: str = "ww3."
-        field_timesplit: Optional[int] = None
+        field_timesplit: int | None = None
         if self.ww3_ounf:
             if self.ww3_ounf.field and self.ww3_ounf.field.samefile is not None:
                 field_samefile = self.ww3_ounf.field.samefile
@@ -1005,7 +996,7 @@ class ShelConfig(BaseWW3Config):
             include_always_present=True,
         )
 
-    def validate_outputs(self, output_dir: Path | str) -> List["Artifact"]:
+    def validate_outputs(self, output_dir: Path | str) -> list[Artifact]:
         """Validate that expected artifacts exist in the output directory.
 
         Generates the expected manifest from config via expected_artifacts(),
@@ -1026,7 +1017,7 @@ class ShelConfig(BaseWW3Config):
         # Get expected artifacts from config
         expected = self.expected_artifacts()
 
-        validated: List["Artifact"] = []
+        validated: list[Artifact] = []
         for artifact in expected:
             artifact_path = Path(artifact.path)
             # Resolve relative paths against output_dir
@@ -1051,28 +1042,19 @@ class ShelConfig(BaseWW3Config):
         return validated
 
     def infer_artifacts(
-        self, files: List[Path], output_types: Dict[str, Any]
-    ) -> List["Artifact"]:
-        """Infer artifact types from a list of file paths based on WW3 output conventions.
+        self,
+        files: list[Path],
+        output_types: dict[str, Any],
+        root: Path | str,
+    ) -> list[Artifact]:
+        """Infer artifacts relative to the supplied workspace/staging root.
 
-        This method determines the artifact type for each file based on its filename
-        and the configured output types. It follows WW3 naming conventions:
-        - restart* files are classified as OTHER
-        - ww3.*.nc files are NETCDF if 'field' is in output_types
-        - points.*.nc files are NETCDF if 'point' is in output_types
-        - track.*.nc files are NETCDF if 'track' is in output_types
-        - All other files are classified as OTHER
-
-        Args:
-            files: List of Path objects representing files to analyze
-            output_types: Dict mapping output type names to their configurations
-
-        Returns:
-            List[Artifact]: List of artifacts with inferred types and sizes
+        Files outside ``root`` are skipped by the discovery policy. The root is
+        explicit so nested paths and repeated basenames remain unambiguous.
         """
         from rompy_ww3.postprocess.discovery import infer_artifacts_from_files
 
-        return infer_artifacts_from_files(files, output_types)
+        return infer_artifacts_from_files(files, output_types, root)
 
     def _set_default_dates(self, runtime):
         """Set default start and end dates from the runtime period if not already set in components."""
@@ -1091,11 +1073,11 @@ class ShelConfig(BaseWW3Config):
         if self.ww3_shel and self.ww3_shel.output_type:
             from rompy_ww3.namelists.output_date import (
                 OutputDate,
+                OutputDateCoupling,
                 OutputDateField,
+                OutputDatePartition,
                 OutputDatePoint,
                 OutputDateTrack,
-                OutputDatePartition,
-                OutputDateCoupling,
             )
 
             # Check if any output type is active (not None) and initialize corresponding output_date components
@@ -1168,7 +1150,7 @@ class ShelConfig(BaseWW3Config):
         if hasattr(obj, "set_default_dates"):
             obj.set_default_dates(period)
         # For non-namelist objects, process their fields recursively
-        elif hasattr(obj, "__dict__") or hasattr(obj, "__pydantic_fields__"):
+        elif hasattr(obj, "__dict__") or hasattr(obj, "__pydantic_fields__"):  # noqa: SIM102
             if hasattr(obj, "model_fields"):
                 # Process Pydantic model fields
                 for field_name in obj.model_fields:
@@ -1184,7 +1166,7 @@ class ShelConfig(BaseWW3Config):
                     # Also process lists of objects
                     elif isinstance(field_value, list):
                         for item in field_value:
-                            if hasattr(item, "__dict__") or hasattr(
+                            if hasattr(item, "__dict__") or hasattr(  # noqa: SIM102
                                 item, "__pydantic_fields__"
                             ):
                                 if item is not None and not isinstance(
@@ -1201,14 +1183,14 @@ class ShelConfig(BaseWW3Config):
             interval_seconds: The time interval in seconds to use for default stride
         """
         # If this is a namelist object with stride attribute, set it if not already set
-        if hasattr(obj, "stride") and getattr(obj, "stride") is None:
+        if hasattr(obj, "stride") and obj.stride is None:
             obj.stride = interval_seconds
         # If this is a namelist object with timestride attribute, set it if not already set
-        if hasattr(obj, "timestride") and getattr(obj, "timestride") is None:
+        if hasattr(obj, "timestride") and obj.timestride is None:
             obj.timestride = interval_seconds
 
         # For non-namelist objects, process their fields recursively
-        elif hasattr(obj, "__dict__") or hasattr(obj, "__pydantic_fields__"):
+        elif hasattr(obj, "__dict__") or hasattr(obj, "__pydantic_fields__"):  # noqa: SIM102
             if hasattr(obj, "model_fields"):
                 # Process Pydantic model fields
                 for field_name in obj.model_fields:
@@ -1226,7 +1208,7 @@ class ShelConfig(BaseWW3Config):
                     # Also process lists of objects
                     elif isinstance(field_value, list):
                         for item in field_value:
-                            if hasattr(item, "__dict__") or hasattr(
+                            if hasattr(item, "__dict__") or hasattr(  # noqa: SIM102
                                 item, "__pydantic_fields__"
                             ):
                                 if item is not None and not isinstance(
@@ -1236,7 +1218,7 @@ class ShelConfig(BaseWW3Config):
                                         item, interval_seconds
                                     )
 
-    def render_namelists(self) -> Dict[str, str]:
+    def render_namelists(self) -> dict[str, str]:
         """Render all component namelists as a dictionary of strings.
 
         Returns:
@@ -1281,7 +1263,7 @@ class ShelConfig(BaseWW3Config):
 
         return namelists
 
-    def get_template_context(self) -> Dict[str, Any]:
+    def get_template_context(self) -> dict[str, Any]:
         """Generate template context for Jinja2 templates.
 
         Returns:

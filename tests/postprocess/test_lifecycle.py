@@ -1,104 +1,77 @@
 import json
-from types import SimpleNamespace
 from datetime import datetime, timezone
 
+from rompy.core.responses import Artifact, ArtifactType, ModelRunSuccess, TimingInfo
 
+from rompy_ww3.postprocess.lifecycle import run_transfer_postprocess
 from rompy_ww3.postprocess.persistence import (
     build_persisted,
-    write_persisted,
-    load_persisted,
     is_step_completed,
+    load_persisted,
+    write_persisted,
 )
-from rompy_ww3.postprocess.lifecycle import run_transfer_postprocess
-from rompy.core.responses import Artifact, ArtifactType
-from rompy.core.responses import TimingInfo
 
 
-def test_run_transfer_postprocess_creates_marker(tmp_path):
-    # Prepare persisted run_result.json in output dir with one artifact file
-    out = tmp_path / "out"
-    out.mkdir()
-    (out / "restart001.ww3").write_text("data")
-
-    artifacts = [
-        Artifact(
-            path="restart001.ww3",
-            artifact_type=ArtifactType.RESTART,
-            size_bytes=None,
-            description="",
-            date=None,
-        )
-    ]
-    mr = SimpleNamespace(
+def _persisted_run(out, artifact_name, artifact_type):
+    result = ModelRunSuccess(
         success=True,
-        run_id="r1",
+        run_id=out.name,
         backend_used="local",
         output_dir=str(out),
         workspace_dir=str(out),
-        artifacts=artifacts,
+        artifacts=[
+            Artifact(
+                path=artifact_name,
+                artifact_type=artifact_type,
+                size_bytes=None,
+                description="",
+                date=None,
+            )
+        ],
+        expected_outputs=[],
+        missing_outputs=[],
         timing=TimingInfo(
-            start_time=datetime.now(timezone.utc), end_time=datetime.now(timezone.utc)
+            start_time=datetime.now(timezone.utc),
+            end_time=datetime.now(timezone.utc),
         ),
-        error=None,
         message=None,
         metadata={},
     )
+    write_persisted(build_persisted(result), out)
 
-    persisted = build_persisted(mr)
-    write_persisted(persisted, out)
 
-    # Run lifecycle
+def test_run_transfer_postprocess_creates_marker(tmp_path):
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "restart001.ww3").write_text("data")
+    _persisted_run(out, "restart001.ww3", ArtifactType.RESTART)
+
     run_transfer_postprocess(out, destinations=[f"file://{tmp_path / 'dest'}"])
 
-    # Should mark step completed in run_result.json
     assert is_step_completed(out, "transfer")
     loaded = load_persisted(out)
-    post = getattr(loaded, "postprocess", {})
-    assert "transfer" in post
+    assert isinstance(loaded, ModelRunSuccess)
+    run_raw = json.loads((out / "run_result.json").read_text())
+    assert "postprocess" not in run_raw
+    state = json.loads((out / "postprocess_state.json").read_text())
+    assert state["steps"]["transfer"]["completed"] is True
 
 
 def test_run_transfer_postprocess_skips_if_completed(tmp_path):
     out = tmp_path / "out2"
     out.mkdir()
     (out / "a.txt").write_text("x")
+    _persisted_run(out, "a.txt", ArtifactType.TEXT)
 
-    artifacts = [
-        Artifact(
-            path="a.txt",
-            artifact_type=ArtifactType.TEXT,
-            size_bytes=None,
-            description="",
-            date=None,
-        )
-    ]
-    mr = SimpleNamespace(
-        success=True,
-        run_id="r2",
-        backend_used="local",
-        output_dir=str(out),
-        workspace_dir=str(out),
-        artifacts=artifacts,
-        timing=TimingInfo(
-            start_time=datetime.now(timezone.utc), end_time=datetime.now(timezone.utc)
-        ),
-        error=None,
-        message=None,
-        metadata={},
-    )
-
-    persisted = build_persisted(mr)
-    write_persisted(persisted, out)
-
-    # First run to set marker
-    run_transfer_postprocess(out, destinations=[f"file://{tmp_path / 'dest'}"])
+    destination = f"file://{tmp_path / 'dest'}"
+    run_transfer_postprocess(out, destinations=[destination])
     assert is_step_completed(out, "transfer")
 
-    # Capture run_result.json content and run again - should be skipped and not duplicate
     before = json.loads((out / "run_result.json").read_text())
-    result2 = run_transfer_postprocess(
-        out, destinations=[f"file://{tmp_path / 'dest'}"]
-    )
+    state_before = json.loads((out / "postprocess_state.json").read_text())
+    result = run_transfer_postprocess(out, destinations=[destination])
     after = json.loads((out / "run_result.json").read_text())
+    state_after = json.loads((out / "postprocess_state.json").read_text())
     assert before == after
-    # And result should indicate skip via metadata if possible
-    assert getattr(result2, "metadata", {}).get("skipped") is True
+    assert state_before["steps"]["transfer"]["state"] == state_after["steps"]["transfer"]["state"]
+    assert result.metadata["skipped"] is True
