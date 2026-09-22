@@ -8,7 +8,13 @@ from rompy.core.responses import (
     PostprocessSuccess,
 )
 
-from .persistence import is_step_completed, load_persisted, mark_step_completed
+from .persistence import (
+    is_step_completed,
+    load_persisted,
+    load_postprocess,
+    mark_step_completed,
+    require_postprocess,
+)
 from .processor import WW3TransferPostprocessor
 
 # Stable step name for transfer postprocess
@@ -42,30 +48,33 @@ def run_transfer_postprocess(
 
     # If already completed, return early with a light-weight success result
     if is_step_completed(p, TRANSFER_STEP):
-        # Build a trivial PostprocessSuccess reflecting no-op
-        # We prefer to return a PostprocessSuccess object consistent with
-        # rompy.core.responses expectations; construct minimal fields.
-        return PostprocessSuccess(
-            success=True,
-            run_id=getattr(persisted, "run_id", "unknown"),
-            output_dir=str(getattr(persisted, "output_dir", "")),
-            validated=False,
-            file_count=0,
-            artifacts=[],
-            expected_outputs=list(getattr(persisted, "expected_outputs", [])),
-            missing_outputs=list(getattr(persisted, "missing_outputs", [])),
-            message="skipped: already completed",
-            metadata={"skipped": True},
-            timing=persisted.timing,
-        )
+        # Return the canonical persisted result, not a reconstructed duck-typed
+        # response.  This keeps repeated CLI/in-process consumption auditable.
+        try:
+            persisted_result = load_postprocess(p)
+            return persisted_result.model_copy(
+                update={
+                    "metadata": {
+                        **persisted_result.metadata,
+                        "skipped": True,
+                    }
+                }
+            )
+        except FileNotFoundError:
+            # A legacy lifecycle marker without its canonical result is not a
+            # valid completed step; rerun to repair the evidence.
+            pass
 
     # Not completed yet - run processor
     processor = WW3TransferPostprocessor()
-    result = processor.process(
-        persisted,
-        destinations=destinations,
-        artifact_types=artifact_types,
-        failure_policy=failure_policy,
+    result = require_postprocess(
+        processor.process(
+            persisted,
+            destinations=destinations,
+            artifact_types=artifact_types,
+            failure_policy=failure_policy,
+            persistence_dir=p if p.is_dir() else p.parent,
+        )
     )
 
     # Record lifecycle state separately; the core-owned run sidecar is immutable.
