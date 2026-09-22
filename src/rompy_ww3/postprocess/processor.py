@@ -19,6 +19,7 @@ from rompy.core.responses import (
     TimingInfo,
 )
 from rompy.transfer import TransferFailurePolicy, TransferManager
+from rompy.transfer.manager import TransferBatchResult
 
 from rompy_ww3.postprocess.naming import compute_target_name
 from rompy_ww3.postprocess.persistence import persist_postprocess, require_model_run
@@ -346,12 +347,42 @@ class WW3TransferPostprocessor:
         primary_error: str | None = None
         successful_paths: set[Path] = set()
         try:
-            batch = TransferManager().transfer_files(
-                files=resolved_paths,
-                destinations=destinations,
-                name_map=name_map,
-                policy=policy,
-            )
+            manager = TransferManager()
+            if policy is TransferFailurePolicy.FAIL_FAST:
+                # The manager's batch FAIL_FAST raises and discards its partial
+                # result. Execute one observable CONTINUE batch per file/dest,
+                # stopping after the first failed item instead.
+                items = []
+                succeeded = 0
+                failed = 0
+                for source in resolved_paths:
+                    for destination in destinations:
+                        single = manager.transfer_files(
+                            files=[source],
+                            destinations=[destination],
+                            name_map={source: name_map[source]},
+                            policy=TransferFailurePolicy.CONTINUE,
+                        )
+                        items.extend(single.items)
+                        succeeded += single.succeeded
+                        failed += single.failed
+                        if single.failed:
+                            break
+                    if failed:
+                        break
+                batch = TransferBatchResult(
+                    total=succeeded + failed,
+                    succeeded=succeeded,
+                    failed=failed,
+                    items=items,
+                )
+            else:
+                batch = manager.transfer_files(
+                    files=resolved_paths,
+                    destinations=destinations,
+                    name_map=name_map,
+                    policy=policy,
+                )
             metadata["transferred_count"] = int(batch.succeeded)
             metadata["failed_count"] = int(batch.failed)
             for item in batch.items:

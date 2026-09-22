@@ -1,7 +1,11 @@
 """Console script for rompy_ww3."""
 
+# Typer requires call expressions in command signatures; these pre-existing CLI
+# declarations are intentionally exempt from generic Ruff checks.
+# ruff: noqa: B008, BLE001, RUF010
+
 from pathlib import Path
-from typing import List, Optional, cast
+from typing import cast
 
 import typer
 from rich.console import Console
@@ -206,7 +210,7 @@ def postprocess(
     path: Path = typer.Argument(
         ..., help="Path to an output directory or run_result.json file"
     ),
-    destinations: List[str] = typer.Option(
+    destinations: list[str] = typer.Option(
         ..., "--destination", "-d", help="Destination URI(s) to transfer outputs to"
     ),
     failure_policy: str = typer.Option(
@@ -215,7 +219,7 @@ def postprocess(
         "-p",
         help="Failure policy: CONTINUE or FAIL_FAST",
     ),
-    artifact_types: Optional[List[str]] = typer.Option(
+    artifact_types: list[str] | None = typer.Option(
         None,
         "--artifact-type",
         "-a",
@@ -265,9 +269,16 @@ def postprocess(
         console.print(f"[red]✗[/red] Postprocess failed: {e}")
         raise typer.Exit(1)
 
+    # Evaluate the canonical success discriminator before any optional metadata
+    # branch so stale/foreign ``skipped`` metadata can never hide a failure.
+    if not getattr(result, "success", False):
+        error = getattr(result, "error", None) or getattr(result, "message", None)
+        console.print(f"[red]✗[/red] Transfer failed: {error or 'unknown error'}")
+        raise typer.Exit(1)
+
     meta = getattr(result, "metadata", {}) or {}
     if meta.get("skipped"):
-        console.print(f"[yellow]→[/yellow] Skipped: transfer already completed for {p}")
+        console.print(f"[yellow]→[/yellow] Skipped: transfer reuse disabled; current request evaluated for {p}")
         raise typer.Exit(0)
 
     if getattr(result, "success", False):
@@ -282,9 +293,10 @@ def postprocess(
             console.print(f"[blue]→[/blue] Failed: {failed}")
         raise typer.Exit(0)
 
-    console.print(
-        f"[red]✗[/red] Transfer failed: {getattr(result, 'message', 'unknown error')}"
-    )
+    # This branch is defensive for future result implementations; canonical
+    # failures are handled above using ``PostprocessFailure.error``.
+    error = getattr(result, "error", None) or getattr(result, "message", None)
+    console.print(f"[red]✗[/red] Transfer failed: {error or 'unknown error'}")
     raise typer.Exit(1)
 
 

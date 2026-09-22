@@ -56,14 +56,16 @@ def test_postprocess_success(tmp_path):
     assert "postprocess" not in run_data
 
 
-def test_postprocess_skips_if_already_completed(tmp_path):
+def test_postprocess_reexecutes_existing_marker_for_new_destination(tmp_path):
     out = make_persisted_dir(tmp_path, name="out2", artifact_name="b.txt")
-    dest = f"file://{tmp_path / 'dest2'}"
-    r1 = runner.invoke(app, ["postprocess", str(out), "-d", dest])
+    first = f"file://{tmp_path / 'dest2-first'}"
+    r1 = runner.invoke(app, ["postprocess", str(out), "-d", first])
     assert r1.exit_code == 0
-    r2 = runner.invoke(app, ["postprocess", str(out), "-d", dest])
+    second = f"file://{tmp_path / 'dest2-second'}"
+    r2 = runner.invoke(app, ["postprocess", str(out), "-d", second])
     assert r2.exit_code == 0
-    assert "Skipped" in r2.stdout or "skipped" in r2.stdout
+    assert "Skipped" not in r2.stdout
+    assert (tmp_path / "dest2-second" / "b.txt").exists()
 
 
 def test_postprocess_missing_path_exits_nonzero(tmp_path):
