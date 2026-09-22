@@ -15,11 +15,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from pydantic import TypeAdapter, ValidationError
+from pydantic import ValidationError
 from rompy.core import result_persistence
 from rompy.core.responses import (
     ModelRunFailure,
-    ModelRunResult,
     ModelRunSuccess,
     NormalizedContext,
     RunResultSidecar,
@@ -46,8 +45,8 @@ def _atomic_write(path: Path, data: bytes) -> None:
             os.unlink(temporary)
 
 
-def _require_model_run(result: Any) -> ModelRunPayload:
-    """Require a concrete core result after any explicit in-memory adaptation."""
+def require_model_run(result: Any) -> ModelRunPayload:
+    """Require a concrete canonical core ModelRunResult instance."""
     if not isinstance(result, (ModelRunSuccess, ModelRunFailure)):
         raise TypeError(
             "WW3 persistence requires rompy.core ModelRunSuccess or "
@@ -56,60 +55,9 @@ def _require_model_run(result: Any) -> ModelRunPayload:
     return result
 
 
-def coerce_model_run(result: Any) -> ModelRunPayload:
-    """Adapt a core-compatible in-memory result to the typed core model.
-
-    This adapter is not a sidecar reader: files always go through the strict
-    core loader. It exists for callers that still hand the postprocessor an
-    object returned by an older in-process runner.
-    """
-    if isinstance(result, (ModelRunSuccess, ModelRunFailure)):
-        return result
-    if not hasattr(result, "model_dump") and not hasattr(result, "__dict__"):
-        raise TypeError("expected a core-compatible ModelRunResult object")
-    raw = result.model_dump() if hasattr(result, "model_dump") else vars(result).copy()
-    raw.setdefault("success", True)
-    raw.setdefault("backend_used", "local")
-    raw.setdefault("expected_outputs", [])
-    raw.setdefault("missing_outputs", [])
-    if raw.get("success") is True:
-        raw.pop("error", None)
-    timing = raw.get("timing")
-    if hasattr(timing, "model_dump"):
-        raw["timing"] = timing.model_dump()
-        timing = raw["timing"]
-    elif timing is not None and not isinstance(timing, dict):
-        raw["timing"] = vars(timing).copy()
-        timing = raw["timing"]
-    if isinstance(timing, dict):
-        timing.pop("duration_seconds", None)
-        if "end_time" not in timing:
-            timing["end_time"] = timing.get("start_time")
-    allowed = {
-        "success", "run_id", "metadata", "persistence_diagnostic", "artifacts",
-        "expected_outputs", "missing_outputs", "backend_used", "error", "timing",
-        "output_dir", "workspace_dir", "message",
-    }
-    raw = {key: value for key, value in raw.items() if key in allowed}
-    try:
-        return _require_model_run(TypeAdapter(ModelRunResult).validate_python(raw))
-    except Exception as exc:
-        raise TypeError(
-            "WW3 persistence requires a core-compatible ModelRunResult; "
-            "regenerate a canonical schema-v2 run result"
-        ) from exc
-
-
-def build_persisted(result: ModelRunPayload, *, config: Any = None) -> RunResultSidecar:
-    """Build a canonical schema-v2 run envelope from a typed core result.
-
-    ``config`` is intentionally rejected rather than persisted in a competing
-    WW3-only extension.  Configuration belongs to the core normalized context
-    or result metadata.
-    """
-    # ``config`` was accepted by the retired WW3-v1 writer. It is deliberately
-    # ignored rather than copied into the canonical envelope.
-    payload = coerce_model_run(result)
+def build_persisted(result: ModelRunPayload) -> RunResultSidecar:
+    """Build a canonical schema-v2 run envelope from a typed core result."""
+    payload = require_model_run(result)
     metadata = payload.metadata
     normalized_context = None
     context = metadata.get("normalized_context")
@@ -130,10 +78,12 @@ def build_persisted(result: ModelRunPayload, *, config: Any = None) -> RunResult
 
 
 def write_persisted(
-    result: RunResultSidecar | ModelRunPayload | Any, output_dir: Path
+    result: RunResultSidecar | ModelRunPayload, output_dir: Path
 ) -> Path:
     """Write a canonical ``run_result.json`` using the core writer."""
-    sidecar = result if isinstance(result, RunResultSidecar) else build_persisted(result)
+    sidecar = (
+        result if isinstance(result, RunResultSidecar) else build_persisted(result)
+    )
     return result_persistence.write_run_result(Path(output_dir), sidecar)
 
 
@@ -145,7 +95,7 @@ def load_persisted(path_or_dir: Path) -> ModelRunPayload:
     guidance.  No migration or heuristic reader is provided here.
     """
     sidecar = result_persistence.load_run_result(Path(path_or_dir))
-    return _require_model_run(sidecar.payload)
+    return require_model_run(sidecar.payload)
 
 
 def _sha256_of_file(path: Path) -> str:
@@ -160,8 +110,9 @@ def _sha256_of_file(path: Path) -> str:
 
 def compute_artifact_checksums(result: ModelRunPayload) -> dict[str, str]:
     """Compute checksums for local typed artifacts without mutating the result."""
-    payload = _require_model_run(result)
-    output_dir = Path(payload.output_dir or "")
+    payload = require_model_run(result)
+    workspace_dir = payload.workspace_dir or payload.output_dir
+    output_dir = Path(workspace_dir or "")
     checksums: dict[str, str] = {}
     for artifact in payload.artifacts:
         if getattr(artifact, "kind", None) != "local":
@@ -175,7 +126,11 @@ def compute_artifact_checksums(result: ModelRunPayload) -> dict[str, str]:
 
 def _state_path(path_or_dir: Path) -> Path:
     path = Path(path_or_dir)
-    return path / POSTPROCESS_STATE_JSON if path.is_dir() else path.parent / POSTPROCESS_STATE_JSON
+    return (
+        path / POSTPROCESS_STATE_JSON
+        if path.is_dir()
+        else path.parent / POSTPROCESS_STATE_JSON
+    )
 
 
 def mark_step_completed(
@@ -190,7 +145,9 @@ def mark_step_completed(
     if not (Path(path_or_dir).is_dir() or Path(path_or_dir).exists()):
         raise FileNotFoundError(Path(path_or_dir))
     try:
-        payload = json.loads(marker.read_text(encoding="utf-8")) if marker.exists() else {}
+        payload = (
+            json.loads(marker.read_text(encoding="utf-8")) if marker.exists() else {}
+        )
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"Invalid WW3 postprocess state {marker}: {exc}") from exc
     post = payload.setdefault("steps", {})
@@ -198,7 +155,9 @@ def mark_step_completed(
     entry.update({"completed": True, "at": datetime.now(timezone.utc).isoformat()})
     if state is not None:
         entry.setdefault("state", {}).update(state)
-    _atomic_write(marker, (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode())
+    _atomic_write(
+        marker, (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
+    )
 
 
 def is_step_completed(path_or_dir: Path, step: str) -> bool:

@@ -5,6 +5,7 @@ and deterministically calculate which output files will be created based on
 timing parameters (start, stop, stride).
 """
 
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -142,8 +143,12 @@ def generate_manifest(
                 "to calculate restart file manifest"
             )
 
-        start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
-        stop_dt = datetime.strptime(stop_date, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
+        start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S").replace(
+            tzinfo=timezone.utc
+        )
+        stop_dt = datetime.strptime(stop_date, "%Y%m%d %H%M%S").replace(
+            tzinfo=timezone.utc
+        )
         stride_td = timedelta(seconds=output_stride)
 
         current_dt = start_dt + stride_td
@@ -165,9 +170,13 @@ def generate_manifest(
         if start_date is not None:
             # Derive YYYYMM suffix from start_date
             try:
-                start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
+                start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S").replace(
+                    tzinfo=timezone.utc
+                )
             except ValueError:
-                start_dt = datetime.strptime(start_date, "%Y%m%d").replace(tzinfo=timezone.utc)
+                start_dt = datetime.strptime(start_date, "%Y%m%d").replace(
+                    tzinfo=timezone.utc
+                )
             date_suffix = start_dt.strftime("%Y%m")
         else:
             date_suffix = "000000"
@@ -204,8 +213,12 @@ def generate_manifest(
                 )
             else:
                 _, fmt = timesplit_map[field_timesplit]
-                start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
-                stop_dt = datetime.strptime(stop_date, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
+                start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S").replace(
+                    tzinfo=timezone.utc
+                )
+                stop_dt = datetime.strptime(stop_date, "%Y%m%d %H%M%S").replace(
+                    tzinfo=timezone.utc
+                )
                 delta_map = {
                     4: timedelta(days=365),
                     6: timedelta(days=31),
@@ -281,9 +294,17 @@ def infer_artifacts_from_files(
         List[Artifact]: List of artifacts with inferred types and sizes
     """
     artifacts: list[Artifact] = []
+    if not files:
+        return artifacts
+    root = Path(
+        os.path.commonpath(
+            [str(Path(file_path).resolve().parent) for file_path in files]
+        )
+    )
     for file_path in files:
         # Determine artifact type from filename and configured output types
         filename = file_path.name
+        relative_path = Path(file_path).resolve().relative_to(root).as_posix()
 
         if filename.startswith("restart"):
             # Restart files
@@ -318,7 +339,7 @@ def infer_artifacts_from_files(
                 # Canonical local artifact paths are relative to the run output.
                 # The inference API has no output-dir argument, so retain the
                 # staging-relative filename rather than emitting an invalid absolute path.
-                path=filename,
+                path=relative_path,
                 artifact_type=artifact_type,
                 size_bytes=size_bytes,
                 description=None,

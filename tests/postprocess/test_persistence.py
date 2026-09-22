@@ -39,7 +39,7 @@ def _make_model_run(tmp_path):
         run_id="run-1",
         backend_used="local",
         output_dir=str(output_dir),
-        workspace_dir=str(tmp_path),
+        workspace_dir=str(output_dir),
         timing=timing,
         artifacts=artifacts,
         expected_outputs=[],

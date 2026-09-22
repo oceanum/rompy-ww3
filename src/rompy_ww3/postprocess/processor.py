@@ -28,7 +28,7 @@ from rompy.core.responses import (
 from rompy.transfer import TransferFailurePolicy, TransferManager
 
 from rompy_ww3.postprocess.naming import compute_target_name
-from rompy_ww3.postprocess.persistence import coerce_model_run
+from rompy_ww3.postprocess.persistence import require_model_run
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +61,8 @@ class WW3TransferPostprocessor:
         and generates a human-readable description.
 
         Args:
-            path: Path to the file (relative to output_dir or absolute)
-            output_dir: Base output directory for the model run
+            path: Path to the file (relative to the workspace or absolute)
+            output_dir: Base output directory for metadata and compatibility
 
         Returns:
             Artifact object with metadata
@@ -112,7 +112,9 @@ class WW3TransferPostprocessor:
 
     def _get_output_dir(self, model_run: Any) -> Path:
         """Resolve only direct in-memory output directory attributes."""
-        value = getattr(model_run, "output_dir", None) or getattr(model_run, "run_dir", None)
+        value = getattr(model_run, "output_dir", None) or getattr(
+            model_run, "run_dir", None
+        )
         if not value:
             raise AttributeError("Cannot determine output directory from model_run")
         return Path(value)
@@ -171,7 +173,7 @@ class WW3TransferPostprocessor:
 
         Steps:
         1. Validate the typed core ModelRunResult and destinations
-        2. Get output_dir from model_run_result.output_dir
+        2. Resolve local artifact paths from model_run_result.workspace_dir
         3. Filter local typed artifacts by artifact_types if specified
         4. Return early with success if no artifacts to transfer
         5. Resolve source paths (absolute or relative to output_dir)
@@ -193,10 +195,13 @@ class WW3TransferPostprocessor:
         else:
             raise ValueError(f"Invalid failure_policy: {failure_policy}")
 
-        model_run_result = coerce_model_run(model_run_result)
+        model_run_result = require_model_run(model_run_result)
 
-        # Step 2: Get output_dir from ModelRunResult
+        # Step 2: Resolve local artifacts against the canonical workspace root.
         output_dir = Path(model_run_result.output_dir)
+        workspace_dir = Path(
+            model_run_result.workspace_dir or model_run_result.output_dir
+        )
 
         # Step 3: Get artifacts from model_run_result and apply artifact_types filter
         # Remote evidence is preserved by the core model but is not a local
@@ -212,6 +217,19 @@ class WW3TransferPostprocessor:
                 for a in artifacts
                 if a.artifact_type is not None and a.artifact_type in artifact_types
             ]
+
+        observed_evidence = [
+            artifact.model_dump(mode="json") for artifact in model_run_result.artifacts
+        ]
+        remote_evidence = [
+            evidence
+            for evidence in observed_evidence
+            if evidence.get("kind") == "remote"
+        ]
+        evidence_metadata = {
+            "observed_artifacts": observed_evidence,
+            "remote_observed_artifacts": remote_evidence,
+        }
 
         # Step 4: Return early if no artifacts to transfer
         if not artifacts:
@@ -237,6 +255,7 @@ class WW3TransferPostprocessor:
                     "transferred_count": 0,
                     "failed_count": 0,
                     "destinations": destinations,
+                    **evidence_metadata,
                 },
                 timing=timing,
             )
@@ -248,7 +267,7 @@ class WW3TransferPostprocessor:
             if artifact_path.is_absolute():
                 resolved_paths.append(artifact_path)
             else:
-                resolved_paths.append(output_dir / artifact_path)
+                resolved_paths.append(workspace_dir / artifact_path)
 
         if naming_policy not in {"restart_only", "datestamp_all"}:
             raise ValueError(f"Invalid naming_policy: {naming_policy}")
@@ -282,7 +301,11 @@ class WW3TransferPostprocessor:
 
             # Step 8: Detect restart files
             is_restart = False
-            if artifact.artifact_type == ArtifactType.RESTART or src_path.name.startswith("restart") and src_path.name.endswith(".ww3"):
+            if (
+                artifact.artifact_type == ArtifactType.RESTART
+                or src_path.name.startswith("restart")
+                and src_path.name.endswith(".ww3")
+            ):
                 is_restart = True
 
             if is_restart:
@@ -350,6 +373,7 @@ class WW3TransferPostprocessor:
             "destinations": destinations,
             "name_map": {str(k): v for k, v in name_map.items()},
             "transfer_failures": transfer_failures,
+            **evidence_metadata,
         }
 
         # Calculate timing

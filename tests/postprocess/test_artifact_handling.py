@@ -3,9 +3,32 @@
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from rompy.core.responses import Artifact, ArtifactType, PostprocessSuccess
+from rompy.core.responses import (
+    Artifact,
+    ArtifactType,
+    ModelRunSuccess,
+    PostprocessSuccess,
+    TimingInfo,
+)
 
 from rompy_ww3.postprocess.processor import WW3TransferPostprocessor
+
+
+def _typed_result(raw):
+    start = raw.timing.start_time
+    end = getattr(raw.timing, "end_time", start)
+    return ModelRunSuccess(
+        success=True,
+        run_id=raw.run_id,
+        backend_used=getattr(raw, "backend_used", "local"),
+        output_dir=raw.output_dir,
+        workspace_dir=getattr(raw, "workspace_dir", raw.output_dir),
+        artifacts=raw.artifacts,
+        expected_outputs=[],
+        missing_outputs=[],
+        timing=TimingInfo(start_time=start, end_time=end),
+        metadata=getattr(raw, "metadata", {}),
+    )
 
 
 class TestCompleteArtifactHandling:
@@ -49,7 +72,7 @@ class TestCompleteArtifactHandling:
 
         processor = WW3TransferPostprocessor()
         result = processor.process(
-            model_run_result,
+            _typed_result(model_run_result),
             destinations=[f"file://{tmp_path}/dest"],
             failure_policy="CONTINUE",
         )
@@ -99,7 +122,7 @@ class TestCompleteArtifactHandling:
 
         processor = WW3TransferPostprocessor()
         result = processor.process(
-            model_run_result,
+            _typed_result(model_run_result),
             destinations=[f"file://{tmp_path}/dest"],
             failure_policy="CONTINUE",
         )
@@ -146,7 +169,7 @@ class TestCompleteArtifactHandling:
 
         processor = WW3TransferPostprocessor()
         result = processor.process(
-            model_run_result,
+            _typed_result(model_run_result),
             destinations=[f"file://{tmp_path}/dest"],
             failure_policy="CONTINUE",
         )
@@ -196,7 +219,7 @@ class TestCompleteArtifactHandling:
 
         processor = WW3TransferPostprocessor()
         result = processor.process(
-            model_run_result,
+            _typed_result(model_run_result),
             destinations=[f"file://{tmp_path}/dest"],
             failure_policy="CONTINUE",
         )
@@ -248,7 +271,7 @@ class TestCompleteArtifactHandling:
         processor = WW3TransferPostprocessor()
 
         result = processor.process(
-            model_run_result,
+            _typed_result(model_run_result),
             destinations=[f"file://{tmp_path}/dest"],
             artifact_types=[ArtifactType.NETCDF],
             failure_policy="CONTINUE",
@@ -300,7 +323,7 @@ class TestCompleteArtifactHandling:
 
         processor = WW3TransferPostprocessor()
         result = processor.process(
-            model_run_result,
+            _typed_result(model_run_result),
             destinations=[f"file://{tmp_path}/dest"],
             failure_policy="CONTINUE",
         )
@@ -345,7 +368,7 @@ class TestArtifactDateNormalization:
 
         processor = WW3TransferPostprocessor()
         return processor.process(
-            model_run_result,
+            _typed_result(model_run_result),
             destinations=[f"file://{dest_dir}"],
             failure_policy="CONTINUE",
         )
@@ -430,7 +453,7 @@ class TestArtifactDateNormalization:
 
         processor = WW3TransferPostprocessor()
         result = processor.process(
-            model_run_result,
+            _typed_result(model_run_result),
             destinations=[f"file://{dest_dir}"],
             failure_policy="CONTINUE",
             naming_policy="datestamp_all",
@@ -478,7 +501,7 @@ class TestArtifactDateNormalization:
 
         processor = WW3TransferPostprocessor()
         result = processor.process(
-            model_run_result,
+            _typed_result(model_run_result),
             destinations=[f"file://{dest_dir}"],
             failure_policy="CONTINUE",
         )

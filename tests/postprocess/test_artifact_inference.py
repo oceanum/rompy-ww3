@@ -238,6 +238,18 @@ class TestInferArtifacts:
             a.artifact_type == ArtifactType.OTHER and "track." in a.path for a in result
         )
 
+    def test_nested_paths_preserve_relative_subdirectories(self, tmp_path):
+        first = tmp_path / "one" / "same.nc"
+        second = tmp_path / "two" / "same.nc"
+        first.parent.mkdir()
+        second.parent.mkdir()
+        first.write_text("one")
+        second.write_text("two")
+        result = ShelConfig().infer_artifacts(
+            files=[first, second], output_types={"field": True}
+        )
+        assert {artifact.path for artifact in result} == {"one/same.nc", "two/same.nc"}
+
 
 class TestExpectedArtifacts:
     def test_expected_artifacts_returns_canonical_relative_evidence(self):

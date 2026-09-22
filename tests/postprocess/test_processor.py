@@ -15,6 +15,23 @@ from rompy.core.responses import (
 from rompy_ww3.postprocess.processor import WW3TransferPostprocessor
 
 
+def _typed_result(raw):
+    start = raw.timing.start_time
+    end = getattr(raw.timing, "end_time", start)
+    return ModelRunSuccess(
+        success=True,
+        run_id=getattr(raw, "run_id", "test-run"),
+        backend_used=getattr(raw, "backend_used", "local"),
+        output_dir=raw.output_dir,
+        workspace_dir=getattr(raw, "workspace_dir", raw.output_dir),
+        artifacts=getattr(raw, "artifacts", []),
+        expected_outputs=[],
+        missing_outputs=[],
+        timing=TimingInfo(start_time=start, end_time=end),
+        metadata=getattr(raw, "metadata", {}),
+    )
+
+
 def test_processor_initialization():
     """Test processor initializes without parameters (new framework pattern)."""
     processor = WW3TransferPostprocessor()
@@ -75,7 +92,7 @@ def test_single_destination_transfer(tmp_path):
     processor = WW3TransferPostprocessor()
 
     result = processor.process(
-        model_run_result,
+        _typed_result(model_run_result),
         destinations=[f"file://{dest_dir}"],
         failure_policy="CONTINUE",
     )
@@ -121,7 +138,7 @@ def test_multi_destination_transfer(tmp_path):
     processor = WW3TransferPostprocessor()
 
     result = processor.process(
-        model_run_result,
+        _typed_result(model_run_result),
         destinations=[f"file://{dest1}", f"file://{dest2}"],
         failure_policy="CONTINUE",
     )
@@ -195,7 +212,7 @@ def test_no_files_to_transfer(tmp_path):
     processor = WW3TransferPostprocessor()
 
     result = processor.process(
-        model_run_result,
+        _typed_result(model_run_result),
         destinations=[f"file://{tmp_path}/dest"],
         failure_policy="CONTINUE",
     )
@@ -235,13 +252,16 @@ def test_processor_uses_typed_timing_and_metadata(tmp_path):
     assert processor._extract_start_date(model_run_result) == "20240115 000000"
     assert processor._extract_output_stride(model_run_result) == 3600
     result = processor.process(
-        model_run_result,
+        _typed_result(model_run_result),
         destinations=[f"file://{dest_dir}"],
         failure_policy="CONTINUE",
     )
     assert isinstance(result, PostprocessSuccess)
     assert result.success is True
-    assert result.metadata["name_map"][str(output_dir / "restart001.ww3")] == "20240115_000000_restart.ww3"
+    assert (
+        result.metadata["name_map"][str(output_dir / "restart001.ww3")]
+        == "20240115_000000_restart.ww3"
+    )
 
 
 def test_processor_ignores_private_config_fallback(tmp_path):
@@ -291,7 +311,7 @@ def test_processor_restart_only_default_keeps_non_restart_name(tmp_path):
 
     processor = WW3TransferPostprocessor()
     result = processor.process(
-        model_run_result,
+        _typed_result(model_run_result),
         destinations=[f"file://{dest_dir}"],
         failure_policy="CONTINUE",
     )
@@ -330,7 +350,7 @@ def test_processor_exposes_transfer_log_entries(tmp_path):
 
     processor = WW3TransferPostprocessor()
     result = processor.process(
-        model_run_result,
+        _typed_result(model_run_result),
         destinations=[f"file://{dest_dir}"],
         failure_policy="CONTINUE",
     )
@@ -348,7 +368,7 @@ def test_processor_v1_sidecar_is_not_an_accepted_result_contract():
         run_id="test-run-v1-sidecar",
     )
     processor = WW3TransferPostprocessor()
-    with pytest.raises(TypeError, match="core-compatible ModelRunResult"):
+    with pytest.raises(TypeError, match="ModelRunSuccess or ModelRunFailure"):
         processor.process(
             model_run_result,
             destinations=["file:///tmp/dest"],
