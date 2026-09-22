@@ -12,7 +12,12 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-import tomllib
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 compatibility
+    import tomli as tomllib
+
 from rompy.core import result_persistence
 from rompy.core.responses import (
     Artifact,
