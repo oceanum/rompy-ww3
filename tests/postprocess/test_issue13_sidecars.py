@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import tomllib
 from rompy.core import result_persistence
 from rompy.core.responses import (
     Artifact,
@@ -37,7 +38,18 @@ CORE_SHA = "e4fca8d6193a4315684417a31ccd101cba8c2b1c"
 
 
 def test_core_fixture_hashes_and_provenance_are_frozen() -> None:
-    assert CORE_SHA in (FIXTURES / "README.md").read_text()
+    fixture_readme = (FIXTURES / "README.md").read_text()
+    assert CORE_SHA in fixture_readme
+    pyproject = tomllib.loads(
+        (Path(__file__).parents[2] / "pyproject.toml").read_text()
+    )
+    rompy_dependency = next(
+        dependency
+        for dependency in pyproject["project"]["dependencies"]
+        if dependency.startswith("rompy @ ")
+    )
+    assert rompy_dependency.rsplit("@", 1)[1].split(" ", 1)[0] == CORE_SHA
+    assert f"merge\n`{CORE_SHA}`" in fixture_readme
     expected = {
         "run_success.json": "9e64d49a896a9fa521daa2cb5d0067517b3b65da5eb380d04c5d72e584d1ce9f",
         "run_failure.json": "d1da8ea12df2c3a40ae00c2f41fc1f345a0d4b2292f12dbeb75c2652eb267643",

@@ -5,7 +5,6 @@ and deterministically calculate which output files will be created based on
 timing parameters (start, stop, stride).
 """
 
-import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -274,9 +273,9 @@ def generate_manifest(
 
 
 def infer_artifacts_from_files(
-    files: list[Path], output_types: dict[str, Any]
+    files: list[Path], output_types: dict[str, Any], root: Path | str
 ) -> list[Artifact]:
-    """Infer artifact types from a list of file paths based on WW3 output conventions.
+    """Infer artifact types from files relative to an explicit workspace root.
 
     This function determines the artifact type for each file based on its filename
     and the configured output types. It follows WW3 naming conventions:
@@ -286,25 +285,32 @@ def infer_artifacts_from_files(
     - track.*.nc files are NETCDF if 'track' is in output_types
     - All other files are classified as OTHER
 
+    ``root`` is the canonical workspace/staging directory for the run. It must be
+    supplied by the caller; deriving a root from the observed files can silently
+    discard directory prefixes and turn colliding paths into the same artifact.
+    Files which resolve outside that root are skipped.
+
     Args:
-        files: List of Path objects representing files to analyze
-        output_types: Dict mapping output type names to their configurations
+        files: List of Path objects representing files to analyze.
+        output_types: Dict mapping output type names to their configurations.
+        root: Canonical workspace/staging root for relative artifact paths.
 
     Returns:
-        List[Artifact]: List of artifacts with inferred types and sizes
+        List[Artifact]: List of artifacts with inferred types and sizes.
     """
     artifacts: list[Artifact] = []
-    if not files:
-        return artifacts
-    root = Path(
-        os.path.commonpath(
-            [str(Path(file_path).resolve().parent) for file_path in files]
-        )
-    )
+    resolved_root = Path(root).resolve()
     for file_path in files:
+        file_path = Path(file_path)
+        resolved_file = file_path.resolve()
+        try:
+            relative_path = resolved_file.relative_to(resolved_root).as_posix()
+        except ValueError:
+            # Local artifacts must remain bounded by the declared workspace.
+            continue
+
         # Determine artifact type from filename and configured output types
         filename = file_path.name
-        relative_path = Path(file_path).resolve().relative_to(root).as_posix()
 
         if filename.startswith("restart"):
             # Restart files

@@ -13,7 +13,9 @@ class TestInferArtifacts:
         config = ShelConfig()
 
         result = config.infer_artifacts(
-            files=[restart_file], output_types={"restart": {"extra": "DW"}}
+            files=[restart_file],
+            output_types={"restart": {"extra": "DW"}},
+            root=tmp_path,
         )
 
         assert len(result) == 1
@@ -31,7 +33,7 @@ class TestInferArtifacts:
 
         config = ShelConfig()
 
-        result = config.infer_artifacts(files=files, output_types={})
+        result = config.infer_artifacts(files=files, output_types={}, root=tmp_path)
 
         assert len(result) == 3
         for artifact in result:
@@ -44,7 +46,9 @@ class TestInferArtifacts:
         config = ShelConfig()
 
         result = config.infer_artifacts(
-            files=[field_file], output_types={"field": {"list": [1, 2, 3]}}
+            files=[field_file],
+            output_types={"field": {"list": [1, 2, 3]}},
+            root=tmp_path,
         )
 
         assert len(result) == 1
@@ -56,7 +60,9 @@ class TestInferArtifacts:
 
         config = ShelConfig()
 
-        result = config.infer_artifacts(files=[field_file], output_types={})
+        result = config.infer_artifacts(
+            files=[field_file], output_types={}, root=tmp_path
+        )
 
         assert len(result) == 1
         assert result[0].artifact_type == ArtifactType.OTHER
@@ -68,7 +74,7 @@ class TestInferArtifacts:
         config = ShelConfig()
 
         result = config.infer_artifacts(
-            files=[point_file], output_types={"point": True}
+            files=[point_file], output_types={"point": True}, root=tmp_path
         )
 
         assert len(result) == 1
@@ -80,7 +86,9 @@ class TestInferArtifacts:
 
         config = ShelConfig()
 
-        result = config.infer_artifacts(files=[point_file], output_types={})
+        result = config.infer_artifacts(
+            files=[point_file], output_types={}, root=tmp_path
+        )
 
         assert len(result) == 1
         assert result[0].artifact_type == ArtifactType.OTHER
@@ -92,7 +100,7 @@ class TestInferArtifacts:
         config = ShelConfig()
 
         result = config.infer_artifacts(
-            files=[track_file], output_types={"track": True}
+            files=[track_file], output_types={"track": True}, root=tmp_path
         )
 
         assert len(result) == 1
@@ -104,7 +112,9 @@ class TestInferArtifacts:
 
         config = ShelConfig()
 
-        result = config.infer_artifacts(files=[track_file], output_types={})
+        result = config.infer_artifacts(
+            files=[track_file], output_types={}, root=tmp_path
+        )
 
         assert len(result) == 1
         assert result[0].artifact_type == ArtifactType.OTHER
@@ -128,6 +138,7 @@ class TestInferArtifacts:
                 "point": True,
                 "track": True,
             },
+            root=tmp_path,
         )
 
         assert len(result) == 4
@@ -147,10 +158,12 @@ class TestInferArtifacts:
             for a in result
         )
 
-    def test_empty_files_list(self):
+    def test_empty_files_list(self, tmp_path):
         config = ShelConfig()
 
-        result = config.infer_artifacts(files=[], output_types={"field": True})
+        result = config.infer_artifacts(
+            files=[], output_types={"field": True}, root=tmp_path
+        )
 
         assert len(result) == 0
 
@@ -166,7 +179,7 @@ class TestInferArtifacts:
 
         config = ShelConfig()
 
-        result = config.infer_artifacts(files=files, output_types={})
+        result = config.infer_artifacts(files=files, output_types={}, root=tmp_path)
 
         assert len(result) == 4
         for artifact in result:
@@ -184,7 +197,9 @@ class TestInferArtifacts:
         config = ShelConfig()
 
         result = config.infer_artifacts(
-            files=files, output_types={"field": True, "point": True, "track": True}
+            files=files,
+            output_types={"field": True, "point": True, "track": True},
+            root=tmp_path,
         )
 
         assert len(result) == 3
@@ -196,7 +211,9 @@ class TestInferArtifacts:
 
         config = ShelConfig()
 
-        result = config.infer_artifacts(files=[nonexistent], output_types={})
+        result = config.infer_artifacts(
+            files=[nonexistent], output_types={}, root=tmp_path
+        )
 
         assert len(result) == 1
         assert result[0].size_bytes is None
@@ -208,7 +225,9 @@ class TestInferArtifacts:
 
         config = ShelConfig()
 
-        result = config.infer_artifacts(files=[test_file], output_types={})
+        result = config.infer_artifacts(
+            files=[test_file], output_types={}, root=tmp_path
+        )
 
         assert len(result) == 1
         assert result[0].size_bytes == len(content.encode())
@@ -224,7 +243,9 @@ class TestInferArtifacts:
 
         config = ShelConfig()
 
-        result = config.infer_artifacts(files=files, output_types={"field": True})
+        result = config.infer_artifacts(
+            files=files, output_types={"field": True}, root=tmp_path
+        )
 
         assert len(result) == 3
         assert any(
@@ -246,9 +267,53 @@ class TestInferArtifacts:
         first.write_text("one")
         second.write_text("two")
         result = ShelConfig().infer_artifacts(
-            files=[first, second], output_types={"field": True}
+            files=[first, second], output_types={"field": True}, root=tmp_path
         )
         assert {artifact.path for artifact in result} == {"one/same.nc", "two/same.nc"}
+
+    def test_single_nested_file_keeps_full_workspace_prefix(self, tmp_path):
+        file_path = tmp_path / "outputs" / "daily" / "same.nc"
+        file_path.parent.mkdir(parents=True)
+        file_path.write_text("nested")
+
+        result = ShelConfig().infer_artifacts(
+            files=[file_path], output_types={"field": True}, root=tmp_path
+        )
+
+        assert [artifact.path for artifact in result] == ["outputs/daily/same.nc"]
+
+    def test_deep_sibling_paths_keep_prefixes_and_avoid_collisions(self, tmp_path):
+        files = [
+            tmp_path / "grid-a" / "daily" / "same.nc",
+            tmp_path / "grid-b" / "daily" / "same.nc",
+            tmp_path / "grid-b" / "hourly" / "same.nc",
+        ]
+        for file_path in files:
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_text(file_path.parent.name)
+
+        result = ShelConfig().infer_artifacts(
+            files=files, output_types={"field": True}, root=tmp_path
+        )
+
+        assert [artifact.path for artifact in result] == [
+            "grid-a/daily/same.nc",
+            "grid-b/daily/same.nc",
+            "grid-b/hourly/same.nc",
+        ]
+
+    def test_files_outside_workspace_are_skipped(self, tmp_path):
+        inside = tmp_path / "inside" / "same.nc"
+        outside = tmp_path.parent / "outside-same.nc"
+        inside.parent.mkdir()
+        inside.write_text("inside")
+        outside.write_text("outside")
+
+        result = ShelConfig().infer_artifacts(
+            files=[inside, outside], output_types={"field": True}, root=tmp_path
+        )
+
+        assert [artifact.path for artifact in result] == ["inside/same.nc"]
 
 
 class TestExpectedArtifacts:
