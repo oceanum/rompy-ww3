@@ -1,7 +1,13 @@
 name: Test PyPI Publishing
 
 on:
+  # Full-repository validation is reserved for durable integration branches and tags.
   push:
+    branches:
+      - main
+      - response_schema
+    tags:
+      - '*'
   pull_request:
   workflow_dispatch:
 
