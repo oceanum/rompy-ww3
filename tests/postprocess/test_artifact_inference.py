@@ -1,7 +1,8 @@
 """Tests for artifact inference in ShelConfig."""
 
-from rompy_ww3.config import ShelConfig
 from rompy.core.responses import ArtifactType
+
+from rompy_ww3.config import ShelConfig
 
 
 class TestInferArtifacts:
@@ -239,10 +240,13 @@ class TestInferArtifacts:
 
 
 class TestExpectedArtifacts:
-    def test_expected_artifacts_returns_empty_list(self):
+    def test_expected_artifacts_returns_canonical_relative_evidence(self):
         config = ShelConfig()
 
         result = config.expected_artifacts()
 
         assert isinstance(result, list)
-        assert len(result) == 0
+        assert result
+        assert all(artifact.kind == "local" for artifact in result)
+        assert all(not artifact.path.startswith("/") for artifact in result)
+        assert "mod_def.ww3" in {artifact.path for artifact in result}

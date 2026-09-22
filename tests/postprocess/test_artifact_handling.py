@@ -1,10 +1,11 @@
 """Tests for complete artifact handling integration in WW3TransferPostprocessor."""
 
-from types import SimpleNamespace
 from datetime import datetime, timezone
+from types import SimpleNamespace
+
+from rompy.core.responses import Artifact, ArtifactType, PostprocessSuccess
 
 from rompy_ww3.postprocess.processor import WW3TransferPostprocessor
-from rompy.core.responses import ArtifactType, Artifact, PostprocessSuccess
 
 
 class TestCompleteArtifactHandling:
@@ -462,19 +463,17 @@ class TestArtifactDateNormalization:
             )
         ]
 
-        restart = SimpleNamespace(stride="3600")
-        output_date = SimpleNamespace(restart=restart)
-        ww3_shel = SimpleNamespace(output_date=output_date)
-        config = SimpleNamespace(ww3_shel=ww3_shel)
-
         model_run_result = SimpleNamespace(
+            success=True,
             output_dir=str(output_dir),
             artifacts=artifacts,
-            config=config,
+            backend_used="local",
             timing=SimpleNamespace(
-                start_time=datetime(2023, 1, 1, tzinfo=timezone.utc)
+                start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),
+                end_time=datetime(2023, 1, 1, tzinfo=timezone.utc),
             ),
             run_id="test-run-001",
+            metadata={"ww3": {"restart_stride_seconds": 3600}},
         )
 
         processor = WW3TransferPostprocessor()

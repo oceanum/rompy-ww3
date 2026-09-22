@@ -1,15 +1,11 @@
 import json
-from types import SimpleNamespace
 from datetime import datetime, timezone
 
+from rompy.core.responses import Artifact, ArtifactType, ModelRunSuccess, TimingInfo
 from typer.testing import CliRunner
 
-from rompy_ww3.postprocess.persistence import build_persisted, write_persisted
-from rompy_ww3.postprocess.lifecycle import TRANSFER_STEP
-from rompy.core.responses import Artifact, ArtifactType, TimingInfo
-
 from rompy_ww3.cli import app
-
+from rompy_ww3.postprocess.persistence import build_persisted, write_persisted
 
 runner = CliRunner()
 
@@ -20,33 +16,31 @@ def make_persisted_dir(
     out = tmp_path / name
     out.mkdir()
     (out / artifact_name).write_text("x")
-
-    artifacts = [
-        Artifact(
-            path=artifact_name,
-            artifact_type=art_type,
-            size_bytes=None,
-            description="",
-            date=None,
-        )
-    ]
-    mr = SimpleNamespace(
+    result = ModelRunSuccess(
         success=True,
-        run_id="rtest",
+        run_id=name,
         backend_used="local",
         output_dir=str(out),
         workspace_dir=str(out),
-        artifacts=artifacts,
+        artifacts=[
+            Artifact(
+                path=artifact_name,
+                artifact_type=art_type,
+                size_bytes=None,
+                description="",
+                date=None,
+            )
+        ],
+        expected_outputs=[],
+        missing_outputs=[],
         timing=TimingInfo(
-            start_time=datetime.now(timezone.utc), end_time=datetime.now(timezone.utc)
+            start_time=datetime.now(timezone.utc),
+            end_time=datetime.now(timezone.utc),
         ),
-        error=None,
         message=None,
         metadata={},
     )
-
-    persisted = build_persisted(mr)
-    write_persisted(persisted, out)
+    write_persisted(build_persisted(result), out)
     return out
 
 
@@ -55,8 +49,11 @@ def test_postprocess_success(tmp_path):
     dest = f"file://{tmp_path / 'dest'}"
     result = runner.invoke(app, ["postprocess", str(out), "-d", dest])
     assert result.exit_code == 0
-    data = json.loads((out / "run_result.json").read_text())
-    assert data.get("postprocess", {}).get(TRANSFER_STEP, {}).get("completed") is True
+    data = json.loads((out / "postprocess_state.json").read_text())
+    assert data["steps"]["transfer"]["completed"] is True
+    run_data = json.loads((out / "run_result.json").read_text())
+    assert run_data["schema_version"] == 2
+    assert "postprocess" not in run_data
 
 
 def test_postprocess_skips_if_already_completed(tmp_path):

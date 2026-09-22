@@ -5,15 +5,16 @@ and deterministically calculate which output files will be created based on
 timing parameters (start, stop, stride).
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from rompy.core.responses import Artifact, ArtifactType
+
 from rompy_ww3.namelists.output_type import OutputType
 
 
-def parse_output_type(output_type: OutputType) -> Dict[str, Any]:
+def parse_output_type(output_type: OutputType) -> dict[str, Any]:
     """Parse OutputType namelist and extract configuration for all output types.
 
     This function extracts configuration from a WW3 OutputType namelist object,
@@ -37,7 +38,7 @@ def parse_output_type(output_type: OutputType) -> Dict[str, Any]:
         >>> config["point"]
         None
     """
-    result: Dict[str, Optional[Dict[str, Any]]] = {
+    result: dict[str, dict[str, Any] | None] = {
         "field": None,
         "point": None,
         "track": None,
@@ -97,14 +98,14 @@ def parse_output_type(output_type: OutputType) -> Dict[str, Any]:
 def generate_manifest(
     output_dir: Path,
     output_type_config: dict,
-    start_date: Optional[str] = None,
-    stop_date: Optional[str] = None,
-    output_stride: Optional[int] = None,
+    start_date: str | None = None,
+    stop_date: str | None = None,
+    output_stride: int | None = None,
     field_samefile: bool = True,
     field_prefix: str = "ww3.",
-    field_timesplit: Optional[int] = None,
+    field_timesplit: int | None = None,
     include_always_present: bool = True,
-) -> List[Artifact]:
+) -> list[Artifact]:
     """Calculate manifest of WW3 output files based on timing configuration.
 
     Deterministically calculates which output files WW3 will create based on
@@ -131,7 +132,7 @@ def generate_manifest(
     Raises:
         ValueError: If required timing parameters are missing for restart output.
     """
-    manifest: List[Artifact] = []
+    manifest: list[Artifact] = []
 
     # --- Restart files ---
     if output_type_config.get("restart") is not None:
@@ -141,8 +142,8 @@ def generate_manifest(
                 "to calculate restart file manifest"
             )
 
-        start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S")
-        stop_dt = datetime.strptime(stop_date, "%Y%m%d %H%M%S")
+        start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
+        stop_dt = datetime.strptime(stop_date, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
         stride_td = timedelta(seconds=output_stride)
 
         current_dt = start_dt + stride_td
@@ -164,9 +165,9 @@ def generate_manifest(
         if start_date is not None:
             # Derive YYYYMM suffix from start_date
             try:
-                start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S")
+                start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
             except ValueError:
-                start_dt = datetime.strptime(start_date, "%Y%m%d")
+                start_dt = datetime.strptime(start_date, "%Y%m%d").replace(tzinfo=timezone.utc)
             date_suffix = start_dt.strftime("%Y%m")
         else:
             date_suffix = "000000"
@@ -203,8 +204,8 @@ def generate_manifest(
                 )
             else:
                 _, fmt = timesplit_map[field_timesplit]
-                start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S")
-                stop_dt = datetime.strptime(stop_date, "%Y%m%d %H%M%S")
+                start_dt = datetime.strptime(start_date, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
+                stop_dt = datetime.strptime(stop_date, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
                 delta_map = {
                     4: timedelta(days=365),
                     6: timedelta(days=31),
@@ -260,8 +261,8 @@ def generate_manifest(
 
 
 def infer_artifacts_from_files(
-    files: List[Path], output_types: Dict[str, Any]
-) -> List[Artifact]:
+    files: list[Path], output_types: dict[str, Any]
+) -> list[Artifact]:
     """Infer artifact types from a list of file paths based on WW3 output conventions.
 
     This function determines the artifact type for each file based on its filename
@@ -279,7 +280,7 @@ def infer_artifacts_from_files(
     Returns:
         List[Artifact]: List of artifacts with inferred types and sizes
     """
-    artifacts: List[Artifact] = []
+    artifacts: list[Artifact] = []
     for file_path in files:
         # Determine artifact type from filename and configured output types
         filename = file_path.name
@@ -314,7 +315,10 @@ def infer_artifacts_from_files(
 
         artifacts.append(
             Artifact(
-                path=str(file_path),
+                # Canonical local artifact paths are relative to the run output.
+                # The inference API has no output-dir argument, so retain the
+                # staging-relative filename rather than emitting an invalid absolute path.
+                path=filename,
                 artifact_type=artifact_type,
                 size_bytes=size_bytes,
                 description=None,
