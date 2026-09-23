@@ -117,6 +117,57 @@ def _fake_batch(monkeypatch, batch):
     monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", FakeManager)
 
 
+def test_accounting_includes_missing_pairs_and_replay_without_retry_inflation(
+    tmp_path, monkeypatch
+):
+    root = tmp_path / "run"
+    root.mkdir()
+    (root / "observed.txt").write_text("observed")
+    destinations = ["mock://one", "mock://two"]
+    expected_missing = Artifact(path="missing.txt", artifact_type=ArtifactType.TEXT)
+    observed = Artifact(path="observed.txt", artifact_type=ArtifactType.TEXT)
+    batch = TransferBatchResult(
+        total=2,
+        succeeded=2,
+        failed=0,
+        items=[
+            TransferItemResult(root / "observed.txt", destination, "observed.txt", f"{destination}/observed.txt", True)
+            for destination in destinations
+        ],
+    )
+    _fake_batch(monkeypatch, batch)
+    model_run = _run(root, [observed], run_id="accounting").model_copy(
+        update={"expected_outputs": [observed, expected_missing]}
+    )
+    processor = WW3TransferPostprocessor()
+    first = processor.process(model_run, destinations)
+    assert isinstance(first, PostprocessFailure)
+    assert first.metadata["requested_transfer_count"] == 4
+    assert first.metadata["successful_transfer_count"] == 2
+    assert first.metadata["failed_transfer_count"] == 2
+    assert first.metadata["skipped_transfer_count"] == 0
+    assert len(first.metadata["transfer_failures"]) == 2
+    assert (
+        first.metadata["successful_transfer_count"]
+        + first.metadata["failed_transfer_count"]
+        + first.metadata["skipped_transfer_count"]
+        == first.metadata["requested_transfer_count"]
+    )
+    second = processor.process(model_run, destinations)
+    assert isinstance(second, PostprocessFailure)
+    assert second.metadata["requested_transfer_count"] == 4
+    assert second.metadata["transferred_count"] == 2
+    assert second.metadata["successful_transfer_count"] == 0
+    assert second.metadata["failed_transfer_count"] == 2
+    assert second.metadata["skipped_transfer_count"] == 2
+    assert (
+        second.metadata["successful_transfer_count"]
+        + second.metadata["failed_transfer_count"]
+        + second.metadata["skipped_transfer_count"]
+        == second.metadata["requested_transfer_count"]
+    )
+
+
 def test_partial_transfer_returns_successful_artifacts_and_failures(tmp_path, monkeypatch):
     root = tmp_path / "run"
     root.mkdir()
@@ -246,6 +297,40 @@ def test_model_failure_never_becomes_transfer_success(tmp_path):
     )
     assert isinstance(result, PostprocessFailure)
     assert "model failed" in result.error
+
+
+def test_model_failure_keeps_primary_error_when_required_source_is_missing(tmp_path):
+    root = tmp_path / "run"
+    root.mkdir()
+    required = Artifact(path="required.txt", artifact_type=ArtifactType.TEXT)
+    model_run = _run(root, [], success=False).model_copy(
+        update={"expected_outputs": [required]}
+    )
+    result = WW3TransferPostprocessor().process(
+        model_run, [f"file://{tmp_path / 'destination'}"]
+    )
+    assert isinstance(result, PostprocessFailure)
+    assert result.error == "Model run failed: model failed"
+    assert result.metadata["transfer_diagnostic"]["error"].startswith(
+        "Required transfer source missing:"
+    )
+
+
+def test_model_failure_keeps_primary_error_when_output_directory_is_missing(tmp_path):
+    root = tmp_path / "run"
+    root.mkdir()
+    (root / "observed.txt").write_text("observed")
+    model_run = _run(
+        root, [Artifact(path="observed.txt")], success=False
+    ).model_copy(update={"output_dir": None, "workspace_dir": None})
+    result = WW3TransferPostprocessor().process(
+        model_run, [f"file://{tmp_path / 'destination'}"]
+    )
+    assert isinstance(result, PostprocessFailure)
+    assert result.error == "Model run failed: model failed"
+    assert result.metadata["transfer_diagnostic"]["error"] == (
+        "Cannot transfer local artifacts without a model output directory"
+    )
 
 
 def test_arbitrary_inputs_and_outputs_are_rejected(tmp_path):
@@ -694,6 +779,58 @@ def test_destination_disappearance_invalidates_recorded_success(tmp_path, monkey
     second = processor.process(model_run, [destination])
     assert isinstance(second, PostprocessSuccess)
     assert calls
+
+
+
+@pytest.mark.parametrize(
+    "malformed",
+    [
+        "not json",
+        [],
+        7,
+        {"steps": []},
+        {"steps": {"transfer": []}},
+        {"steps": {"transfer": {"state": []}}},
+    ],
+)
+def test_nested_state_shapes_are_repaired_and_replay_reuses(tmp_path, monkeypatch, malformed):
+    root = tmp_path / "nested-state"
+    root.mkdir()
+    (root / "field.txt").write_text("field")
+    destination = "mock://nested-state"
+    model_run = _run(root, [Artifact(path="field.txt", artifact_type=ArtifactType.TEXT)])
+    calls = []
+
+    class StateManager:
+        def transfer_files(self, **kwargs):
+            calls.append(kwargs)
+            source = kwargs["files"][0]
+            target = kwargs["name_map"][source]
+            return TransferBatchResult(
+                total=1,
+                succeeded=1,
+                failed=0,
+                items=[TransferItemResult(source, destination, target, destination + "/" + target, True)],
+            )
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", StateManager)
+    processor = WW3TransferPostprocessor()
+    assert isinstance(processor.process(model_run, [destination]), PostprocessSuccess)
+    state_path = root / "postprocess_state.json"
+    if isinstance(malformed, str):
+        state_path.write_text(malformed)
+    else:
+        state_path.write_text(json.dumps(malformed))
+    retried = processor.process(model_run, [destination])
+    reused = processor.process(model_run, [destination])
+    assert isinstance(retried, PostprocessSuccess)
+    assert isinstance(reused, PostprocessSuccess)
+    assert len(calls) == 2
+    repaired = json.loads(state_path.read_text())
+    assert isinstance(repaired, dict)
+    assert isinstance(repaired["steps"], dict)
+    assert isinstance(repaired["steps"]["transfer"], dict)
+    assert isinstance(repaired["steps"]["transfer"].get("state"), dict)
 
 
 def test_atomic_state_updates_remain_valid_under_concurrent_writes(tmp_path):

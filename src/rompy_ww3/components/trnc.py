@@ -2,7 +2,7 @@
 
 from typing import Optional
 from pydantic import Field as PydanticField
-from ..namelists.track import Track
+from ..namelists.track import Track, TrackFile
 from .basemodel import WW3ComponentBaseModel
 
 
@@ -54,5 +54,12 @@ class Trnc(WW3ComponentBaseModel):
             "TRACK_NML configuration for track output. "
             "Defines track output parameters including timing (start, stride, count, split) "
             "and format for track output generation in WW3."
+        ),
+    )
+    file_nml: Optional[TrackFile] = PydanticField(
+        default_factory=lambda: TrackFile(prefix="track."),
+        description=(
+            "FILE_NML configuration for track output. The default prefix preserves "
+            "the historical track. filename convention."
         ),
     )

@@ -5,6 +5,7 @@ and deterministically calculate which output files will be created based on
 timing parameters (start, stop, stride).
 """
 
+from calendar import monthrange
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -48,51 +49,66 @@ def parse_output_type(output_type: OutputType) -> dict[str, Any]:
     }
 
     # Parse field output configuration
-    if output_type.field is not None:
-        result["field"] = {
-            "list": output_type.field.list,
-        }
+    field = getattr(output_type, "field", None)
+    if field is not None:
+        result["field"] = {"list": field.list}
 
     # Parse point output configuration
-    if output_type.point is not None:
-        result["point"] = {
-            "file": output_type.point.file,
-            "name": output_type.point.name,
-        }
+    point = getattr(output_type, "point", None)
+    if point is not None:
+        result["point"] = {"file": point.file, "name": point.name}
 
     # Parse track output configuration
-    if output_type.track is not None:
-        result["track"] = {
-            "format": output_type.track.format,
-        }
+    track = getattr(output_type, "track", None)
+    if track is not None:
+        result["track"] = {"format": track.format}
 
     # Parse partition output configuration
-    if output_type.partition is not None:
+    partition = getattr(output_type, "partition", None)
+    if partition is not None:
         result["partition"] = {
-            "x0": output_type.partition.x0,
-            "xn": output_type.partition.xn,
-            "nx": output_type.partition.nx,
-            "y0": output_type.partition.y0,
-            "yn": output_type.partition.yn,
-            "ny": output_type.partition.ny,
-            "format": output_type.partition.format,
+            "x0": partition.x0,
+            "xn": partition.xn,
+            "nx": partition.nx,
+            "y0": partition.y0,
+            "yn": partition.yn,
+            "ny": partition.ny,
+            "format": partition.format,
         }
 
     # Parse coupling output configuration
-    if output_type.coupling is not None:
+    coupling = getattr(output_type, "coupling", None)
+    if coupling is not None:
         result["coupling"] = {
-            "sent": output_type.coupling.sent,
-            "received": output_type.coupling.received,
-            "couplet0": output_type.coupling.couplet0,
+            "sent": coupling.sent,
+            "received": coupling.received,
+            "couplet0": coupling.couplet0,
         }
 
     # Parse restart output configuration
-    if output_type.restart is not None:
-        result["restart"] = {
-            "extra": output_type.restart.extra,
-        }
+    restart = getattr(output_type, "restart", None)
+    if restart is not None:
+        result["restart"] = {"extra": restart.extra}
 
     return result
+
+
+def _advance_split_period(current: datetime, timesplit: int) -> datetime:
+    """Advance one WW3 split period without calendar-day drift."""
+    if timesplit == 4:
+        year = current.year + 1
+        day = min(current.day, monthrange(year, current.month)[1])
+        return current.replace(year=year, day=day)
+    if timesplit == 6:
+        year = current.year + (current.month == 12)
+        month = 1 if current.month == 12 else current.month + 1
+        day = min(current.day, monthrange(year, month)[1])
+        return current.replace(year=year, month=month, day=day)
+    if timesplit == 8:
+        return current + timedelta(days=1)
+    if timesplit == 10:
+        return current + timedelta(hours=1)
+    raise ValueError(f"Unsupported WW3 time split: {timesplit}")
 
 
 def generate_manifest(
@@ -113,6 +129,8 @@ def generate_manifest(
     track_timesplit: int | None = None,
     track_start_date: str | None = None,
     track_stop_date: str | None = None,
+    point_window_strict: bool = False,
+    track_window_strict: bool = False,
     always_present: list[tuple[str, ArtifactType]] | None = None,
     include_always_present: bool = True,
 ) -> list[Artifact]:
@@ -142,6 +160,10 @@ def generate_manifest(
         track_timesplit: Track split code (4/6/8/10) when split.
         track_start_date: Track output start date, falling back to ``start_date``.
         track_stop_date: Track output stop date, falling back to ``stop_date``.
+        point_window_strict: Do not fall back to domain stop for configured point
+            component windows.
+        track_window_strict: Do not fall back to domain stop for configured track
+            component windows.
         always_present: Explicit component-generated always-present artifacts.
         include_always_present: Whether to include always-present WW3 artifacts
             (mod_def.ww3, log.ww3, namelist files, shell scripts). Default True.
@@ -238,14 +260,9 @@ def generate_manifest(
                 stop_dt = datetime.strptime(stop_date, "%Y%m%d %H%M%S").replace(
                     tzinfo=timezone.utc
                 )
-                delta_map = {
-                    4: timedelta(days=365),
-                    6: timedelta(days=31),
-                    8: timedelta(days=1),
-                    10: timedelta(hours=1),
-                }
-                step = delta_map[field_timesplit]
                 current = start_dt
+                if field_timesplit == 6:
+                    current = current.replace(day=1)
                 while current <= stop_dt:
                     date_suffix = current.strftime(fmt)
                     filename = f"{field_prefix}{date_suffix}.nc"
@@ -257,7 +274,7 @@ def generate_manifest(
                                 artifact_type=ArtifactType.NETCDF,
                             )
                         )
-                    current += step
+                    current = _advance_split_period(current, field_timesplit)
         else:
             # No dates available, predict prefix only as a fallback
             filename = f"{field_prefix}*.nc"
@@ -290,22 +307,18 @@ def generate_manifest(
                 suffix = parsed_start.strftime("%Y%m")
             return [f"{prefix}{suffix}.nc"]
         formats = {4: "%Y", 6: "%Y%m", 8: "%Y%m%d", 10: "%Y%m%d%H"}
-        deltas = {
-            4: timedelta(days=365),
-            6: timedelta(days=31),
-            8: timedelta(days=1),
-            10: timedelta(hours=1),
-        }
         if timesplit not in formats or not effective_stop:
             return split_output_names(prefix, True, None, effective_start, effective_stop, None, None)
         current = datetime.strptime(effective_start, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
         stop = datetime.strptime(effective_stop, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
+        if timesplit == 6:
+            current = current.replace(day=1)
         names: list[str] = []
         while current <= stop:
             name = f"{prefix}{current.strftime(formats[timesplit])}.nc"
             if name not in names:
                 names.append(name)
-            current += deltas[timesplit]
+            current = _advance_split_period(current, timesplit)
         return names
 
     # --- Point and track NetCDF outputs ---
@@ -318,8 +331,8 @@ def generate_manifest(
                 point_timesplit,
                 point_start_date,
                 point_stop_date,
-                start_date,
-                stop_date,
+                None if point_window_strict else start_date,
+                None if point_window_strict else stop_date,
             )
         )
     if output_type_config.get("track") is not None:
@@ -331,8 +344,8 @@ def generate_manifest(
                 track_timesplit,
                 track_start_date,
                 track_stop_date,
-                start_date,
-                stop_date,
+                None if track_window_strict else start_date,
+                None if track_window_strict else stop_date,
             )
         )
 

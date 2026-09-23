@@ -380,6 +380,19 @@ class WW3TransferPostprocessor:
         return result
 
     @staticmethod
+    def _final_error(
+        model_run: ModelRunPayload,
+        operational_error: str,
+        metadata: dict[str, Any],
+    ) -> str:
+        """Keep model failure primary while retaining operational diagnostics."""
+        if isinstance(model_run, ModelRunFailure):
+            metadata.setdefault("transfer_diagnostic", {})["error"] = operational_error
+            metadata["transfer_diagnostic"].setdefault("failures", [])
+            return f"Model run failed: {model_run.error}"
+        return operational_error
+
+    @staticmethod
     @contextmanager
     def _operation_lock(path_or_dir: Path):
         """Serialize one run's read/transfer/write lifecycle with flock."""
@@ -503,8 +516,11 @@ class WW3TransferPostprocessor:
             "local_count": len(local_artifacts),
             "remote_count": len(remote),
             "skipped_count": len(skipped_artifacts),
+            "skipped_transfer_count": 0,
             "transferred_count": 0,
+            "successful_transfer_count": 0,
             "failed_count": 0,
+            "failed_transfer_count": 0,
             "transfer_failures": [],
             "observed_artifacts": observed,
             "remote_observed_artifacts": remote,
@@ -541,14 +557,17 @@ class WW3TransferPostprocessor:
         start_time = datetime.now(timezone.utc)
         if required_missing and not local_artifacts:
             metadata["failed_count"] = len(required_missing) * len(destinations)
+            metadata["failed_transfer_count"] = metadata["failed_count"]
             metadata["transfer_failures"] = [
                 {
                     "path": artifact.path,
                     "target_name": artifact.path.rsplit("/", 1)[-1],
+                    "destination": self._destination_identity(destination),
                     "error": "required source artifact was not observed",
                     "reason": "missing_required_source",
                 }
                 for artifact in required_missing
+                for destination in destinations
             ]
             return self._result(
                 model_run,
@@ -556,8 +575,10 @@ class WW3TransferPostprocessor:
                 artifacts=[],
                 metadata=metadata,
                 start_time=start_time,
-                error=(
-                    f"Required transfer source missing: {len(required_missing)} artifact(s)"
+                error=self._final_error(
+                    model_run,
+                    f"Required transfer source missing: {len(required_missing)} artifact(s)",
+                    metadata,
                 ),
                 persistence_dir=persistence_path,
             )
@@ -585,14 +606,27 @@ class WW3TransferPostprocessor:
         if output_dir is None:
             error = "Cannot transfer local artifacts without a model output directory"
             metadata["failed_count"] = metadata["requested_transfer_count"]
+            metadata["failed_transfer_count"] = metadata["failed_count"]
             metadata["transfer_failures"] = [
                 {
                     "path": artifact.path,
                     "target_name": artifact.path.rsplit("/", 1)[-1],
+                    "destination": self._destination_identity(destination),
                     "error": error,
                     "reason": "missing_output_directory",
                 }
                 for artifact in local_artifacts
+                for destination in destinations
+            ] + [
+                {
+                    "path": artifact.path,
+                    "target_name": artifact.path.rsplit("/", 1)[-1],
+                    "destination": self._destination_identity(destination),
+                    "error": "required source artifact was not observed",
+                    "reason": "missing_required_source",
+                }
+                for artifact in required_missing
+                for destination in destinations
             ]
             return self._result(
                 model_run,
@@ -600,7 +634,7 @@ class WW3TransferPostprocessor:
                 artifacts=[],
                 metadata=metadata,
                 start_time=start_time,
-                error=error,
+                error=self._final_error(model_run, error, metadata),
                 persistence_dir=persistence_path,
             )
 
@@ -725,7 +759,10 @@ class WW3TransferPostprocessor:
         metadata["transfer_records"] = list(pair_records.values())
         metadata["reused_count"] = len(pair_records)
         metadata["skipped_count"] += len(pair_records)
-        metadata["requested_transfer_count"] = len(all_pairs)
+        metadata["skipped_transfer_count"] = len(pair_records)
+        metadata["requested_transfer_count"] = (
+            len(all_pairs) + len(required_missing) * len(destinations)
+        )
         metadata["requested_count"] = len(local_artifacts) + len(required_missing)
 
         # A complete prior result is reusable only when every requested pair is
@@ -814,7 +851,9 @@ class WW3TransferPostprocessor:
                     items=items,
                 )
             metadata["transferred_count"] = len(pair_records) + int(batch.succeeded)
+            metadata["successful_transfer_count"] = int(batch.succeeded)
             metadata["failed_count"] = int(batch.failed)
+            metadata["failed_transfer_count"] = int(batch.failed)
             for item in batch.items:
                 requested_destination = item.dest_prefix or next(
                     (
@@ -870,6 +909,7 @@ class WW3TransferPostprocessor:
         except Exception as exc:  # noqa: BLE001 - fail-fast must become typed evidence
             primary_error = f"Transfer failed: {type(exc).__name__}: {exc}"
             metadata["failed_count"] = 1
+            metadata["failed_transfer_count"] = 1
             metadata["transfer_failures"].append(
                 {
                     "path": str(resolved_paths[0]),
@@ -892,15 +932,19 @@ class WW3TransferPostprocessor:
         ]
         metadata["transferred_artifacts"] = self._evidence(transferred_artifacts)
         if required_missing:
-            metadata["failed_count"] += len(required_missing) * len(destinations)
+            missing_pairs = len(required_missing) * len(destinations)
+            metadata["failed_count"] += missing_pairs
+            metadata["failed_transfer_count"] += missing_pairs
             metadata["transfer_failures"].extend(
                 {
                     "path": artifact.path,
                     "target_name": artifact.path.rsplit("/", 1)[-1],
+                    "destination": self._destination_identity(destination),
                     "error": "required source artifact was not observed",
                     "reason": "missing_required_source",
                 }
                 for artifact in required_missing
+                for destination in destinations
             )
             required_error = (
                 f"Required transfer source missing: {len(required_missing)} artifact(s)"

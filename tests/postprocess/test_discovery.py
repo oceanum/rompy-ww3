@@ -330,6 +330,51 @@ def test_generate_manifest_track_outputs(tmp_path):
     assert result[0].artifact_type == ArtifactType.NETCDF
 
 
+def test_generate_manifest_uses_calendar_boundaries_for_split_periods(tmp_path):
+    """Monthly/yearly splits include every calendar period deterministically."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    yearly = generate_manifest(
+        output_dir,
+        {"field": {"list": "HS"}},
+        start_date="20200229 000000",
+        stop_date="20210301 000000",
+        field_samefile=False,
+        field_timesplit=4,
+        include_always_present=False,
+    )
+    monthly = generate_manifest(
+        output_dir,
+        {"field": {"list": "HS"}},
+        start_date="20201231 000000",
+        stop_date="20210201 000000",
+        field_samefile=False,
+        field_timesplit=6,
+        include_always_present=False,
+    )
+    month_end = generate_manifest(
+        output_dir,
+        {"field": {"list": "HS"}},
+        start_date="20230131 000000",
+        stop_date="20230401 000000",
+        field_samefile=False,
+        field_timesplit=6,
+        include_always_present=False,
+    )
+    assert [artifact.path for artifact in yearly] == ["ww3.2020.nc", "ww3.2021.nc"]
+    assert [artifact.path for artifact in monthly] == [
+        "ww3.202012.nc",
+        "ww3.202101.nc",
+        "ww3.202102.nc",
+    ]
+    assert [artifact.path for artifact in month_end] == [
+        "ww3.202301.nc",
+        "ww3.202302.nc",
+        "ww3.202303.nc",
+        "ww3.202304.nc",
+    ]
+
+
 def test_generate_manifest_always_present_no_duplicates():
     """Test always-present artifacts are not duplicated."""
     config = {"restart": {"extra": "DW"}}

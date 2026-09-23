@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from rompy.core.responses import Artifact, ArtifactType
 
+from rompy_ww3.components.multi import Multi
 from rompy_ww3.components.ounf import Ounf
 from rompy_ww3.components.ounp import Ounp
 from rompy_ww3.components.shel import Shel
@@ -16,6 +17,7 @@ from rompy_ww3.namelists.field import Field
 from rompy_ww3.namelists.output_date import OutputDate, OutputDateRestart
 from rompy_ww3.namelists.output_file import File
 from rompy_ww3.namelists.output_type import (
+    AllType,
     OutputType,
     OutputTypeField,
     OutputTypePoint,
@@ -23,7 +25,7 @@ from rompy_ww3.namelists.output_type import (
     OutputTypeTrack,
 )
 from rompy_ww3.namelists.point import Point, PointFile
-from rompy_ww3.namelists.track import Track
+from rompy_ww3.namelists.track import Track, TrackFile
 
 
 @pytest.mark.parametrize(
@@ -52,10 +54,24 @@ def test_shel_expected_observed_missing_matrix(tmp_path, samefile, timesplit, ex
             ),
         ),
         ww3_ounp=Ounp(
-            point_nml=Point(timesplit=8, samefile=False),
+            point_nml=Point(
+                timestart=datetime(2023, 1, 1, tzinfo=timezone.utc).replace(tzinfo=None),
+                timestride=86400,
+                timecount=2,
+                timesplit=8,
+                samefile=False,
+            ),
             file_nml=PointFile(prefix="custom-points."),
         ),
-        ww3_track=Trnc(track=Track(timesplit=8)),
+        ww3_track=Trnc(
+            track=Track(
+                timestart=datetime(2023, 1, 1, tzinfo=timezone.utc).replace(tzinfo=None),
+                timestride=86400,
+                timecount=2,
+                timesplit=8,
+            ),
+            file_nml=TrackFile(prefix="custom-track."),
+        ),
     )
     # The configured field prefix is nested and remains staging-relative.
     config.ww3_ounf = Ounf(
@@ -65,7 +81,7 @@ def test_shel_expected_observed_missing_matrix(tmp_path, samefile, timesplit, ex
     expected_artifacts = config.expected_artifacts()
     assert expected in {artifact.path for artifact in expected_artifacts}
     assert "custom-points.20230101.nc" in {a.path for a in expected_artifacts}
-    assert "track.20230101.nc" in {a.path for a in expected_artifacts}
+    assert "custom-track.20230101.nc" in {a.path for a in expected_artifacts}
     assert any(a.artifact_type is ArtifactType.NETCDF for a in expected_artifacts)
     assert any(a.artifact_type is ArtifactType.RESTART for a in expected_artifacts)
     assert any(a.artifact_type is ArtifactType.TEXT for a in expected_artifacts)
@@ -98,8 +114,22 @@ def test_shel_expected_point_track_and_restart_types():
             ),
             output_date=OutputDate(restart=OutputDateRestart(stride=43200)),
         ),
-        ww3_ounp=Ounp(point_nml=Point(samefile=True)),
-        ww3_track=Trnc(track=Track(timesplit=6)),
+        ww3_ounp=Ounp(
+            point_nml=Point(
+                timestart=datetime(2023, 1, 1, tzinfo=timezone.utc).replace(tzinfo=None),
+                timestride=86400,
+                timecount=2,
+                samefile=True,
+            )
+        ),
+        ww3_track=Trnc(
+            track=Track(
+                timestart=datetime(2023, 1, 1, tzinfo=timezone.utc).replace(tzinfo=None),
+                timestride=86400,
+                timecount=2,
+                timesplit=6,
+            )
+        ),
     )
     artifacts = config.expected_artifacts()
     paths = {artifact.path: artifact.artifact_type for artifact in artifacts}
@@ -162,6 +192,37 @@ def test_expected_validate_preserves_declared_artifact_type(tmp_path, monkeypatc
     assert observed[0].path == "nested/artifact"
     assert observed[0].artifact_type is artifact_type
     assert observed[0].size_bytes == len(b"evidence")
+
+
+def test_multiconfig_does_not_expect_unsupported_track_converter():
+    """Multi has no ww3_trnc execution path, so track is not an artifact."""
+    config = MultiConfig(
+        multi=Multi(
+            domain=Domain(
+                start=datetime(2023, 1, 1, tzinfo=timezone.utc).replace(tzinfo=None),
+                stop=datetime(2023, 1, 2, tzinfo=timezone.utc).replace(tzinfo=None),
+            ),
+            output_type=AllType(
+                field=OutputTypeField(list="HS"),
+                point=OutputTypePoint(file="points.inp"),
+                track=OutputTypeTrack(format=True),
+            ),
+        ),
+        grids=[],
+        ounp=Ounp(
+            point_nml=Point(
+                timestart=datetime(2023, 1, 1, tzinfo=timezone.utc).replace(tzinfo=None),
+                timestride=86400,
+                timecount=2,
+                samefile=True,
+            ),
+            file_nml=PointFile(prefix="multi-points."),
+        ),
+    )
+    paths = {artifact.path for artifact in config.expected_artifacts()}
+    assert "multi-points.202301.nc" in paths
+    assert not any(path.startswith("track.") for path in paths)
+    assert not any(path.startswith("multi-track.") for path in paths)
 
 
 def test_multiconfig_expected_and_observed_use_same_contract(tmp_path):

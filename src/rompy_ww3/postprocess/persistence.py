@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import tempfile
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -201,6 +202,48 @@ def _state_path(path_or_dir: Path) -> Path:
     )
 
 
+@contextmanager
+def _state_lock(marker: Path):
+    """Hold the lifecycle state lock while reading or repairing its document."""
+    lock_path = marker.with_name(f".{marker.name}.lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        import fcntl
+
+        lock_stream = lock_path.open("a+")
+        fcntl.flock(lock_stream.fileno(), fcntl.LOCK_EX)
+    except (ImportError, OSError):  # pragma: no cover - non-POSIX fallback
+        lock_stream = None
+    try:
+        yield
+    finally:
+        if lock_stream is not None:
+            try:
+                fcntl.flock(lock_stream.fileno(), fcntl.LOCK_UN)
+            finally:
+                lock_stream.close()
+
+
+def _normalize_state_payload(payload: Any) -> tuple[dict[str, Any], bool]:
+    """Normalize every state envelope and nested lifecycle entry to objects."""
+    changed = not isinstance(payload, dict)
+    document: dict[str, Any] = payload if isinstance(payload, dict) else {}
+    steps = document.get("steps")
+    if not isinstance(steps, dict):
+        document["steps"] = steps = {}
+        changed = True
+    for name, entry in list(steps.items()):
+        if not isinstance(entry, dict):
+            steps[name] = {}
+            changed = True
+            continue
+        nested = entry.get("state")
+        if "state" in entry and not isinstance(nested, dict):
+            entry["state"] = {}
+            changed = True
+    return document, changed
+
+
 def _update_state(
     path_or_dir: Path,
     step: str,
@@ -212,16 +255,7 @@ def _update_state(
     marker = _state_path(Path(path_or_dir))
     if not (Path(path_or_dir).is_dir() or Path(path_or_dir).exists()):
         raise FileNotFoundError(Path(path_or_dir))
-    lock_path = marker.with_name(f".{marker.name}.lock")
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        import fcntl
-
-        lock_stream = lock_path.open("a+")
-        fcntl.flock(lock_stream.fileno(), fcntl.LOCK_EX)
-    except (ImportError, OSError):  # pragma: no cover - non-POSIX fallback
-        lock_stream = None
-    try:
+    with _state_lock(marker):
         try:
             payload = (
                 json.loads(marker.read_text(encoding="utf-8"))
@@ -235,11 +269,8 @@ def _update_state(
             payload = {}
         except OSError as exc:
             raise ValueError(f"Unable to read WW3 postprocess state {marker}: {exc}") from exc
-        if not isinstance(payload, dict):
-            payload = {}
-        steps = payload.setdefault("steps", {})
-        if not isinstance(steps, dict):
-            payload["steps"] = steps = {}
+        payload, _ = _normalize_state_payload(payload)
+        steps = payload["steps"]
         entry = steps.setdefault(step, {})
         if not isinstance(entry, dict):
             steps[step] = entry = {}
@@ -250,19 +281,16 @@ def _update_state(
             }
         )
         if state is not None:
-            entry.setdefault("state", {}).update(state)
+            nested_state = entry.get("state")
+            if not isinstance(nested_state, dict):
+                entry["state"] = nested_state = {}
+            nested_state.update(state)
             for key in ("identity", "status"):
                 if key in state:
                     entry[key] = state[key]
         _atomic_write(
             marker, (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
         )
-    finally:
-        if lock_stream is not None:
-            try:
-                fcntl.flock(lock_stream.fileno(), fcntl.LOCK_UN)
-            finally:
-                lock_stream.close()
 
 
 def record_postprocess_state(
@@ -289,16 +317,26 @@ def mark_step_completed(
 
 
 def load_postprocess_state(path_or_dir: Path, step: str = "transfer") -> dict[str, Any] | None:
-    """Load one lifecycle entry, rejecting malformed or non-object state."""
+    """Load and repair one lifecycle entry under the state lock."""
     marker = _state_path(Path(path_or_dir))
     if not marker.exists():
         return None
-    try:
-        payload = json.loads(marker.read_text(encoding="utf-8"))
-        entry = payload.get("steps", {}).get(step)
-    except (OSError, AttributeError, json.JSONDecodeError):
-        return None
-    return entry if isinstance(entry, dict) else None
+    with _state_lock(marker):
+        try:
+            payload = json.loads(marker.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        payload, changed = _normalize_state_payload(payload)
+        steps = payload["steps"]
+        entry = steps.setdefault(step, {})
+        if not isinstance(entry, dict):
+            steps[step] = entry = {}
+            changed = True
+        if changed:
+            _atomic_write(
+                marker, (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
+            )
+        return entry
 
 
 def is_step_completed(path_or_dir: Path, step: str) -> bool:

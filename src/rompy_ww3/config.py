@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -31,6 +32,20 @@ from .components import (
 logger = logging.getLogger(__name__)
 
 HERE = Path(__file__).parent
+
+
+def _component_window(component: Any) -> tuple[str | None, str | None]:
+    """Return a component's configured output window from its own time fields."""
+    start = getattr(component, "timestart", None)
+    if start is None:
+        return None, None
+    stride = getattr(component, "timestride", None)
+    count = getattr(component, "timecount", None)
+    stop = None
+    if stride is not None and count is not None and count > 0:
+        stop = start + timedelta(seconds=stride * (count - 1))
+    formatter = "%Y%m%d %H%M%S"
+    return start.strftime(formatter), stop.strftime(formatter) if stop else None
 
 
 def _format_value_skip_none(lines: list, obj: Any, level: int, field_name: str) -> None:
@@ -509,6 +524,8 @@ echo "Workflow finished successfully."
             output_type_config.pop("point", None)
         else:
             output_type_config["point"] = {}
+        # Multi has no ww3_trnc execution path, so track output is not generated.
+        output_type_config.pop("track", None)
 
         # Extract domain timing (start/stop)
         start_date: str | None = None
@@ -544,29 +561,18 @@ echo "Workflow finished successfully."
         point_timesplit: int | None = None
         point_start_date: str | None = None
         point_stop_date: str | None = None
+        track_prefix: str = "track."
         track_timesplit: int | None = None
         track_start_date: str | None = None
         track_stop_date: str | None = None
         if point_component is not None:
             point_samefile = point_component.samefile is not False
             point_timesplit = point_component.timesplit
-            point_start_date = (
-                point_component.timestart.strftime("%Y%m%d %H%M%S")
-                if point_component.timestart
-                else start_date
-            )
-            point_stop_date = stop_date
+            point_start_date, point_stop_date = _component_window(point_component)
+            if point_start_date is None:
+                point_start_date = start_date
             if self.ounp.file_nml and self.ounp.file_nml.prefix:
                 point_prefix = self.ounp.file_nml.prefix
-        track_prefix: str = "track."
-        if self.multi and self.multi.output_date and self.multi.output_date.track:
-            track_cfg = self.multi.output_date.track
-            track_start_date = (
-                track_cfg.start.strftime("%Y%m%d %H%M%S")
-                if track_cfg.start
-                else start_date
-            )
-            track_stop_date = track_cfg.stop.strftime("%Y%m%d %H%M%S") if track_cfg.stop else stop_date
         if self.ounf:
             if self.ounf.field and self.ounf.field.samefile is not None:
                 field_samefile = self.ounf.field.samefile
@@ -595,6 +601,8 @@ echo "Workflow finished successfully."
             track_timesplit=track_timesplit,
             track_start_date=track_start_date,
             track_stop_date=track_stop_date,
+            point_window_strict=True,
+            track_window_strict=True,
             always_present=self._expected_control_artifacts(),
             include_always_present=True,
         )
@@ -1049,22 +1057,18 @@ class ShelConfig(BaseWW3Config):
         if point_component is not None:
             point_samefile = point_component.samefile is not False
             point_timesplit = point_component.timesplit
-            point_start_date = (
-                point_component.timestart.strftime("%Y%m%d %H%M%S")
-                if point_component.timestart
-                else start_date
-            )
-            point_stop_date = stop_date
+            point_start_date, point_stop_date = _component_window(point_component)
+            if point_start_date is None:
+                point_start_date = start_date
             if self.ww3_ounp.file_nml and self.ww3_ounp.file_nml.prefix:
                 point_prefix = self.ww3_ounp.file_nml.prefix
         if track_component is not None:
             track_timesplit = track_component.timesplit
-            track_start_date = (
-                track_component.timestart.strftime("%Y%m%d %H%M%S")
-                if track_component.timestart
-                else start_date
-            )
-            track_stop_date = stop_date
+            track_start_date, track_stop_date = _component_window(track_component)
+            if track_start_date is None:
+                track_start_date = start_date
+            if self.ww3_track.file_nml and self.ww3_track.file_nml.prefix:
+                track_prefix = self.ww3_track.file_nml.prefix
         if self.ww3_ounf:
             if self.ww3_ounf.field and self.ww3_ounf.field.samefile is not None:
                 field_samefile = self.ww3_ounf.field.samefile
@@ -1094,6 +1098,7 @@ class ShelConfig(BaseWW3Config):
             track_timesplit=track_timesplit,
             track_start_date=track_start_date,
             track_stop_date=track_stop_date,
+            point_window_strict=True,
             always_present=self._expected_control_artifacts(),
             include_always_present=True,
         )
