@@ -18,16 +18,18 @@ claimed as hashes of the implementation commit itself.
 | WW3 source baseline | `ea4d19cf45520541bd3c9886717d9246a5218d80` |
 | Core response-schema pin | `e4fca8d6193a4315684417a31ccd101cba8c2b1c` |
 | Wheel | `rompy_ww3-0.1.0-py3-none-any.whl` |
-| Wheel SHA-256 | `a22b30824b44f9901e15ecd69b0ab17d80394657a42e626dcf9c9874fe73325e` |
+| Wheel SHA-256 | `7cc100d2acdd20e8b94a59e7a366c3c8adbed144f701a7cdac115ef596854477` |
 | Sdist | `rompy_ww3-0.1.0.tar.gz` |
-| Sdist SHA-256 | `c1a7180919c4842d66c740ab32a434b2ed56503eec4aaede4da3291a4f3ced50` |
+| Sdist SHA-256 | `283371c2837a98a54f56c533bb440beb2c5bfc0d42df42ccc6fb961666f5bf41` |
 
-These hashes are the artifacts in `/tmp/ww3-gate2-build-final`, built from
-this evidence worktree after the metadata-test adjustment and before the
-handoff document was added. Wheel ZIP timestamps make raw wheel hashes
-build-instance-specific; the clean baseline comparison below proves member
-content is unchanged. The sdist intentionally includes the evidence test
-change, while the Markdown handoff is not included by `MANIFEST.in`.
+These hashes are the artifacts in
+`/tmp/ww3-gate2-committed-candidate/dist`, built from the clean committed
+evidence candidate `91bdfda` (the implementation baseline plus the test and
+handoff files). The final PR may add a docs-only provenance update after this
+build; the handoff itself is not included by `MANIFEST.in`. Wheel ZIP
+timestamps make raw wheel hashes build-instance-specific; the clean baseline
+comparison below proves member content is unchanged. The sdist intentionally
+includes the evidence test change.
 
 The downstream Ops pin is the wheel SHA-256 above together with core commit
 `e4fca8d6193a4315684417a31ccd101cba8c2b1c`; do not substitute a floating
@@ -38,9 +40,13 @@ core revision.
 Build command (isolated `uv` build environment):
 
 ```text
-rm -rf /tmp/ww3-gate2-build-final
-uv build --out-dir /tmp/ww3-gate2-build-final .
-sha256sum /tmp/ww3-gate2-build-final/*
+rm -rf /tmp/ww3-gate2-committed-candidate
+mkdir -p /tmp/ww3-gate2-committed-candidate/src
+git archive 91bdfda | tar -x -C /tmp/ww3-gate2-committed-candidate/src
+uv build --out-dir /tmp/ww3-gate2-committed-candidate/dist \
+  /tmp/ww3-gate2-committed-candidate/src
+sha256sum /tmp/ww3-gate2-committed-candidate/dist/rompy_ww3-0.1.0-py3-none-any.whl \
+  /tmp/ww3-gate2-committed-candidate/dist/rompy_ww3-0.1.0.tar.gz
 ```
 
 Both wheel and sdist were produced. `twine check` passed for both. The wheel
@@ -79,17 +85,17 @@ rompy @ git+https://github.com/rom-py/rompy.git@e4fca8d6193a4315684417a31ccd101c
 ## Clean install proof
 
 A fresh environment outside the workspace was created at
-`/tmp/ww3-gate2-final-venv` (CPython 3.12.13). The reproducible install
+`/tmp/ww3-gate2-committed-venv` (CPython 3.12.13). The reproducible install
 sequence was:
 
 ```text
-uv venv /tmp/ww3-gate2-final-venv --python 3.12
-uv pip install --python /tmp/ww3-gate2-final-venv/bin/python \
+uv venv /tmp/ww3-gate2-committed-venv --python 3.12
+uv pip install --python /tmp/ww3-gate2-committed-venv/bin/python \
   'rompy @ git+https://github.com/rom-py/rompy.git@e4fca8d6193a4315684417a31ccd101cba8c2b1c'
-uv pip install --python /tmp/ww3-gate2-final-venv/bin/python \
-  /tmp/ww3-gate2-build-final/rompy_ww3-0.1.0-py3-none-any.whl
-/tmp/ww3-gate2-final-venv/bin/python -m pip freeze
-/tmp/ww3-gate2-final-venv/bin/python -m pip check
+uv pip install --python /tmp/ww3-gate2-committed-venv/bin/python \
+  /tmp/ww3-gate2-committed-candidate/dist/rompy_ww3-0.1.0-py3-none-any.whl
+/tmp/ww3-gate2-committed-venv/bin/python -m pip freeze
+/tmp/ww3-gate2-committed-venv/bin/python -m pip check
 ```
 
 Core was installed directly from GitHub at the frozen commit, then the wheel
@@ -102,12 +108,12 @@ Observed in a fresh subprocess:
 ```text
 rompy version: 2.0.0a0
 rompy_ww3 version: 0.1.0
-rompy origin: /tmp/ww3-gate2-final-venv/lib/python3.12/site-packages/rompy/__init__.py
-rompy_ww3 origin: /tmp/ww3-gate2-final-venv/lib/python3.12/site-packages/rompy_ww3/__init__.py
+rompy origin: /tmp/ww3-gate2-committed-venv/lib/python3.12/site-packages/rompy/__init__.py
+rompy_ww3 origin: /tmp/ww3-gate2-committed-venv/lib/python3.12/site-packages/rompy_ww3/__init__.py
 direct_url commit: e4fca8d6193a4315684417a31ccd101cba8c2b1c
 ```
 
-The clean environment recorded `pip freeze` (132 packages after adding
+The clean environment recorded `pip freeze` (131 packages after adding
 validation tools), and the installed metadata exposed all four entry points
 listed above. `rompy_ww3 --help` exposed the public `postprocess` command.
 
@@ -153,24 +159,29 @@ Commands and results:
 PYTHONPATH="$PWD/src" /tmp/ww3-gate2-venv/bin/python -m pytest -q tests
 334 passed, 66 warnings
 
-cd /tmp && /tmp/ww3-gate2-final-venv/bin/python -m pytest -q ww3_gate2_final_tests
-334 passed, 66 warnings
+cd /tmp && env -u PYTHONPATH /tmp/ww3-gate2-committed-venv/bin/python -m pytest -q ww3_gate2_committed_tests/postprocess/test_issue13_sidecars.py
+14 passed, 1 warning
 
-/tmp/ww3-gate2-final-venv/bin/ruff check tests/postprocess/test_issue13_sidecars.py
+/tmp/ww3-gate2-committed-venv/bin/ruff check tests/postprocess/test_issue13_sidecars.py
 All checks passed!
 
-/tmp/ww3-gate2-final-venv/bin/python -m compileall -q src tests
+/tmp/ww3-gate2-committed-venv/bin/python -m compileall -q src tests
 passed
 
-/tmp/ww3-gate2-final-venv/bin/twine check /tmp/ww3-gate2-build-final/*
+/tmp/ww3-gate2-committed-venv/bin/twine check \
+  /tmp/ww3-gate2-committed-candidate/dist/rompy_ww3-0.1.0-py3-none-any.whl \
+  /tmp/ww3-gate2-committed-candidate/dist/rompy_ww3-0.1.0.tar.gz
 PASSED for wheel and sdist
 ```
 
-The installed-artifact subprocess smoke also passed public imports, CLI help
-and postprocess, direct typed processor/lifecycle execution, canonical
-run/postprocess sidecar load/persist round trips, strict rejection, model
-failure mapping, replay identity, and temporary `file://` transfer
-success. Failure and retry accounting remain covered by the issue #14/#15
+The installed-artifact subprocess smoke, run with `env -u PYTHONPATH`, also
+passed public imports, CLI help/postprocess, direct typed processor/lifecycle
+execution, canonical run/postprocess sidecar load/persist round trips, strict
+rejection, model failure mapping, replay identity, and temporary `file://`
+transfer success. The full installed-artifact suite was already run against
+unchanged package/test bytes at `334 passed, 66 warnings`; the final clean
+committed candidate rerun of the changed standalone test was `14 passed, 1
+warning`. Failure and retry accounting remain covered by the issue #14/#15
 regression suites.
 
 The test change in this Gate 2 patch reads the installed distribution's
