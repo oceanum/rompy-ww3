@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -153,6 +154,47 @@ class WW3TransferPostprocessor:
     def _artifact_type_identity(value: Any) -> str:
         return getattr(value, "value", str(value))
 
+    @staticmethod
+    def _sanitize_text(value: Any, destinations: list[str]) -> str:
+        """Replace raw credential-bearing destinations in diagnostic text."""
+        message = str(value)
+        for destination in destinations:
+            message = message.replace(
+                destination, WW3TransferPostprocessor._destination_identity(destination)
+            )
+            parsed = urlsplit(destination)
+            for key, secret in parse_qsl(parsed.query, keep_blank_values=True):
+                if key.lower() in {
+                    "token",
+                    "access_token",
+                    "secret",
+                    "password",
+                    "signature",
+                    "sig",
+                    "key",
+                } and secret:
+                    message = re.sub(re.escape(secret), "[REDACTED]", message)
+        return message
+
+    @staticmethod
+    def _sanitize_destination(destination: Any) -> str:
+        """Persist only normalized destination identities."""
+        return WW3TransferPostprocessor._destination_identity(str(destination))
+
+    @classmethod
+    def _sanitize_value(cls, value: Any, destinations: list[str]) -> Any:
+        """Replace raw destinations in nested persisted evidence."""
+        if isinstance(value, dict):
+            return {
+                key: cls._sanitize_value(item, destinations)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [cls._sanitize_value(item, destinations) for item in value]
+        if isinstance(value, str):
+            return cls._sanitize_text(value, destinations)
+        return value
+
     @classmethod
     def _identity_value(cls, value: Any, key: str = "") -> Any:
         """Return JSON-safe request options with credential fields removed."""
@@ -232,8 +274,17 @@ class WW3TransferPostprocessor:
             "required_missing": sorted(
                 [
                     {
-                        "path": artifact.path,
+                        "path": (
+                            str(
+                                (Path(artifact.path)
+                                 if Path(artifact.path).is_absolute()
+                                 else workspace / artifact.path).resolve()
+                            )
+                        ),
                         "type": self._artifact_type_identity(artifact.artifact_type),
+                        "declared_size_bytes": artifact.size_bytes,
+                        "date": artifact.date,
+                        "reason": artifact.reason,
                     }
                     for artifact in required_missing
                 ],
@@ -401,8 +452,8 @@ class WW3TransferPostprocessor:
                     "path": artifact.path,
                     "local_path": str(source),
                     "target_name": target,
-                    "destination": destination,
-                    "dest_uri": destination,
+                    "destination": WW3TransferPostprocessor._sanitize_destination(destination),
+                    "dest_uri": WW3TransferPostprocessor._sanitize_destination(destination),
                     "reason": reason,
                 }
             )
@@ -428,8 +479,8 @@ class WW3TransferPostprocessor:
                     "local_path": str(source),
                     "target_name": target,
                     "destination": self._destination_identity(destination),
-                    "dest_uri": item.dest_uri,
-                    "error": item.error or "Unknown error",
+                    "dest_uri": self._destination_identity(destination),
+                    "error": self._sanitize_text(item.error or "Unknown error", [destination]),
                     "reason": "missing_source"
                     if not source.is_file()
                     else "transfer_failed",
@@ -443,7 +494,7 @@ class WW3TransferPostprocessor:
             "target_name": target,
             "source_size_bytes": source.stat().st_size if source.is_file() else None,
             "source_checksum": source_checksum,
-            "dest_uri": item.dest_uri,
+            "dest_uri": self._destination_identity(destination),
         }
         destination_path = self._file_destination_path(record)
         if destination_path is not None and destination_path.is_file():
@@ -457,12 +508,18 @@ class WW3TransferPostprocessor:
         model_run: ModelRunPayload,
         operational_error: str,
         metadata: dict[str, Any],
+        destinations: list[str],
     ) -> str:
         """Keep model failure primary while retaining operational diagnostics."""
+        operational_error = WW3TransferPostprocessor._sanitize_text(
+            operational_error, destinations
+        )
         if isinstance(model_run, ModelRunFailure):
             metadata.setdefault("transfer_diagnostic", {})["error"] = operational_error
             metadata["transfer_diagnostic"].setdefault("failures", [])
-            return f"Model run failed: {model_run.error}"
+            return WW3TransferPostprocessor._sanitize_text(
+                f"Model run failed: {model_run.error}", destinations
+            )
         return operational_error
 
     @staticmethod
@@ -553,11 +610,13 @@ class WW3TransferPostprocessor:
 
         output_dir = Path(model_run.output_dir) if model_run.output_dir else None
         workspace_dir = Path(model_run.workspace_dir or model_run.output_dir or "")
-        observed = self._evidence(model_run.artifacts)
+        observed = self._sanitize_value(
+            self._evidence(model_run.artifacts), destinations
+        )
         remote_artifacts = [
             item for item in model_run.artifacts if item.kind == "remote"
         ]
-        remote = self._evidence(remote_artifacts)
+        remote = self._sanitize_value(self._evidence(remote_artifacts), destinations)
         local_artifacts = [
             artifact
             for artifact in model_run.artifacts
@@ -577,12 +636,23 @@ class WW3TransferPostprocessor:
                 if artifact not in local_artifacts
             )
         selected_types = set(artifact_types) if artifact_types is not None else None
-        observed_local_paths = {artifact.path for artifact in local_artifacts}
+        observed_local_paths = {
+            str(
+                (Path(artifact.path)
+                 if Path(artifact.path).is_absolute()
+                 else workspace_dir / artifact.path).resolve()
+            )
+            for artifact in local_artifacts
+        }
         missing_required = [
             artifact
             for artifact in model_run.expected_outputs
             if artifact.kind == "local"
-            and artifact.path not in observed_local_paths
+            and str(
+                (Path(artifact.path)
+                 if Path(artifact.path).is_absolute()
+                 else workspace_dir / artifact.path).resolve()
+            ) not in observed_local_paths
             and (selected_types is None or artifact.artifact_type in selected_types)
         ]
         required_missing = (
@@ -590,7 +660,7 @@ class WW3TransferPostprocessor:
         )
         duplicate_conflicts: list[str] = []
         unique_missing: list[Artifact] = []
-        missing_fingerprints: dict[str, str] = {}
+        missing_fingerprints: dict[tuple[str, str], str] = {}
         for artifact in required_missing:
             fingerprint = json.dumps(
                 {
@@ -602,9 +672,13 @@ class WW3TransferPostprocessor:
                 sort_keys=True,
                 separators=(",", ":"),
             )
-            prior_fingerprint = missing_fingerprints.get(artifact.path)
+            missing_source = Path(artifact.path)
+            if not missing_source.is_absolute():
+                missing_source = workspace_dir / missing_source
+            missing_key = (str(missing_source.resolve()), missing_source.name)
+            prior_fingerprint = missing_fingerprints.get(missing_key)
             if prior_fingerprint is None:
-                missing_fingerprints[artifact.path] = fingerprint
+                missing_fingerprints[missing_key] = fingerprint
                 unique_missing.append(artifact)
             elif prior_fingerprint != fingerprint:
                 duplicate_conflicts.append(
@@ -613,7 +687,7 @@ class WW3TransferPostprocessor:
         required_missing = unique_missing
 
         metadata: dict[str, Any] = {
-            "destinations": list(destinations),
+            "destinations": [self._destination_identity(item) for item in destinations],
             "destination_count": len(destinations),
             "requested_count": len(local_artifacts) + len(required_missing),
             "requested_transfer_count": (len(local_artifacts) + len(required_missing)) * len(destinations),
@@ -649,7 +723,7 @@ class WW3TransferPostprocessor:
             model_run,
             local_artifacts=[],
             remote_artifacts=remote_artifacts,
-            required_missing=missing_required,
+            required_missing=required_missing,
             destinations=destinations,
             name_map={},
             source_checksums={},
@@ -661,6 +735,37 @@ class WW3TransferPostprocessor:
         )
 
         start_time = datetime.now(timezone.utc)
+        metadata["duplicate_conflicts"] = list(dict.fromkeys(duplicate_conflicts))
+        if duplicate_conflicts:
+            conflict_error = (
+                "Conflicting duplicate artifact evidence: "
+                + "; ".join(metadata["duplicate_conflicts"])
+            )
+            conflict_failures = [
+                {
+                    "path": artifact.path,
+                    "target_name": artifact.path.rsplit("/", 1)[-1],
+                    "destination": self._destination_identity(destination),
+                    "error": conflict_error,
+                    "reason": "duplicate_artifact_conflict",
+                }
+                for artifact in required_missing
+                for destination in destinations
+            ]
+            metadata["failed_count"] = len(conflict_failures)
+            metadata["failed_transfer_count"] = len(conflict_failures)
+            metadata["transfer_failures"] = conflict_failures
+            return self._result(
+                model_run,
+                output_dir=output_dir,
+                artifacts=[],
+                metadata=metadata,
+                start_time=start_time,
+                error=self._final_error(
+                    model_run, conflict_error, metadata, destinations
+                ),
+                persistence_dir=persistence_path,
+            )
         if required_missing and not local_artifacts:
             metadata["failed_count"] = len(required_missing) * len(destinations)
             metadata["failed_transfer_count"] = metadata["failed_count"]
@@ -685,12 +790,15 @@ class WW3TransferPostprocessor:
                     model_run,
                     f"Required transfer source missing: {len(required_missing)} artifact(s)",
                     metadata,
+                    destinations,
                 ),
                 persistence_dir=persistence_path,
             )
         if not local_artifacts:
             if isinstance(model_run, ModelRunFailure):
-                error = f"Model run failed: {model_run.error}"
+                error = self._sanitize_text(
+                    f"Model run failed: {model_run.error}", destinations
+                )
                 return self._result(
                     model_run,
                     output_dir=output_dir,
@@ -740,7 +848,7 @@ class WW3TransferPostprocessor:
                 artifacts=[],
                 metadata=metadata,
                 start_time=start_time,
-                error=self._final_error(model_run, error, metadata),
+                error=self._final_error(model_run, error, metadata, destinations),
                 persistence_dir=persistence_path,
             )
 
@@ -805,7 +913,7 @@ class WW3TransferPostprocessor:
             model_run,
             local_artifacts=local_artifacts,
             remote_artifacts=remote_artifacts,
-            required_missing=missing_required,
+            required_missing=required_missing,
             destinations=destinations,
             name_map=name_map,
             source_checksums=source_checksums,
@@ -850,7 +958,9 @@ class WW3TransferPostprocessor:
             else []
         )
         if same_identity and isinstance(prior_metadata.get("retry_history"), list):
-            metadata["retry_history"] = list(prior_metadata["retry_history"])
+            metadata["retry_history"] = self._sanitize_value(
+                list(prior_metadata["retry_history"]), destinations
+            )
 
         pair_records: dict[tuple[str, str, str], dict[str, Any]] = {}
         for record in prior_records:
@@ -867,7 +977,7 @@ class WW3TransferPostprocessor:
                         destination=destination,
                         target_name=target,
                     ):
-                        pair_records[key] = record
+                        pair_records[key] = self._sanitize_value(record, destinations)
 
         all_pairs: list[tuple[Artifact, Path, str, str]] = []
         pair_keys: set[tuple[str, str, str]] = set()
@@ -927,7 +1037,9 @@ class WW3TransferPostprocessor:
                 artifacts=[],
                 metadata=metadata,
                 start_time=start_time,
-                error=self._final_error(model_run, conflict_error, metadata),
+                error=self._final_error(
+                    model_run, conflict_error, metadata, destinations
+                ),
                 persistence_dir=persistence_path,
             )
 
@@ -956,10 +1068,13 @@ class WW3TransferPostprocessor:
             try:
                 manager = TransferManager()
             except Exception as exc:  # noqa: BLE001 - constructor failure is typed evidence
-                primary_error = f"Transfer failed: {type(exc).__name__}: {exc}"
                 failed_artifact, failed_source, failed_target, failed_destination = (
                     pending_pairs[0]
                 )
+                error = self._sanitize_text(
+                    f"{type(exc).__name__}: {exc}", [failed_destination]
+                )
+                primary_error = f"Transfer failed: {error}"
                 metadata["failed_count"] = 1
                 metadata["failed_transfer_count"] = 1
                 metadata["transfer_failures"].append(
@@ -968,8 +1083,8 @@ class WW3TransferPostprocessor:
                         "local_path": str(failed_source),
                         "target_name": failed_target,
                         "destination": self._destination_identity(failed_destination),
-                        "dest_uri": failed_destination,
-                        "error": str(exc),
+                        "dest_uri": self._destination_identity(failed_destination),
+                        "error": error,
                         "reason": "transfer_failed",
                     }
                 )
@@ -990,7 +1105,9 @@ class WW3TransferPostprocessor:
                             policy=TransferFailurePolicy.CONTINUE,
                         )
                     except Exception as exc:  # noqa: BLE001 - pair failure is evidence
-                        error = f"{type(exc).__name__}: {exc}"
+                        error = self._sanitize_text(
+                            f"{type(exc).__name__}: {exc}", [destination]
+                        )
                         metadata["failed_count"] += 1
                         metadata["failed_transfer_count"] += 1
                         metadata["transfer_failures"].append(
@@ -999,7 +1116,7 @@ class WW3TransferPostprocessor:
                                 "local_path": str(source),
                                 "target_name": target,
                                 "destination": self._destination_identity(destination),
-                                "dest_uri": destination,
+                                "dest_uri": self._destination_identity(destination),
                                 "error": error,
                                 "reason": "transfer_failed",
                             }
@@ -1034,7 +1151,7 @@ class WW3TransferPostprocessor:
                                 "local_path": str(source),
                                 "target_name": target,
                                 "destination": self._destination_identity(destination),
-                                "dest_uri": destination,
+                                "dest_uri": self._destination_identity(destination),
                                 "error": error,
                                 "reason": "transfer_failed",
                             }
@@ -1113,7 +1230,9 @@ class WW3TransferPostprocessor:
                 else required_error
             )
         if isinstance(model_run, ModelRunFailure):
-            model_error = f"Model run failed: {model_run.error}"
+            model_error = self._sanitize_text(
+                f"Model run failed: {model_run.error}", destinations
+            )
             if primary_error is not None:
                 metadata["transfer_diagnostic"] = {
                     "error": primary_error,

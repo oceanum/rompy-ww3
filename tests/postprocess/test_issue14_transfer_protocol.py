@@ -337,7 +337,7 @@ def test_fail_fast_preserves_prior_success_and_first_failure(tmp_path, monkeypat
     assert [artifact.path for artifact in result.artifacts] == ["ok.txt"]
     assert result.metadata["transferred_count"] == 1
     assert result.metadata["failed_count"] == 1
-    assert result.metadata["transfer_failures"][0]["dest_uri"].endswith("bad.txt")
+    assert result.metadata["transfer_failures"][0]["dest_uri"] == destination
     assert len(calls) == 2
 
 
@@ -911,6 +911,125 @@ def test_duplicate_artifact_conflict_is_typed_and_preserves_model_error(tmp_path
     assert result.metadata["skipped_transfer_count"] == 0
     assert result.metadata["transfer_failures"][0]["reason"] == "duplicate_artifact_conflict"
     assert "one.txt" in result.metadata["duplicate_conflicts"][0]
+
+
+def test_required_duplicate_evidence_is_canonical_for_identity_and_replay(
+    tmp_path, monkeypatch
+):
+    root = tmp_path / "required-duplicate"
+    root.mkdir()
+    (root / "observed.txt").write_text("observed")
+    destination = "mock://required"
+    calls = []
+
+    class RequiredManager:
+        def transfer_files(self, **kwargs):
+            calls.append(kwargs)
+            source = kwargs["files"][0]
+            target = kwargs["name_map"][source]
+            return TransferBatchResult(
+                1,
+                1,
+                0,
+                [TransferItemResult(source, destination, target, f"{destination}/{target}", True)],
+            )
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", RequiredManager)
+    observed = Artifact(path="observed.txt", artifact_type=ArtifactType.TEXT)
+    missing = Artifact(path="missing.txt", artifact_type=ArtifactType.TEXT)
+    duplicate_run = _run(root, [observed], run_id="required-duplicate").model_copy(
+        update={"expected_outputs": [observed, missing, missing]}
+    )
+    singular_run = duplicate_run.model_copy(update={"expected_outputs": [observed, missing]})
+    processor = WW3TransferPostprocessor()
+    first = processor.process(duplicate_run, [destination])
+    second = processor.process(singular_run, [destination])
+
+    assert isinstance(first, PostprocessFailure)
+    assert isinstance(second, PostprocessFailure)
+    assert first.metadata["transfer_identity"] == second.metadata["transfer_identity"]
+    assert first.metadata["required_missing_count"] == 1
+    assert first.metadata["requested_transfer_count"] == 2
+    assert first.metadata["successful_transfer_count"] == 1
+    assert first.metadata["failed_transfer_count"] == 1
+    assert second.metadata["reused_count"] == 1
+    assert second.metadata["skipped_transfer_count"] == 1
+    assert len(calls) == 1
+
+
+def test_conflicting_required_duplicate_evidence_is_typed_before_missing_return(
+    tmp_path, monkeypatch
+):
+    root = tmp_path / "required-conflict"
+    root.mkdir()
+    calls = []
+
+    class UnexpectedManager:
+        def transfer_files(self, **kwargs):
+            calls.append(kwargs)
+            raise AssertionError("required conflicts must return before transfer")
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", UnexpectedManager)
+    first = Artifact(path="missing.txt", artifact_type=ArtifactType.TEXT, size_bytes=3)
+    second = Artifact(path="missing.txt", artifact_type=ArtifactType.TEXT, size_bytes=4)
+    result = WW3TransferPostprocessor().process(
+        _run(root, [], success=False, run_id="required-conflict").model_copy(
+            update={"expected_outputs": [first, second]}
+        ),
+        ["mock://required"],
+    )
+
+    assert isinstance(result, PostprocessFailure)
+    assert result.error == "Model run failed: model failed"
+    assert calls == []
+    assert result.metadata["required_missing_count"] == 1
+    assert result.metadata["requested_transfer_count"] == 1
+    assert result.metadata["failed_transfer_count"] == 1
+    assert result.metadata["transfer_failures"][0]["reason"] == "duplicate_artifact_conflict"
+    assert "missing.txt" in result.metadata["duplicate_conflicts"][0]
+
+
+def test_destination_secrets_are_absent_from_result_and_persisted_state(
+    tmp_path, monkeypatch
+):
+    root = tmp_path / "destination-secrets"
+    root.mkdir()
+    (root / "one.txt").write_text("one")
+    raw = "mock://bucket/path?token=TOPSECRET&password=HIDDEN&b=2"
+    equivalent = "mock://bucket/path?b=2&password=OTHER&token=OTHER"
+    calls = []
+
+    class SecretAwareManager:
+        def transfer_files(self, **kwargs):
+            calls.append(kwargs)
+            source = kwargs["files"][0]
+            target = kwargs["name_map"][source]
+            return TransferBatchResult(
+                1,
+                1,
+                0,
+                [TransferItemResult(source, kwargs["destinations"][0], target, raw + "/" + target, True)],
+            )
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", SecretAwareManager)
+    result = WW3TransferPostprocessor().process(
+        _run(root, [Artifact(path="one.txt")], run_id="destination-secrets"),
+        [raw, equivalent],
+    )
+    assert isinstance(result, PostprocessSuccess)
+    assert len(calls) == 1
+    assert calls[0]["destinations"] == [raw]
+    assert result.metadata["destinations"] == ["mock://bucket/path?b=2"]
+    assert result.metadata["transfer_records"][0]["destination"] == "mock://bucket/path?b=2"
+    assert result.metadata["transfer_records"][0]["dest_uri"] == "mock://bucket/path?b=2"
+    serialized = json.dumps(result.model_dump(mode="json"), sort_keys=True)
+    assert "TOPSECRET" not in serialized
+    assert "HIDDEN" not in serialized
+    assert "OTHER" not in serialized
+    for path in root.rglob("*"):
+        if path.is_file():
+            assert "TOPSECRET" not in path.read_text()
+            assert "HIDDEN" not in path.read_text()
 
 
 def test_model_failure_remains_primary_with_transfer_failure_diagnostic(tmp_path, monkeypatch):
