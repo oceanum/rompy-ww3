@@ -1,5 +1,9 @@
 """Tests for WW3 output file discovery module."""
 
+from pathlib import Path
+
+from rompy.core.responses import ArtifactType
+
 from rompy_ww3.namelists.output_type import (
     OutputType,
     OutputTypeCoupling,
@@ -13,8 +17,6 @@ from rompy_ww3.postprocess.discovery import (
     generate_manifest,
     parse_output_type,
 )
-from rompy.core.responses import ArtifactType
-from pathlib import Path
 
 
 def test_parse_output_type_with_field():
@@ -284,8 +286,8 @@ def test_generate_manifest_field_outputs_empty(tmp_path):
     assert result[0].artifact_type == ArtifactType.NETCDF
 
 
-def test_generate_manifest_point_outputs_empty(tmp_path):
-    """Test generate_manifest skips point output (not implemented for point yet)."""
+def test_generate_manifest_point_outputs(tmp_path):
+    """Test generate_manifest predicts deterministic point NetCDF output."""
     output_dir = tmp_path / "output"
     output_dir.mkdir()
 
@@ -301,12 +303,13 @@ def test_generate_manifest_point_outputs_empty(tmp_path):
         include_always_present=False,
     )
 
-    # Point output prediction not yet implemented — manifest empty
-    assert len(result) == 0
+    assert len(result) == 1
+    assert result[0].path == "points.202301.nc"
+    assert result[0].artifact_type == ArtifactType.NETCDF
 
 
-def test_generate_manifest_track_outputs_empty(tmp_path):
-    """Test generate_manifest skips track output (not implemented for track yet)."""
+def test_generate_manifest_track_outputs(tmp_path):
+    """Test generate_manifest predicts deterministic track NetCDF output."""
     output_dir = tmp_path / "output"
     output_dir.mkdir()
 
@@ -322,8 +325,124 @@ def test_generate_manifest_track_outputs_empty(tmp_path):
         include_always_present=False,
     )
 
-    # Track output prediction not yet implemented — manifest empty
-    assert len(result) == 0
+    assert len(result) == 1
+    assert result[0].path == "track.202301.nc"
+    assert result[0].artifact_type == ArtifactType.NETCDF
+
+
+def test_generate_manifest_uses_calendar_boundaries_for_split_periods(tmp_path):
+    """Monthly/yearly splits include every calendar period deterministically."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    yearly = generate_manifest(
+        output_dir,
+        {"field": {"list": "HS"}},
+        start_date="20200229 000000",
+        stop_date="20210301 000000",
+        field_samefile=False,
+        field_timesplit=4,
+        include_always_present=False,
+    )
+    monthly = generate_manifest(
+        output_dir,
+        {"field": {"list": "HS"}},
+        start_date="20201231 000000",
+        stop_date="20210201 000000",
+        field_samefile=False,
+        field_timesplit=6,
+        include_always_present=False,
+    )
+    month_end = generate_manifest(
+        output_dir,
+        {"field": {"list": "HS"}},
+        start_date="20230131 000000",
+        stop_date="20230401 000000",
+        field_samefile=False,
+        field_timesplit=6,
+        include_always_present=False,
+    )
+    assert [artifact.path for artifact in yearly] == ["ww3.2020.nc", "ww3.2021.nc"]
+    assert [artifact.path for artifact in monthly] == [
+        "ww3.202012.nc",
+        "ww3.202101.nc",
+        "ww3.202102.nc",
+    ]
+    assert [artifact.path for artifact in month_end] == [
+        "ww3.202301.nc",
+        "ww3.202302.nc",
+        "ww3.202303.nc",
+        "ww3.202304.nc",
+    ]
+
+
+def test_yearly_splits_normalize_to_january_first_for_all_output_paths(tmp_path):
+    """Yearly periods include each intersected year exactly once."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    cases = [
+        (
+            {"field": {"list": "HS"}},
+            {"field_samefile": False, "field_timesplit": 4},
+            ["ww3.2020.nc", "ww3.2021.nc"],
+        ),
+        (
+            {"point": {}},
+            {
+                "point_samefile": False,
+                "point_timesplit": 4,
+                "point_start_date": "20201231 000000",
+                "point_stop_date": "20210101 000000",
+            },
+            ["points.2020.nc", "points.2021.nc"],
+        ),
+        (
+            {"track": {}},
+            {
+                "track_timesplit": 4,
+                "track_start_date": "20201231 000000",
+                "track_stop_date": "20210101 000000",
+            },
+            ["track.2020.nc", "track.2021.nc"],
+        ),
+    ]
+    for output_types, options, expected in cases:
+        result = generate_manifest(
+            output_dir,
+            output_types,
+            start_date="20201231 000000",
+            stop_date="20210101 000000",
+            include_always_present=False,
+            **options,
+        )
+        assert [artifact.path for artifact in result] == expected
+
+    leap = generate_manifest(
+        output_dir,
+        {"point": {}},
+        point_samefile=False,
+        point_timesplit=4,
+        point_start_date="20200229 000000",
+        point_stop_date="20210301 000000",
+        include_always_present=False,
+    )
+    assert [artifact.path for artifact in leap] == [
+        "points.2020.nc",
+        "points.2021.nc",
+    ]
+
+
+def test_strict_track_split_without_component_stop_is_not_fabricated(tmp_path):
+    """A strict track schedule without a derivable stop emits no split files."""
+    result = generate_manifest(
+        tmp_path,
+        {"track": {}},
+        track_timesplit=8,
+        track_start_date="20230101 000000",
+        track_stop_date=None,
+        track_window_strict=True,
+        include_always_present=False,
+    )
+    assert result == []
 
 
 def test_generate_manifest_always_present_no_duplicates():

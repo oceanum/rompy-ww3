@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import tempfile
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -201,40 +202,144 @@ def _state_path(path_or_dir: Path) -> Path:
     )
 
 
-def mark_step_completed(
-    path_or_dir: Path, step: str, state: dict[str, Any] | None = None
-) -> None:
-    """Record WW3 lifecycle state separately from core-owned run evidence.
+@contextmanager
+def _state_lock(marker: Path):
+    """Hold the lifecycle state lock while reading or repairing its document."""
+    lock_path = marker.with_name(f".{marker.name}.lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        import fcntl
 
-    In particular, this never edits ``run_result.json``.  The state file is
-    deliberately not a run-result sidecar and cannot be consumed as one.
-    """
+        lock_stream = lock_path.open("a+")
+        fcntl.flock(lock_stream.fileno(), fcntl.LOCK_EX)
+    except (ImportError, OSError):  # pragma: no cover - non-POSIX fallback
+        lock_stream = None
+    try:
+        yield
+    finally:
+        if lock_stream is not None:
+            try:
+                fcntl.flock(lock_stream.fileno(), fcntl.LOCK_UN)
+            finally:
+                lock_stream.close()
+
+
+def _normalize_state_payload(payload: Any) -> tuple[dict[str, Any], bool]:
+    """Normalize every state envelope and nested lifecycle entry to objects."""
+    changed = not isinstance(payload, dict)
+    document: dict[str, Any] = payload if isinstance(payload, dict) else {}
+    steps = document.get("steps")
+    if not isinstance(steps, dict):
+        document["steps"] = steps = {}
+        changed = True
+    for name, entry in list(steps.items()):
+        if not isinstance(entry, dict):
+            steps[name] = {}
+            changed = True
+            continue
+        nested = entry.get("state")
+        if "state" in entry and not isinstance(nested, dict):
+            entry["state"] = {}
+            changed = True
+    return document, changed
+
+
+def _update_state(
+    path_or_dir: Path,
+    step: str,
+    *,
+    completed: bool,
+    state: dict[str, Any] | None = None,
+) -> None:
+    """Update one lifecycle entry under a filesystem lock and replace atomically."""
     marker = _state_path(Path(path_or_dir))
     if not (Path(path_or_dir).is_dir() or Path(path_or_dir).exists()):
         raise FileNotFoundError(Path(path_or_dir))
-    try:
-        payload = (
-            json.loads(marker.read_text(encoding="utf-8")) if marker.exists() else {}
+    with _state_lock(marker):
+        try:
+            payload = (
+                json.loads(marker.read_text(encoding="utf-8"))
+                if marker.exists()
+                else {}
+            )
+        except json.JSONDecodeError:
+            # A torn/manual state file is evidence of an incomplete operation,
+            # never a reason to skip. Recover it as an empty state while holding
+            # the lock, then atomically replace it below.
+            payload = {}
+        except OSError as exc:
+            raise ValueError(f"Unable to read WW3 postprocess state {marker}: {exc}") from exc
+        payload, _ = _normalize_state_payload(payload)
+        steps = payload["steps"]
+        entry = steps.setdefault(step, {})
+        if not isinstance(entry, dict):
+            steps[step] = entry = {}
+        entry.update(
+            {
+                "completed": completed,
+                "at": datetime.now(timezone.utc).isoformat(),
+            }
         )
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"Invalid WW3 postprocess state {marker}: {exc}") from exc
-    post = payload.setdefault("steps", {})
-    entry = post.setdefault(step, {})
-    entry.update({"completed": True, "at": datetime.now(timezone.utc).isoformat()})
-    if state is not None:
-        entry.setdefault("state", {}).update(state)
-    _atomic_write(
-        marker, (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
-    )
+        if state is not None:
+            nested_state = entry.get("state")
+            if not isinstance(nested_state, dict):
+                entry["state"] = nested_state = {}
+            nested_state.update(state)
+            for key in ("identity", "status"):
+                if key in state:
+                    entry[key] = state[key]
+        _atomic_write(
+            marker, (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
+        )
+
+
+def record_postprocess_state(
+    path_or_dir: Path,
+    step: str,
+    *,
+    completed: bool,
+    state: dict[str, Any] | None = None,
+) -> None:
+    """Persist transfer identity/evidence without changing the core sidecar.
+
+    Failed and partial operations are explicitly stored as incomplete.  A
+    subsequent retry may use their successful item records, but they can never
+    be mistaken for a completed operation.
+    """
+    _update_state(path_or_dir, step, completed=completed, state=state)
+
+
+def mark_step_completed(
+    path_or_dir: Path, step: str, state: dict[str, Any] | None = None
+) -> None:
+    """Record a completed WW3 lifecycle step atomically."""
+    _update_state(path_or_dir, step, completed=True, state=state)
+
+
+def load_postprocess_state(path_or_dir: Path, step: str = "transfer") -> dict[str, Any] | None:
+    """Load and repair one lifecycle entry under the state lock."""
+    marker = _state_path(Path(path_or_dir))
+    if not marker.exists():
+        return None
+    with _state_lock(marker):
+        try:
+            payload = json.loads(marker.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        payload, changed = _normalize_state_payload(payload)
+        steps = payload["steps"]
+        entry = steps.setdefault(step, {})
+        if not isinstance(entry, dict):
+            steps[step] = entry = {}
+            changed = True
+        if changed:
+            _atomic_write(
+                marker, (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
+            )
+        return entry
 
 
 def is_step_completed(path_or_dir: Path, step: str) -> bool:
     """Return whether a WW3-only lifecycle marker is complete."""
-    marker = _state_path(Path(path_or_dir))
-    if not marker.exists():
-        return False
-    try:
-        payload = json.loads(marker.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return False
-    return bool(payload.get("steps", {}).get(step, {}).get("completed"))
+    entry = load_postprocess_state(path_or_dir, step)
+    return bool(entry and entry.get("completed") is True)

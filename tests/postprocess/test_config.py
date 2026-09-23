@@ -2,10 +2,10 @@
 
 import pytest
 from pydantic import ValidationError
+from rompy.core.responses import ArtifactType
 
 from rompy_ww3.postprocess.config import WW3TransferConfig
 from rompy_ww3.postprocess.processor import WW3TransferPostprocessor
-from rompy.core.responses import ArtifactType
 
 
 def test_config_valid_minimal():
@@ -18,6 +18,7 @@ def test_config_valid_minimal():
     assert config.artifact_types is None
     assert config.failure_policy == "CONTINUE"
     assert config.naming_policy == "restart_only"
+    assert config.required_policy == "expected_outputs_required"
 
 
 def test_config_valid_full():

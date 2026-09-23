@@ -4,10 +4,10 @@ This module provides Pydantic-based configuration classes for WW3-specific
 postprocessor types, following the rompy postprocessor configuration framework.
 """
 
-from typing import Optional, List, Literal
-from rompy.core.responses import ArtifactType
+from typing import Literal
 
 from pydantic import Field, field_validator
+from rompy.core.responses import ArtifactType
 from rompy.postprocess.config import BasePostprocessorConfig
 
 
@@ -33,14 +33,14 @@ class WW3TransferConfig(BasePostprocessorConfig):
 
     type: Literal["ww3_transfer"] = "ww3_transfer"
 
-    destinations: List[str] = Field(
+    destinations: list[str] = Field(
         ...,
         min_length=1,
         description="List of destination URIs where outputs will be transferred. "
         "Supports any rompy.transfer backend (file://, s3://, gs://, az://, etc.)",
     )
 
-    artifact_types: Optional[List[ArtifactType]] = Field(
+    artifact_types: list[ArtifactType] | None = Field(
         None,
         description="Optional list of artifact types (e.g., NETCDF, PLOT, TEXT) to include in post-processing",
     )
@@ -57,6 +57,11 @@ class WW3TransferConfig(BasePostprocessorConfig):
         description="How transferred files are renamed. "
         "restart_only: only restart files receive WW3-valid datestamps. "
         "datestamp_all: apply datestamps to all files when a date source is available.",
+    )
+
+    required_policy: Literal["expected_outputs_required", "optional"] = Field(
+        "expected_outputs_required",
+        description="Whether expected but unobserved local outputs must transfer successfully.",
     )
 
     @field_validator("destinations")

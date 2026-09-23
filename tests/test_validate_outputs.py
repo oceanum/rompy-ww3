@@ -1,25 +1,26 @@
 """Tests for ShelConfig and MultiConfig validate_outputs / expected_artifacts."""
 
-import pytest
+from datetime import datetime, timezone
 from pathlib import Path
-from datetime import datetime
 
+import pytest
 from rompy.core.responses import ArtifactType
+
+from rompy_ww3.components.ounf import Ounf
+from rompy_ww3.components.shel import Shel
 from rompy_ww3.config import ShelConfig
+from rompy_ww3.namelists.domain import Domain
+from rompy_ww3.namelists.field import Field
+from rompy_ww3.namelists.output_date import (
+    OutputDate,
+    OutputDateRestart,
+)
+from rompy_ww3.namelists.output_file import File
 from rompy_ww3.namelists.output_type import (
     OutputType,
     OutputTypeField,
     OutputTypeRestart,
 )
-from rompy_ww3.namelists.output_date import (
-    OutputDate,
-    OutputDateRestart,
-)
-from rompy_ww3.namelists.domain import Domain
-from rompy_ww3.namelists.field import Field
-from rompy_ww3.namelists.output_file import File
-from rompy_ww3.components.shel import Shel
-from rompy_ww3.components.ounf import Ounf
 
 
 class TestShelConfigExpectedArtifacts:
@@ -30,8 +31,8 @@ class TestShelConfigExpectedArtifacts:
         config = ShelConfig(
             ww3_shel=Shel(
                 domain=Domain(
-                    start=datetime(2026, 6, 18, 0, 0),
-                    stop=datetime(2026, 6, 19, 0, 0),
+                    start=datetime(2026, 6, 18, 0, 0, tzinfo=timezone.utc).replace(tzinfo=None),
+                    stop=datetime(2026, 6, 19, 0, 0, tzinfo=timezone.utc).replace(tzinfo=None),
                 ),
                 output_type=OutputType(
                     field=OutputTypeField(list="DPT HS FP DIR SPR WND"),
@@ -68,18 +69,19 @@ class TestShelConfigExpectedArtifacts:
         assert len(field_artifacts) == 1
         assert field_artifacts[0].path == "ww3.202606.nc"
 
-        # Check always-present
+        # Check configured controls/scripts only
         paths = {a.path for a in artifacts}
-        assert "mod_def.ww3" in paths
-        assert "log.ww3" in paths
+        assert "ww3_shel.nml" in paths
+        assert "mod_def.ww3" not in paths
+        assert "log.ww3" not in paths
 
     def test_no_restart_when_not_configured(self):
         """No restart artifacts when output_type.restart is None."""
         config = ShelConfig(
             ww3_shel=Shel(
                 domain=Domain(
-                    start=datetime(2026, 6, 18),
-                    stop=datetime(2026, 6, 19),
+                    start=datetime(2026, 6, 18, tzinfo=timezone.utc).replace(tzinfo=None),
+                    stop=datetime(2026, 6, 19, tzinfo=timezone.utc).replace(tzinfo=None),
                 ),
                 output_type=OutputType(
                     field=OutputTypeField(list="HS"),
@@ -99,8 +101,8 @@ class TestShelConfigExpectedArtifacts:
         config = ShelConfig(
             ww3_shel=Shel(
                 domain=Domain(
-                    start=datetime(2026, 6, 18),
-                    stop=datetime(2026, 6, 19),
+                    start=datetime(2026, 6, 18, tzinfo=timezone.utc).replace(tzinfo=None),
+                    stop=datetime(2026, 6, 19, tzinfo=timezone.utc).replace(tzinfo=None),
                 ),
                 output_type=OutputType(
                     restart=OutputTypeRestart(extra="HS"),
@@ -124,9 +126,15 @@ class TestShelConfigExpectedArtifacts:
 
         artifacts = config.expected_artifacts()
 
-        # Should have always-present files but no restart/field
+        # A bare config expects only the scripts it generates; no absent
+        # component control is treated as required evidence.
         paths = {a.path for a in artifacts}
-        assert "mod_def.ww3" in paths
+        assert paths == {
+            "full_ww3.sh",
+            "preprocess_ww3.sh",
+            "postprocess_ww3.sh",
+            "run_ww3.sh",
+        }
         assert all(a.artifact_type != ArtifactType.RESTART for a in artifacts)
         assert all(a.artifact_type != ArtifactType.NETCDF for a in artifacts)
 
@@ -145,8 +153,8 @@ class TestShelConfigValidateOutputs:
         config = ShelConfig(
             ww3_shel=Shel(
                 domain=Domain(
-                    start=datetime(2026, 6, 18),
-                    stop=datetime(2026, 6, 19),
+                    start=datetime(2026, 6, 18, tzinfo=timezone.utc).replace(tzinfo=None),
+                    stop=datetime(2026, 6, 19, tzinfo=timezone.utc).replace(tzinfo=None),
                 ),
                 output_type=OutputType(
                     restart=OutputTypeRestart(extra="HS"),
@@ -175,8 +183,8 @@ class TestShelConfigValidateOutputs:
         config = ShelConfig(
             ww3_shel=Shel(
                 domain=Domain(
-                    start=datetime(2026, 6, 18),
-                    stop=datetime(2026, 6, 19),
+                    start=datetime(2026, 6, 18, tzinfo=timezone.utc).replace(tzinfo=None),
+                    stop=datetime(2026, 6, 19, tzinfo=timezone.utc).replace(tzinfo=None),
                 ),
                 output_type=OutputType(
                     restart=OutputTypeRestart(extra="HS"),
