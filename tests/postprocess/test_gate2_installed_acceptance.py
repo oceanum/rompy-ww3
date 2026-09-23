@@ -41,6 +41,9 @@ from rompy_ww3.postprocess.persistence import (
     write_persisted,
 )
 from rompy_ww3.postprocess.processor import WW3TransferPostprocessor
+from rompy_ww3 import cli as cli_module
+from rompy_ww3.cli import app
+from typer.testing import CliRunner
 
 fixture_root = Path(sys.argv[1]).resolve()
 purelib = Path(sysconfig.get_paths()["purelib"]).resolve()
@@ -251,8 +254,13 @@ missing = model(
     "gate2-persistence-failure",
     [Artifact(path="missing.txt", artifact_type=ArtifactType.TEXT)],
 )
+write_run(persistence_root, missing)
 original_writer = result_persistence.write_postprocess_result
-result_persistence.write_postprocess_result = lambda *args, **kwargs: (_ for _ in ()).throw(OSError("read-only"))
+direct_sidecars = []
+def fail_persistence(staging_dir, sidecar):
+    direct_sidecars.append(sidecar)
+    raise OSError("read-only")
+result_persistence.write_postprocess_result = fail_persistence
 try:
     persistence_result = WW3TransferPostprocessor().process(
         missing, [f"file://{fixture_root.parent / 'persistence-destination'}"]
@@ -262,6 +270,57 @@ finally:
 assert isinstance(persistence_result, PostprocessFailure)
 assert persistence_result.persistence_diagnostic is not None
 assert "Transfer failed" in persistence_result.error
+assert len(direct_sidecars) == 1
+assert direct_sidecars[0].kind == "postprocess_result"
+assert direct_sidecars[0].schema_version == 2
+assert isinstance(direct_sidecars[0].payload, PostprocessFailure)
+assert direct_sidecars[0].payload.error == persistence_result.error
+
+# Inject the same failure below the installed public CLI/lifecycle path. The
+# captured canonical sidecar proves the CLI did not convert the persistence
+# failure into a false success or skipped result.
+cli_sidecars = []
+cli_results = []
+def fail_cli_persistence(staging_dir, sidecar):
+    cli_sidecars.append(sidecar)
+    raise OSError("read-only")
+real_lifecycle = cli_module.run_transfer_postprocess
+def capture_cli_result(*args, **kwargs):
+    result = real_lifecycle(*args, **kwargs)
+    cli_results.append(result)
+    return result
+result_persistence.write_postprocess_result = fail_cli_persistence
+cli_module.run_transfer_postprocess = capture_cli_result
+try:
+    cli_result = CliRunner().invoke(
+        app,
+        [
+            "postprocess",
+            str(persistence_root),
+            "-d",
+            f"file://{fixture_root.parent / 'persistence-destination'}",
+        ],
+    )
+finally:
+    result_persistence.write_postprocess_result = original_writer
+    cli_module.run_transfer_postprocess = real_lifecycle
+assert cli_result.exit_code == 1, cli_result.stdout + (str(cli_result.exception) if cli_result.exception else "")
+assert len(cli_sidecars) == 1
+cli_sidecar = cli_sidecars[0]
+assert cli_sidecar.kind == "postprocess_result"
+assert cli_sidecar.schema_version == 2
+assert isinstance(cli_sidecar.payload, PostprocessFailure)
+assert cli_sidecar.payload.success is False
+assert cli_sidecar.payload.error == persistence_result.error
+assert len(cli_results) == 1
+assert isinstance(cli_results[0], PostprocessFailure)
+assert cli_results[0].persistence_diagnostic is not None
+assert cli_results[0].error == persistence_result.error
+assert cli_results[0].persistence_diagnostic.primary_error == cli_results[0].error
+assert cli_results[0].persistence_diagnostic.model_dump(mode="json") == persistence_result.persistence_diagnostic.model_dump(mode="json")
+assert "Transfer failed" in cli_result.stdout
+assert "Transfer completed" not in cli_result.stdout
+assert "Skipped" not in cli_result.stdout
 
 # Core-v1, flat WW3-v1, and all invalid canonical envelopes must be rejected
 # with actionable regeneration guidance through the public CLI.
