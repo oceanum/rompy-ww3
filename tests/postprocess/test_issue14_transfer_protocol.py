@@ -1032,6 +1032,123 @@ def test_destination_secrets_are_absent_from_result_and_persisted_state(
             assert "HIDDEN" not in path.read_text()
 
 
+def test_uri_credentials_and_remote_artifacts_are_canonical_in_success_serialization(
+    tmp_path, monkeypatch
+):
+    root = tmp_path / "uri-canonical-success"
+    root.mkdir()
+    (root / "one.txt").write_text("one")
+    raw_destination = (
+        "https://user:PASS@example.test/out?"
+        "X-AmZ-Credential=AWSVALUE&X-AmZ-Signature=SIGVALUE"
+        "&X-Amz-Security-Token=TOKENVALUE&Keep=2&keep=1#fragment"
+    )
+    remote_uri = (
+        "s3://remote-user:REMOTE_PASS@bucket/input?"
+        "X-Goog-Credential=GOOGVALUE&X-Goog-Signature=GOOGSIG"
+        "&api-Key=APIVALUE&Keep=2"
+    )
+    remote = RemoteArtifact(uri=remote_uri, artifact_type=ArtifactType.NETCDF)
+    calls = []
+
+    class CanonicalManager:
+        def transfer_files(self, **kwargs):
+            calls.append(kwargs)
+            source = kwargs["files"][0]
+            target = kwargs["name_map"][source]
+            return TransferBatchResult(
+                1,
+                1,
+                0,
+                [
+                    TransferItemResult(
+                        source,
+                        kwargs["destinations"][0],
+                        target,
+                        kwargs["destinations"][0] + "/" + target,
+                        True,
+                    )
+                ],
+            )
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", CanonicalManager)
+    model_run = _run(root, [Artifact(path="one.txt"), remote], run_id="uri-success").model_copy(
+        update={"expected_outputs": [remote]}
+    )
+    result = WW3TransferPostprocessor().process(model_run, [raw_destination])
+
+    assert isinstance(result, PostprocessSuccess)
+    assert calls[0]["destinations"] == [raw_destination]
+    serialized = json.dumps(result.model_dump(mode="json"), sort_keys=True)
+    state = json.dumps(load_postprocess_state(root), sort_keys=True)
+    sidecar = "".join(path.read_text() for path in root.glob("*.json"))
+    for secret in (
+        "PASS",
+        "REMOTE_PASS",
+        "AWSVALUE",
+        "SIGVALUE",
+        "TOKENVALUE",
+        "GOOGVALUE",
+        "GOOGSIG",
+        "APIVALUE",
+    ):
+        assert secret not in serialized + state + sidecar
+    assert "user@" not in serialized + state + sidecar
+    assert "remote-user@" not in serialized + state + sidecar
+    assert "https://example.test/out?Keep=2&keep=1" in serialized
+    assert "s3://bucket/input?Keep=2" in serialized
+
+
+def test_uri_credentials_are_scrubbed_from_failure_and_state_serialization(
+    tmp_path, monkeypatch
+):
+    root = tmp_path / "uri-canonical-failure"
+    root.mkdir()
+    (root / "one.txt").write_text("one")
+    raw_destination = (
+        "https://user:PASS@example.test/out?"
+        "authorization=AUTHVALUE&x-api-key=APIVALUE&session-Token=SESSIONVALUE"
+    )
+    remote_uri = "gs://remote:REMOTE_PASS@bucket/input?Signature=REMOTESIG&keep=3"
+    remote = RemoteArtifact(uri=remote_uri, artifact_type=ArtifactType.NETCDF)
+    calls = []
+
+    class FailingManager:
+        def transfer_files(self, **kwargs):
+            calls.append(kwargs)
+            raise RuntimeError(
+                f"denied {raw_destination} and {remote_uri}"
+            )
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", FailingManager)
+    model_run = _run(
+        root,
+        [Artifact(path="one.txt"), remote],
+        success=False,
+        run_id="uri-failure",
+    )
+    result = WW3TransferPostprocessor().process(model_run, [raw_destination])
+
+    assert isinstance(result, PostprocessFailure)
+    assert len(calls) == 1
+    serialized = json.dumps(result.model_dump(mode="json"), sort_keys=True)
+    state = json.dumps(load_postprocess_state(root), sort_keys=True)
+    sidecar = "".join(path.read_text() for path in root.glob("*.json"))
+    for secret in (
+        "PASS",
+        "REMOTE_PASS",
+        "AUTHVALUE",
+        "APIVALUE",
+        "SESSIONVALUE",
+        "REMOTESIG",
+    ):
+        assert secret not in serialized + state + sidecar
+    assert raw_destination not in serialized + state + sidecar
+    assert remote_uri not in serialized + state + sidecar
+    assert "https://example.test/out?x-api-key" not in serialized
+    assert "https://example.test/out" in serialized
+
+
 def test_model_failure_remains_primary_with_transfer_failure_diagnostic(tmp_path, monkeypatch):
     root = tmp_path / "run-model-failure"
     root.mkdir()

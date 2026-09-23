@@ -125,8 +125,45 @@ class WW3TransferPostprocessor:
         return [artifact.model_dump(mode="json") for artifact in artifacts]
 
     @staticmethod
-    def _destination_identity(destination: str) -> str:
-        """Normalize a destination without persisting mutable credentials."""
+    def _is_credential_query_key(key: str) -> bool:
+        """Identify standard and provider-specific credential query keys."""
+        normalized = key.lower().replace("-", "_")
+        secret_keys = {
+            "auth",
+            "authorization",
+            "api_key",
+            "apikey",
+            "token",
+            "access_token",
+            "security_token",
+            "session_token",
+            "credential",
+            "signature",
+            "secret",
+            "password",
+            "passwd",
+            "key",
+        }
+        if normalized in secret_keys:
+            return True
+        return normalized.endswith(
+            (
+                "_auth",
+                "_authorization",
+                "_api_key",
+                "_apikey",
+                "_token",
+                "_credential",
+                "_signature",
+                "_secret",
+                "_password",
+                "_passwd",
+            )
+        )
+
+    @classmethod
+    def _destination_identity(cls, destination: str) -> str:
+        """Return a deterministic URI without credentials or fragments."""
         parsed = urlsplit(destination)
         netloc = parsed.hostname or ""
         if parsed.port is not None:
@@ -135,20 +172,13 @@ class WW3TransferPostprocessor:
             (
                 (key, value)
                 for key, value in parse_qsl(parsed.query, keep_blank_values=True)
-                if key.lower()
-                not in {
-                    "token",
-                    "access_token",
-                    "secret",
-                    "password",
-                    "signature",
-                    "sig",
-                    "key",
-                }
+                if not cls._is_credential_query_key(key)
             ),
             key=lambda item: (item[0], item[1]),
         )
-        return urlunsplit((parsed.scheme.lower(), netloc, parsed.path, urlencode(query), ""))
+        return urlunsplit(
+            (parsed.scheme.lower(), netloc, parsed.path, urlencode(query), "")
+        )
 
     @staticmethod
     def _artifact_type_identity(value: Any) -> str:
@@ -164,22 +194,29 @@ class WW3TransferPostprocessor:
             )
             parsed = urlsplit(destination)
             for key, secret in parse_qsl(parsed.query, keep_blank_values=True):
-                if key.lower() in {
-                    "token",
-                    "access_token",
-                    "secret",
-                    "password",
-                    "signature",
-                    "sig",
-                    "key",
-                } and secret:
+                if WW3TransferPostprocessor._is_credential_query_key(key) and secret:
                     message = re.sub(re.escape(secret), "[REDACTED]", message)
+        uri_pattern = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://[^\s<>\"]+")
+        for match in list(uri_pattern.finditer(message)):
+            raw_uri = match.group(0).rstrip(".,);]")
+            message = message.replace(
+                raw_uri, WW3TransferPostprocessor._destination_identity(raw_uri)
+            )
         return message
 
     @staticmethod
     def _sanitize_destination(destination: Any) -> str:
         """Persist only normalized destination identities."""
         return WW3TransferPostprocessor._destination_identity(str(destination))
+
+    @classmethod
+    def _canonical_artifact(cls, artifact: Any) -> Any:
+        """Canonicalize URI-bearing remote artifacts before typed serialization."""
+        if getattr(artifact, "kind", None) == "remote" and getattr(artifact, "uri", None):
+            return artifact.model_copy(
+                update={"uri": cls._destination_identity(artifact.uri)}
+            )
+        return artifact
 
     @classmethod
     def _sanitize_value(cls, value: Any, destinations: list[str]) -> Any:
@@ -401,9 +438,13 @@ class WW3TransferPostprocessor:
         timing = TimingInfo(start_time=start_time, end_time=end_time)
         common = {
             "run_id": model_run.run_id,
-            "artifacts": artifacts,
-            "expected_outputs": list(model_run.expected_outputs),
-            "missing_outputs": list(model_run.missing_outputs),
+            "artifacts": [self._canonical_artifact(artifact) for artifact in artifacts],
+            "expected_outputs": [
+                self._canonical_artifact(artifact) for artifact in model_run.expected_outputs
+            ],
+            "missing_outputs": [
+                self._canonical_artifact(artifact) for artifact in model_run.missing_outputs
+            ],
             "timing": timing,
             "metadata": metadata,
         }
