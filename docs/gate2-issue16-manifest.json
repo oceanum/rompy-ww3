@@ -1,18 +1,18 @@
 {
   "issue": 16,
   "release_candidate_implementation_sha": "ea4d19cf45520541bd3c9886717d9246a5218d80",
-  "evidence_candidate_sha": "5a9a37699c4004ae2a4a434efd7aae7e68554f94",
+  "evidence_candidate_sha": "d131d4ccd973466c40d6fb245cbc830034301dca",
   "core_sha": "e4fca8d6193a4315684417a31ccd101cba8c2b1c",
   "artifacts": {
     "wheel": {
       "name": "rompy_ww3-0.1.0-py3-none-any.whl",
-      "sha256": "201debd0ced547a23b7d5120490c5d74620873404067f3f405a329fb24832814",
+      "sha256": "d179a1f8a6918a60428cd829500acc40791a27598852d48b22a21a7b0029ac34",
       "manifest_entries": 85,
       "production_member_payload_matches_implementation": true
     },
     "sdist": {
       "name": "rompy_ww3-0.1.0.tar.gz",
-      "sha256": "5cb0331b67502983bfaa65a14850637618a30cff602128031fc4a7164748e4d5",
+      "sha256": "bb2e94e636c1e5bc54dd2c1d294cb0b49b71fe311c1ed52b1bf88c0a232a8ed9",
       "manifest_entries": 169,
       "delta_from_implementation": [
         "src/rompy_ww3.egg-info/SOURCES.txt",
@@ -30,13 +30,13 @@
     "adversarial/wrong_kind.json": "d13d994a831fe9c7b156a08bfa30c4e1bbd8db28aa7628490fc33396db830875"
   },
   "clean_install": {
-    "venv": "/tmp/ww3-gate2-final4-venv",
+    "venv": "/tmp/ww3-gate2-final5-venv",
     "python": "3.12.13",
     "freeze_count": 131,
     "pip_check": "No broken requirements found",
     "origins": {
-      "rompy": "/tmp/ww3-gate2-final4-venv/lib/python3.12/site-packages/rompy/__init__.py",
-      "rompy_ww3": "/tmp/ww3-gate2-final4-venv/lib/python3.12/site-packages/rompy_ww3/__init__.py"
+      "rompy": "/tmp/ww3-gate2-final5-venv/lib/python3.12/site-packages/rompy/__init__.py",
+      "rompy_ww3": "/tmp/ww3-gate2-final5-venv/lib/python3.12/site-packages/rompy_ww3/__init__.py"
     },
     "core_direct_url_commit": "e4fca8d6193a4315684417a31ccd101cba8c2b1c",
     "pythonpath": "unset for subprocess acceptance"
@@ -48,14 +48,16 @@
     "ruff_changed_gate2_tests": "passed",
     "compileall": "passed",
     "twine_check": "passed",
-    "ci": "SUCCESS"
+    "ci": "SUCCESS",
+    "persistence_cli_failure": "passed: installed public CLI returned exit 1; captured canonical PostprocessFailure retained primary transfer error and PersistenceDiagnostic; no success/skipped output"
   },
   "commands": [
-    "git archive 5a9a37699c4004ae2a4a434efd7aae7e68554f94 | tar -x -C /tmp/ww3-gate2-candidate-5a9a/src",
-    "uv build --out-dir /tmp/ww3-gate2-candidate-5a9a/dist /tmp/ww3-gate2-candidate-5a9a/src",
-    "env -u PYTHONPATH python -m pytest -q /tmp/ww3-gate2-sdist-5a9a/rompy_ww3-0.1.0/tests",
-    "python -m pip check",
-    "twine check wheel sdist"
+    "git archive d131d4ccd973466c40d6fb245cbc830034301dca | tar -x -C /tmp/ww3-gate2-candidate-d131d4/src",
+    "uv build --out-dir /tmp/ww3-gate2-candidate-d131d4/dist /tmp/ww3-gate2-candidate-d131d4/src",
+    "env -u PYTHONPATH /tmp/ww3-gate2-final5-venv/bin/python -m pytest -q /tmp/ww3-gate2-sdist-d131d4/rompy_ww3-0.1.0/tests",
+    "env -u PYTHONPATH /tmp/ww3-gate2-final5-venv/bin/python -m pytest -q tests/postprocess/test_gate2_installed_acceptance.py",
+    "/tmp/ww3-gate2-final5-venv/bin/python -m pip check",
+    "/tmp/ww3-gate2-final5-venv/bin/twine check /tmp/ww3-gate2-candidate-d131d4/dist/rompy_ww3-0.1.0-py3-none-any.whl /tmp/ww3-gate2-candidate-d131d4/dist/rompy_ww3-0.1.0.tar.gz"
   ],
   "no_publish_or_deploy": true
 }

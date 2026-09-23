@@ -19,13 +19,13 @@ itself.
 | WW3 source baseline | `ea4d19cf45520541bd3c9886717d9246a5218d80` |
 | Core response-schema pin | `e4fca8d6193a4315684417a31ccd101cba8c2b1c` |
 | Wheel | `rompy_ww3-0.1.0-py3-none-any.whl` |
-| Wheel SHA-256 | `201debd0ced547a23b7d5120490c5d74620873404067f3f405a329fb24832814` |
+| Wheel SHA-256 | `d179a1f8a6918a60428cd829500acc40791a27598852d48b22a21a7b0029ac34` |
 | Sdist | `rompy_ww3-0.1.0.tar.gz` |
-| Sdist SHA-256 | `5cb0331b67502983bfaa65a14850637618a30cff602128031fc4a7164748e4d5` |
+| Sdist SHA-256 | `bb2e94e636c1e5bc54dd2c1d294cb0b49b71fe311c1ed52b1bf88c0a232a8ed9` |
 
 These hashes are the artifacts in
-`/tmp/ww3-gate2-candidate-5a9a/dist`, built from the clean committed
-evidence candidate `5a9a37699c4004ae2a4a434efd7aae7e68554f94` (the
+`/tmp/ww3-gate2-candidate-d131d4/dist`, built from the clean committed
+evidence candidate `d131d4ccd973466c40d6fb245cbc830034301dca` (the
 implementation baseline plus the acceptance and metadata tests). The final PR
 may add a docs-only provenance update after this build; the handoff itself is
 not included by `MANIFEST.in`. Wheel ZIP
@@ -42,14 +42,14 @@ core revision.
 Build command (isolated `uv` build environment):
 
 ```text
-rm -rf /tmp/ww3-gate2-candidate-5a9a
-mkdir -p /tmp/ww3-gate2-candidate-5a9a/src
-git archive 5a9a37699c4004ae2a4a434efd7aae7e68554f94 \
-  | tar -x -C /tmp/ww3-gate2-candidate-5a9a/src
-uv build --out-dir /tmp/ww3-gate2-candidate-5a9a/dist \
-  /tmp/ww3-gate2-candidate-5a9a/src
-sha256sum /tmp/ww3-gate2-candidate-5a9a/dist/rompy_ww3-0.1.0-py3-none-any.whl \
-  /tmp/ww3-gate2-candidate-5a9a/dist/rompy_ww3-0.1.0.tar.gz
+rm -rf /tmp/ww3-gate2-candidate-d131d4
+mkdir -p /tmp/ww3-gate2-candidate-d131d4/src
+git archive d131d4ccd973466c40d6fb245cbc830034301dca \
+  | tar -x -C /tmp/ww3-gate2-candidate-d131d4/src
+uv build --out-dir /tmp/ww3-gate2-candidate-d131d4/dist \
+  /tmp/ww3-gate2-candidate-d131d4/src
+sha256sum /tmp/ww3-gate2-candidate-d131d4/dist/rompy_ww3-0.1.0-py3-none-any.whl \
+  /tmp/ww3-gate2-candidate-d131d4/dist/rompy_ww3-0.1.0.tar.gz
 ```
 
 Both wheel and sdist were produced. `twine check` passed for both. The wheel
@@ -90,17 +90,17 @@ rompy @ git+https://github.com/rom-py/rompy.git@e4fca8d6193a4315684417a31ccd101c
 ## Clean install proof
 
 A fresh environment outside the workspace was created at
-`/tmp/ww3-gate2-final4-venv` (CPython 3.12.13). The reproducible install
+`/tmp/ww3-gate2-final5-venv` (CPython 3.12.13). The reproducible install
 sequence was:
 
 ```text
-uv venv /tmp/ww3-gate2-final4-venv --python 3.12
-uv pip install --python /tmp/ww3-gate2-final4-venv/bin/python \
+uv venv /tmp/ww3-gate2-final5-venv --python 3.12
+uv pip install --python /tmp/ww3-gate2-final5-venv/bin/python \
   'rompy @ git+https://github.com/rom-py/rompy.git@e4fca8d6193a4315684417a31ccd101cba8c2b1c'
-uv pip install --python /tmp/ww3-gate2-final4-venv/bin/python \
-  /tmp/ww3-gate2-candidate-5a9a/dist/rompy_ww3-0.1.0-py3-none-any.whl
-/tmp/ww3-gate2-final4-venv/bin/python -m pip freeze
-/tmp/ww3-gate2-final4-venv/bin/python -m pip check
+uv pip install --python /tmp/ww3-gate2-final5-venv/bin/python \
+  /tmp/ww3-gate2-candidate-d131d4/dist/rompy_ww3-0.1.0-py3-none-any.whl
+/tmp/ww3-gate2-final5-venv/bin/python -m pip freeze
+/tmp/ww3-gate2-final5-venv/bin/python -m pip check
 ```
 
 Core was installed directly from GitHub at the frozen commit, then the wheel
@@ -113,8 +113,8 @@ Observed in a fresh subprocess:
 ```text
 rompy version: 2.0.0a0
 rompy_ww3 version: 0.1.0
-rompy origin: /tmp/ww3-gate2-final4-venv/lib/python3.12/site-packages/rompy/__init__.py
-rompy_ww3 origin: /tmp/ww3-gate2-final4-venv/lib/python3.12/site-packages/rompy_ww3/__init__.py
+rompy origin: /tmp/ww3-gate2-final5-venv/lib/python3.12/site-packages/rompy/__init__.py
+rompy_ww3 origin: /tmp/ww3-gate2-final5-venv/lib/python3.12/site-packages/rompy_ww3/__init__.py
 direct_url commit: e4fca8d6193a4315684417a31ccd101cba8c2b1c
 ```
 
@@ -161,28 +161,28 @@ core-owned flat run-result writer.
 Commands and results:
 
 ```text
-PYTHONPATH="$PWD/src" /tmp/ww3-gate2-final4-venv/bin/python -m pytest -q tests
+PYTHONPATH="$PWD/src" /tmp/ww3-gate2-final5-venv/bin/python -m pytest -q tests
 336 passed, 66 warnings
 
-cd /tmp && env -u PYTHONPATH /tmp/ww3-gate2-final4-venv/bin/python \
-  -m pytest -q /tmp/ww3-gate2-sdist-5a9a/rompy_ww3-0.1.0/tests
+cd /tmp && env -u PYTHONPATH /tmp/ww3-gate2-final5-venv/bin/python \
+  -m pytest -q /tmp/ww3-gate2-sdist-d131d4/rompy_ww3-0.1.0/tests
 336 passed, 66 warnings
 
-cd /tmp && env -u PYTHONPATH /tmp/ww3-gate2-final4-venv/bin/python \
-  -m pytest -q /tmp/ww3-gate2-sdist-5a9a/rompy_ww3-0.1.0/tests/postprocess/test_gate2_installed_acceptance.py
+cd /tmp && env -u PYTHONPATH /tmp/ww3-gate2-final5-venv/bin/python \
+  -m pytest -q /tmp/ww3-gate2-sdist-d131d4/rompy_ww3-0.1.0/tests/postprocess/test_gate2_installed_acceptance.py
 1 passed, 1 warning
 
-/tmp/ww3-gate2-final4-venv/bin/ruff check \
+/tmp/ww3-gate2-final5-venv/bin/ruff check \
   tests/postprocess/test_gate2_installed_acceptance.py \
   tests/postprocess/test_issue13_sidecars.py
 All checks passed!
 
-/tmp/ww3-gate2-final4-venv/bin/python -m compileall -q src tests
+/tmp/ww3-gate2-final5-venv/bin/python -m compileall -q src tests
 passed
 
-/tmp/ww3-gate2-final4-venv/bin/twine check \
-  /tmp/ww3-gate2-candidate-5a9a/dist/rompy_ww3-0.1.0-py3-none-any.whl \
-  /tmp/ww3-gate2-candidate-5a9a/dist/rompy_ww3-0.1.0.tar.gz
+/tmp/ww3-gate2-final5-venv/bin/twine check \
+  /tmp/ww3-gate2-candidate-d131d4/dist/rompy_ww3-0.1.0-py3-none-any.whl \
+  /tmp/ww3-gate2-candidate-d131d4/dist/rompy_ww3-0.1.0.tar.gz
 PASSED for wheel and sdist
 ```
 
@@ -196,6 +196,17 @@ canonical success/failure, core-v1 and flat WW3-v1 rejection with regeneration
 guidance, artifact filtering, CONTINUE versus FAIL_FAST, JSON envelope shape
 and exit codes, model failure, persistence failure, and direct-versus-CLI
 replay parity. It uses only temporary/mock destinations.
+
+The persistence-failure case patches only the installed core
+`result_persistence.write_postprocess_result` adapter with a controlled failing
+fake, while invoking the real installed `rompy_ww3.cli:app` `postprocess`
+command through `typer.testing.CliRunner`. The direct processor assertion is
+retained for parity. The CLI returns exit code 1; its captured canonical
+`postprocess_result` sidecar retains `PostprocessFailure` schema/kind and the
+primary transfer error, while the real lifecycle return retains a
+`PersistenceDiagnostic` whose `primary_error` matches that operation error.
+The CLI output contains the canonical transfer failure and no success or
+skipped status. No production hook is used.
 
 The source and extracted-sdist suites each pass 336 tests. The dual-mode
 metadata test reads and asserts the source `pyproject.toml` pin only when the
@@ -215,7 +226,7 @@ candidate's own `src/rompy_ww3` tree is present; otherwise it reads installed
 | Typed processor and lifecycle | PASS | Success/failure/replay/persistence sidecars |
 | Source test tree | PASS | 336 passed, 66 warnings |
 | Installed sdist test tree | PASS | 336 passed, 66 warnings |
-| Installed acceptance matrix | PASS | Entry points, CLI, sidecars, filters, policies, failures, parity |
+| Installed acceptance matrix | PASS | Entry points, CLI, sidecars, filters, policies, failures, CLI persistence diagnostic, parity |
 | Python 3.10 CI path | NOT RUN HERE | Existing CI targets it; no local 3.10 runtime was available |
 | WW3 executable/Docker regression runs | NOT RUN | Gate used mocks/temp destinations; no model deployment |
 
