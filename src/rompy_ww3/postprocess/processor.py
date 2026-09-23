@@ -142,7 +142,6 @@ class WW3TransferPostprocessor:
             "secret",
             "password",
             "passwd",
-            "key",
             "keyid",
             "accesskeyid",
             "accessid",

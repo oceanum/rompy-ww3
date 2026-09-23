@@ -813,6 +813,12 @@ def test_destination_query_order_is_canonical_and_credentials_are_excluded():
     assert first == second
     assert "token" not in first
     assert processor._destination_identity("s3://bucket/path?a=1") != first
+    assert processor._destination_identity("mock://bucket/path?key=semantic&id=semantic") != (
+        processor._destination_identity("mock://bucket/path?key=other&id=semantic")
+    )
+    assert processor._destination_identity("mock://bucket/path?key-id=one") == (
+        processor._destination_identity("mock://bucket/path?key_id=two")
+    )
 
 
 def test_duplicate_destinations_and_artifacts_transfer_once_and_replay(tmp_path, monkeypatch):
@@ -1043,7 +1049,7 @@ def test_uri_credentials_and_remote_artifacts_are_canonical_in_success_serializa
         "X-AmZ-Credential=AWSVALUE&AWSAccessKeyId=AWSID"
         "&X-AmZ-Signature=SIGVALUE&Azure-Sig=AZURESIG"
         "&X-Amz-Security-Token=TOKENVALUE&Key-Id=KEYID&Keep=2&keep=1"
-        "&algorithm=ALG&signedheaders=HOST&date=DATE&expiry=TTL"
+        "&key=semantic&id=semantic&algorithm=ALG&signedheaders=HOST&date=DATE&expiry=TTL"
         "&permissions=rw&resource=blob&version=1#fragment"
     )
     remote_uri = (
@@ -1104,7 +1110,8 @@ def test_uri_credentials_and_remote_artifacts_are_canonical_in_success_serializa
     assert "remote-user@" not in serialized + state + sidecar
     assert (
         "https://example.test/out?Keep=2&algorithm=ALG&date=DATE&expiry=TTL"
-        "&keep=1&permissions=rw&resource=blob&signedheaders=HOST&version=1"
+        "&id=semantic&keep=1&key=semantic&permissions=rw&resource=blob"
+        "&signedheaders=HOST&version=1"
     ) in serialized
     assert "s3://bucket/input?Keep=2" in serialized
 
@@ -1118,7 +1125,8 @@ def test_uri_credentials_are_scrubbed_from_failure_and_state_serialization(
     raw_destination = (
         "https://user:PASS@example.test/out?"
         "authorization=AUTHVALUE&x-api-key=APIVALUE&session-Token=SESSIONVALUE"
-        "AWSAccessKeyId=AWSID&Key_Id=FAILKEY&Signature=SIGVALUE&algorithm=ALG"
+        "AWSAccessKeyId=AWSID&Key_Id=FAILKEY&Signature=SIGVALUE&key=semantic&id=semantic"
+        "&algorithm=ALG"
         "&signedheaders=HOST&date=DATE&expiry=TTL&permissions=rw"
         "&resource=blob&version=1"
     )
@@ -1163,7 +1171,8 @@ def test_uri_credentials_are_scrubbed_from_failure_and_state_serialization(
     assert remote_uri not in serialized + state + sidecar
     assert "https://example.test/out?x-api-key" not in serialized
     assert "https://example.test/out" in serialized
-    assert "algorithm=ALG&date=DATE&expiry=TTL&permissions=rw&resource=blob" in serialized
+    assert "algorithm=ALG&date=DATE&expiry=TTL&id=semantic" in serialized
+    assert "key=semantic&permissions=rw&resource=blob" in serialized
 
 
 def test_model_failure_remains_primary_with_transfer_failure_diagnostic(tmp_path, monkeypatch):
