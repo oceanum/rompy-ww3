@@ -13,6 +13,12 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 compatibility
+    import tomli as tomllib
+
 from rompy.core import result_persistence
 from rompy.core.responses import (
     Artifact,
@@ -37,14 +43,26 @@ FIXTURES = Path(__file__).parents[1] / "fixtures" / "core_return_schema_v2"
 CORE_SHA = "e4fca8d6193a4315684417a31ccd101cba8c2b1c"
 
 
+def _declared_core_dependency() -> str:
+    """Read the exact project pin when source metadata is available."""
+    source_root = Path(__file__).resolve().parents[2]
+    pyproject = source_root / "pyproject.toml"
+    source_package = source_root / "src" / "rompy_ww3"
+    if pyproject.is_file() and source_package.is_dir():
+        project = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+        assert project.get("project", {}).get("name") == "rompy_ww3"
+        dependencies = project["project"]["dependencies"]
+    else:
+        dependencies = metadata("rompy_ww3").get_all("Requires-Dist") or []
+    return next(
+        dependency for dependency in dependencies if dependency.startswith("rompy @ ")
+    )
+
+
 def test_core_fixture_hashes_and_provenance_are_frozen() -> None:
     fixture_readme = (FIXTURES / "README.md").read_text()
     assert CORE_SHA in fixture_readme
-    rompy_dependency = next(
-        dependency
-        for dependency in metadata("rompy_ww3").get_all("Requires-Dist") or []
-        if dependency.startswith("rompy @ ")
-    )
+    rompy_dependency = _declared_core_dependency()
     assert rompy_dependency.rsplit("@", 1)[1].split(" ", 1)[0] == CORE_SHA
     assert f"merge\n`{CORE_SHA}`" in fixture_readme
     expected = {
