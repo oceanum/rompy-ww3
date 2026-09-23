@@ -22,7 +22,7 @@ from rompy.core.responses import (
     TimingInfo,
 )
 from rompy.transfer import TransferFailurePolicy, TransferManager
-from rompy.transfer.manager import TransferBatchResult
+from rompy.transfer.manager import TransferItemResult
 
 from rompy_ww3.postprocess.naming import compute_target_name
 from rompy_ww3.postprocess.persistence import (
@@ -399,6 +399,49 @@ class WW3TransferPostprocessor:
             )
         metadata["skipped_transfer_count"] += len(pairs)
         metadata["skipped_count"] += len(pairs)
+
+    def _record_pair_item(
+        self,
+        metadata: dict[str, Any],
+        artifact: Artifact,
+        source: Path,
+        target: str,
+        destination: str,
+        item: TransferItemResult,
+        source_checksum: str,
+        successful_paths: set[Path],
+    ) -> bool:
+        """Commit one pair's transfer evidence immediately."""
+        if not item.ok:
+            metadata["transfer_failures"].append(
+                {
+                    "path": artifact.path,
+                    "local_path": str(source),
+                    "target_name": target,
+                    "destination": self._destination_identity(destination),
+                    "dest_uri": item.dest_uri,
+                    "error": item.error or "Unknown error",
+                    "reason": "missing_source"
+                    if not source.is_file()
+                    else "transfer_failed",
+                }
+            )
+            return False
+        successful_paths.add(source)
+        record = {
+            "path": str(source),
+            "destination": self._destination_identity(destination),
+            "target_name": target,
+            "source_size_bytes": source.stat().st_size if source.is_file() else None,
+            "source_checksum": source_checksum,
+            "dest_uri": item.dest_uri,
+        }
+        destination_path = self._file_destination_path(record)
+        if destination_path is not None and destination_path.is_file():
+            record["destination_size_bytes"] = destination_path.stat().st_size
+            record["destination_checksum"] = self._checksum(destination_path)
+        metadata["transfer_records"].append(record)
+        return True
 
     @staticmethod
     def _final_error(
@@ -811,151 +854,17 @@ class WW3TransferPostprocessor:
                 target,
             ) in pair_records
         }
-        try:
-            manager = TransferManager()
-            if not pending_pairs:
-                batch = TransferBatchResult(total=0, succeeded=0, failed=0, items=[])
-            elif len(pending_pairs) == len(all_pairs):
-                # Preserve the manager's efficient batch path for a first
-                # attempt.  Retry paths are split into pairs below so an
-                # already successful destination is never duplicated.
-                if policy is TransferFailurePolicy.FAIL_FAST:
-                    # The manager's batch FAIL_FAST raises and discards its
-                    # partial result, so observe each item before stopping.
-                    items = []
-                    succeeded = 0
-                    failed = 0
-                    for index, (
-                        artifact,
-                        source,
-                        target,
-                        destination,
-                    ) in enumerate(pending_pairs):
-                        single = manager.transfer_files(
-                            files=[source],
-                            destinations=[destination],
-                            name_map={source: target},
-                            policy=TransferFailurePolicy.CONTINUE,
-                        )
-                        items.extend(single.items)
-                        succeeded += single.succeeded
-                        failed += single.failed
-                        if single.failed:
-                            self._record_skipped_pairs(
-                                metadata,
-                                pending_pairs[index + 1 :],
-                                "fail_fast_not_attempted",
-                            )
-                            break
-                    batch = TransferBatchResult(
-                        total=succeeded + failed,
-                        succeeded=succeeded,
-                        failed=failed,
-                        items=items,
-                    )
-                else:
-                    batch = manager.transfer_files(
-                        files=resolved_paths,
-                        destinations=destinations,
-                        name_map=name_map,
-                        policy=policy,
-                    )
-            else:
-                items = []
-                succeeded = 0
-                failed = 0
-                for index, (
-                    artifact,
-                    source,
-                    target,
-                    destination,
-                ) in enumerate(pending_pairs):
-                    single = manager.transfer_files(
-                        files=[source],
-                        destinations=[destination],
-                        name_map={source: target},
-                        policy=TransferFailurePolicy.CONTINUE,
-                    )
-                    items.extend(single.items)
-                    succeeded += single.succeeded
-                    failed += single.failed
-                    if failed and policy is TransferFailurePolicy.FAIL_FAST:
-                        self._record_skipped_pairs(
-                            metadata,
-                            pending_pairs[index + 1 :],
-                            "fail_fast_not_attempted",
-                        )
-                        break
-                batch = TransferBatchResult(
-                    total=succeeded + failed,
-                    succeeded=succeeded,
-                    failed=failed,
-                    items=items,
-                )
-            metadata["transferred_count"] = len(pair_records) + int(batch.succeeded)
-            metadata["successful_transfer_count"] = int(batch.succeeded)
-            metadata["failed_count"] = int(batch.failed)
-            metadata["failed_transfer_count"] = int(batch.failed)
-            for item in batch.items:
-                requested_destination = item.dest_prefix or next(
-                    (
-                        destination
-                        for artifact, source, target, destination in pending_pairs
-                        if source == item.local_path and target == item.target_name
-                    ),
-                    destinations[0],
-                )
-                if item.ok:
-                    successful_paths.add(item.local_path)
-                    record = {
-                        "path": str(item.local_path),
-                        "destination": self._destination_identity(requested_destination),
-                        "target_name": item.target_name,
-                        "source_size_bytes": item.local_path.stat().st_size
-                        if item.local_path.is_file()
-                        else None,
-                        "source_checksum": source_checksums.get(
-                            next(
-                                (artifact.path for artifact, source, target, destination in pending_pairs if source == item.local_path),
-                                "",
-                            ),
-                            "",
-                        ),
-                        "dest_uri": item.dest_uri,
-                    }
-                    destination_path = self._file_destination_path(record)
-                    if destination_path is not None and destination_path.is_file():
-                        record["destination_size_bytes"] = destination_path.stat().st_size
-                        record["destination_checksum"] = self._checksum(destination_path)
-                    metadata["transfer_records"].append(record)
-                else:
-                    metadata["transfer_failures"].append(
-                        {
-                            "path": str(item.local_path),
-                            "local_path": str(item.local_path),
-                            "target_name": item.target_name,
-                            "destination": item.dest_prefix,
-                            "dest_uri": item.dest_uri,
-                            "error": item.error or "Unknown error",
-                            "reason": "missing_source"
-                            if not item.local_path.is_file()
-                            else "transfer_failed",
-                        }
-                    )
-            if batch.failed:
-                primary_error = (
-                    f"Transfer failed: {batch.failed} of {batch.total} transfers failed"
-                )
-                first = metadata["transfer_failures"][0]
-                primary_error += f". First error: {first['error']}"
-        except Exception as exc:  # noqa: BLE001 - fail-fast must become typed evidence
-            primary_error = f"Transfer failed: {type(exc).__name__}: {exc}"
-            metadata["failed_count"] = 1
-            metadata["failed_transfer_count"] = 1
-            if pending_pairs:
+        primary_error: str | None = None
+        if pending_pairs:
+            try:
+                manager = TransferManager()
+            except Exception as exc:  # noqa: BLE001 - constructor failure is typed evidence
+                primary_error = f"Transfer failed: {type(exc).__name__}: {exc}"
                 failed_artifact, failed_source, failed_target, failed_destination = (
                     pending_pairs[0]
                 )
+                metadata["failed_count"] = 1
+                metadata["failed_transfer_count"] = 1
                 metadata["transfer_failures"].append(
                     {
                         "path": failed_artifact.path,
@@ -973,16 +882,105 @@ class WW3TransferPostprocessor:
                     "transfer_exception_not_attempted",
                 )
             else:
-                metadata["transfer_failures"].append(
-                    {
-                        "path": str(resolved_paths[0]),
-                        "target_name": name_map[resolved_paths[0]],
-                        "destination": destinations[0],
-                        "dest_uri": destinations[0],
-                        "error": str(exc),
-                        "reason": "transfer_failed",
-                    }
-                )
+                for index, (artifact, source, target, destination) in enumerate(
+                    pending_pairs
+                ):
+                    try:
+                        batch = manager.transfer_files(
+                            files=[source],
+                            destinations=[destination],
+                            name_map={source: target},
+                            policy=TransferFailurePolicy.CONTINUE,
+                        )
+                    except Exception as exc:  # noqa: BLE001 - pair failure is evidence
+                        error = f"{type(exc).__name__}: {exc}"
+                        metadata["failed_count"] += 1
+                        metadata["failed_transfer_count"] += 1
+                        metadata["transfer_failures"].append(
+                            {
+                                "path": artifact.path,
+                                "local_path": str(source),
+                                "target_name": target,
+                                "destination": self._destination_identity(destination),
+                                "dest_uri": destination,
+                                "error": error,
+                                "reason": "transfer_failed",
+                            }
+                        )
+                        if primary_error is None:
+                            primary_error = f"Transfer failed: {error}"
+                        if policy is TransferFailurePolicy.FAIL_FAST:
+                            self._record_skipped_pairs(
+                                metadata,
+                                pending_pairs[index + 1 :],
+                                "fail_fast_not_attempted",
+                            )
+                            break
+                        continue
+
+                    item = next(
+                        (
+                            candidate
+                            for candidate in batch.items
+                            if candidate.local_path == source
+                            and candidate.target_name == target
+                        ),
+                        batch.items[0] if batch.items else None,
+                    )
+                    if item is None:
+                        error = "transfer manager returned no pair result"
+                        metadata["failed_count"] += 1
+                        metadata["failed_transfer_count"] += 1
+                        metadata["transfer_failures"].append(
+                            {
+                                "path": artifact.path,
+                                "local_path": str(source),
+                                "target_name": target,
+                                "destination": self._destination_identity(destination),
+                                "dest_uri": destination,
+                                "error": error,
+                                "reason": "transfer_failed",
+                            }
+                        )
+                        if primary_error is None:
+                            primary_error = f"Transfer failed: {error}"
+                        if policy is TransferFailurePolicy.FAIL_FAST:
+                            self._record_skipped_pairs(
+                                metadata,
+                                pending_pairs[index + 1 :],
+                                "fail_fast_not_attempted",
+                            )
+                            break
+                        continue
+
+                    if self._record_pair_item(
+                        metadata,
+                        artifact,
+                        source,
+                        target,
+                        destination,
+                        item,
+                        source_checksums.get(artifact.path, ""),
+                        successful_paths,
+                    ):
+                        metadata["successful_transfer_count"] += 1
+                    else:
+                        metadata["failed_count"] += 1
+                        metadata["failed_transfer_count"] += 1
+                        if primary_error is None:
+                            error = metadata["transfer_failures"][-1]["error"]
+                            primary_error = f"Transfer failed: {error}"
+                        if policy is TransferFailurePolicy.FAIL_FAST:
+                            self._record_skipped_pairs(
+                                metadata,
+                                pending_pairs[index + 1 :],
+                                "fail_fast_not_attempted",
+                            )
+                            break
+
+        metadata["transferred_count"] = (
+            len(pair_records) + metadata["successful_transfer_count"]
+        )
 
         transferred_artifacts = [
             artifact.model_copy(

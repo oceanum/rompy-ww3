@@ -564,11 +564,18 @@ def test_partial_retry_skips_audited_success_and_merges_evidence(tmp_path, monke
     destination = "mock://destination"
     attempts = [
         TransferBatchResult(
-            total=2,
+            total=1,
             succeeded=1,
-            failed=1,
+            failed=0,
             items=[
                 TransferItemResult(root / "ok.txt", destination, "ok.txt", destination + "/ok.txt", True),
+            ],
+        ),
+        TransferBatchResult(
+            total=1,
+            succeeded=0,
+            failed=1,
+            items=[
                 TransferItemResult(root / "bad.txt", destination, "bad.txt", destination + "/bad.txt", False, "denied"),
             ],
         ),
@@ -598,11 +605,102 @@ def test_partial_retry_skips_audited_success_and_merges_evidence(tmp_path, monke
     assert isinstance(first, PostprocessFailure)
     second = run_transfer_postprocess(root, [destination])
     assert isinstance(second, PostprocessSuccess)
-    assert len(calls) == 2
-    assert [path.name for path in calls[1]["files"]] == ["bad.txt"]
+    assert len(calls) == 3
+    assert [path.name for path in calls[2]["files"]] == ["bad.txt"]
     assert second.metadata["transferred_count"] == 2
     assert len(second.metadata["transfer_records"]) == 2
     assert len(second.metadata["retry_history"]) == 1
+
+
+
+@pytest.mark.parametrize(
+    ("failure_policy", "expected_paths", "expected_skipped"),
+    [
+        ("CONTINUE", ["one.txt", "three.txt"], 1),
+        ("FAIL_FAST", ["one.txt"], 2),
+    ],
+)
+def test_partial_retry_pair_exception_preserves_prior_success(
+    tmp_path, monkeypatch, failure_policy, expected_paths, expected_skipped
+):
+    root = tmp_path / "run-pair-retry"
+    root.mkdir()
+    paths = ["one.txt", "two.txt", "three.txt"]
+    for path in paths:
+        (root / path).write_text(path)
+    destination = "mock://pair-retry"
+    calls = []
+
+    class PairRetryManager:
+        def transfer_files(self, **kwargs):
+            source = kwargs["files"][0]
+            calls.append(source.name)
+            if len(calls) == 4:
+                raise RuntimeError("pair two unavailable")
+            if source.name == "one.txt":
+                ok, error = True, None
+            elif len(calls) < 4:
+                ok, error = False, "initial pair failure"
+            else:
+                ok, error = True, None
+            return TransferBatchResult(
+                total=1,
+                succeeded=int(ok),
+                failed=int(not ok),
+                items=[
+                    TransferItemResult(
+                        source,
+                        destination,
+                        source.name,
+                        f"{destination}/{source.name}",
+                        ok,
+                        error,
+                    )
+                ],
+            )
+
+    monkeypatch.setattr(
+        "rompy_ww3.postprocess.processor.TransferManager", PairRetryManager
+    )
+    model_run = _run(
+        root,
+        [Artifact(path=path) for path in paths],
+        success=False,
+        run_id="pair-retry",
+    )
+    processor = WW3TransferPostprocessor()
+    first = processor.process(
+        model_run, [destination], failure_policy=failure_policy
+    )
+    assert isinstance(first, PostprocessFailure)
+    assert [artifact.path for artifact in first.artifacts] == ["one.txt"]
+    second = processor.process(
+        model_run,
+        [destination],
+        failure_policy=failure_policy,
+    )
+    assert isinstance(second, PostprocessFailure)
+    assert second.error == "Model run failed: model failed"
+    assert [artifact.path for artifact in second.artifacts] == expected_paths
+    assert second.metadata["requested_transfer_count"] == 3
+    assert second.metadata["successful_transfer_count"] == int(
+        failure_policy == "CONTINUE"
+    )
+    assert second.metadata["failed_transfer_count"] == 1
+    assert second.metadata["skipped_transfer_count"] == expected_skipped
+    assert second.metadata["transfer_failures"][0]["path"] == "two.txt"
+    if failure_policy == "FAIL_FAST":
+        assert [item["path"] for item in second.metadata["skipped_transfers"]] == [
+            "three.txt",
+        ]
+    else:
+        assert second.metadata["skipped_transfers"] == []
+    assert (
+        second.metadata["successful_transfer_count"]
+        + second.metadata["failed_transfer_count"]
+        + second.metadata["skipped_transfer_count"]
+        == second.metadata["requested_transfer_count"]
+    )
 
 
 def test_request_identity_covers_run_destination_policy_filter_required_remote_and_options(
