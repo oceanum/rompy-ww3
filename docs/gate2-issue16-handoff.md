@@ -19,9 +19,9 @@ itself.
 | WW3 source baseline | `ea4d19cf45520541bd3c9886717d9246a5218d80` |
 | Core response-schema pin | `e4fca8d6193a4315684417a31ccd101cba8c2b1c` |
 | Wheel | `rompy_ww3-0.1.0-py3-none-any.whl` |
-| Wheel SHA-256 | `7b01f362763ca66b2e8bc362b6a1797e6520a56c0af699a245dffd8d89264ac0` |
+| Wheel SHA-256 | `201debd0ced547a23b7d5120490c5d74620873404067f3f405a329fb24832814` |
 | Sdist | `rompy_ww3-0.1.0.tar.gz` |
-| Sdist SHA-256 | `248355eb47d06632951956bd5f6557e03cb585cbcebf0644121c919dbfe42750` |
+| Sdist SHA-256 | `5cb0331b67502983bfaa65a14850637618a30cff602128031fc4a7164748e4d5` |
 
 These hashes are the artifacts in
 `/tmp/ww3-gate2-candidate-5a9a/dist`, built from the clean committed
@@ -90,17 +90,17 @@ rompy @ git+https://github.com/rom-py/rompy.git@e4fca8d6193a4315684417a31ccd101c
 ## Clean install proof
 
 A fresh environment outside the workspace was created at
-`/tmp/ww3-gate2-final3-venv` (CPython 3.12.13). The reproducible install
+`/tmp/ww3-gate2-final4-venv` (CPython 3.12.13). The reproducible install
 sequence was:
 
 ```text
-uv venv /tmp/ww3-gate2-final3-venv --python 3.12
-uv pip install --python /tmp/ww3-gate2-final3-venv/bin/python \
+uv venv /tmp/ww3-gate2-final4-venv --python 3.12
+uv pip install --python /tmp/ww3-gate2-final4-venv/bin/python \
   'rompy @ git+https://github.com/rom-py/rompy.git@e4fca8d6193a4315684417a31ccd101cba8c2b1c'
-uv pip install --python /tmp/ww3-gate2-final3-venv/bin/python \
-  /tmp/ww3-gate2-candidate-874ddc/dist/rompy_ww3-0.1.0-py3-none-any.whl
-/tmp/ww3-gate2-final3-venv/bin/python -m pip freeze
-/tmp/ww3-gate2-final3-venv/bin/python -m pip check
+uv pip install --python /tmp/ww3-gate2-final4-venv/bin/python \
+  /tmp/ww3-gate2-candidate-5a9a/dist/rompy_ww3-0.1.0-py3-none-any.whl
+/tmp/ww3-gate2-final4-venv/bin/python -m pip freeze
+/tmp/ww3-gate2-final4-venv/bin/python -m pip check
 ```
 
 Core was installed directly from GitHub at the frozen commit, then the wheel
@@ -113,8 +113,8 @@ Observed in a fresh subprocess:
 ```text
 rompy version: 2.0.0a0
 rompy_ww3 version: 0.1.0
-rompy origin: /tmp/ww3-gate2-final3-venv/lib/python3.12/site-packages/rompy/__init__.py
-rompy_ww3 origin: /tmp/ww3-gate2-final3-venv/lib/python3.12/site-packages/rompy_ww3/__init__.py
+rompy origin: /tmp/ww3-gate2-final4-venv/lib/python3.12/site-packages/rompy/__init__.py
+rompy_ww3 origin: /tmp/ww3-gate2-final4-venv/lib/python3.12/site-packages/rompy_ww3/__init__.py
 direct_url commit: e4fca8d6193a4315684417a31ccd101cba8c2b1c
 ```
 
@@ -161,28 +161,28 @@ core-owned flat run-result writer.
 Commands and results:
 
 ```text
-PYTHONPATH="$PWD/src" /tmp/ww3-gate2-final3-venv/bin/python -m pytest -q tests
+PYTHONPATH="$PWD/src" /tmp/ww3-gate2-final4-venv/bin/python -m pytest -q tests
 336 passed, 66 warnings
 
-cd /tmp && env -u PYTHONPATH /tmp/ww3-gate2-final3-venv/bin/python \
-  -m pytest -q /tmp/ww3-gate2-sdist-874ddc/rompy_ww3-0.1.0/tests
+cd /tmp && env -u PYTHONPATH /tmp/ww3-gate2-final4-venv/bin/python \
+  -m pytest -q /tmp/ww3-gate2-sdist-5a9a/rompy_ww3-0.1.0/tests
 336 passed, 66 warnings
 
-cd /tmp && env -u PYTHONPATH /tmp/ww3-gate2-final3-venv/bin/python \
-  -m pytest -q /tmp/ww3-gate2-sdist-874ddc/rompy_ww3-0.1.0/tests/postprocess/test_gate2_installed_acceptance.py
+cd /tmp && env -u PYTHONPATH /tmp/ww3-gate2-final4-venv/bin/python \
+  -m pytest -q /tmp/ww3-gate2-sdist-5a9a/rompy_ww3-0.1.0/tests/postprocess/test_gate2_installed_acceptance.py
 1 passed, 1 warning
 
-/tmp/ww3-gate2-final3-venv/bin/ruff check \
+/tmp/ww3-gate2-final4-venv/bin/ruff check \
   tests/postprocess/test_gate2_installed_acceptance.py \
   tests/postprocess/test_issue13_sidecars.py
 All checks passed!
 
-/tmp/ww3-gate2-final3-venv/bin/python -m compileall -q src tests
+/tmp/ww3-gate2-final4-venv/bin/python -m compileall -q src tests
 passed
 
-/tmp/ww3-gate2-final3-venv/bin/twine check \
-  /tmp/ww3-gate2-candidate-874ddc/dist/rompy_ww3-0.1.0-py3-none-any.whl \
-  /tmp/ww3-gate2-candidate-874ddc/dist/rompy_ww3-0.1.0.tar.gz
+/tmp/ww3-gate2-final4-venv/bin/twine check \
+  /tmp/ww3-gate2-candidate-5a9a/dist/rompy_ww3-0.1.0-py3-none-any.whl \
+  /tmp/ww3-gate2-candidate-5a9a/dist/rompy_ww3-0.1.0.tar.gz
 PASSED for wheel and sdist
 ```
 
