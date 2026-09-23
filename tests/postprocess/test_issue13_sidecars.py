@@ -8,16 +8,11 @@ import os
 import subprocess
 import sys
 from datetime import datetime, timezone
+from importlib.metadata import metadata
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # Python 3.10 compatibility
-    import tomli as tomllib
-
 from rompy.core import result_persistence
 from rompy.core.responses import (
     Artifact,
@@ -45,12 +40,9 @@ CORE_SHA = "e4fca8d6193a4315684417a31ccd101cba8c2b1c"
 def test_core_fixture_hashes_and_provenance_are_frozen() -> None:
     fixture_readme = (FIXTURES / "README.md").read_text()
     assert CORE_SHA in fixture_readme
-    pyproject = tomllib.loads(
-        (Path(__file__).parents[2] / "pyproject.toml").read_text()
-    )
     rompy_dependency = next(
         dependency
-        for dependency in pyproject["project"]["dependencies"]
+        for dependency in metadata("rompy_ww3").get_all("Requires-Dist") or []
         if dependency.startswith("rompy @ ")
     )
     assert rompy_dependency.rsplit("@", 1)[1].split(" ", 1)[0] == CORE_SHA
