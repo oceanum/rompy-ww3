@@ -1,0 +1,61 @@
+{
+  "issue": 16,
+  "release_candidate_implementation_sha": "ea4d19cf45520541bd3c9886717d9246a5218d80",
+  "evidence_candidate_sha": "5a9a37699c4004ae2a4a434efd7aae7e68554f94",
+  "core_sha": "e4fca8d6193a4315684417a31ccd101cba8c2b1c",
+  "artifacts": {
+    "wheel": {
+      "name": "rompy_ww3-0.1.0-py3-none-any.whl",
+      "sha256": "201debd0ced547a23b7d5120490c5d74620873404067f3f405a329fb24832814",
+      "manifest_entries": 85,
+      "production_member_payload_matches_implementation": true
+    },
+    "sdist": {
+      "name": "rompy_ww3-0.1.0.tar.gz",
+      "sha256": "5cb0331b67502983bfaa65a14850637618a30cff602128031fc4a7164748e4d5",
+      "manifest_entries": 169,
+      "delta_from_implementation": [
+        "src/rompy_ww3.egg-info/SOURCES.txt",
+        "tests/postprocess/test_gate2_installed_acceptance.py",
+        "tests/postprocess/test_issue13_sidecars.py"
+      ]
+    }
+  },
+  "fixtures": {
+    "run_success.json": "9e64d49a896a9fa521daa2cb5d0067517b3b65da5eb380d04c5d72e584d1ce9f",
+    "run_failure.json": "d1da8ea12df2c3a40ae00c2f41fc1f345a0d4b2292f12dbeb75c2652eb267643",
+    "adversarial/legacy_v1.json": "3c43fa6af22b2244292f3366a2c31fc4b2997e049bd98493b215187f1500abd6",
+    "adversarial/malformed.json": "6f5e7359678e8924994c6dbfb317d70fb6443042df93c6d531bef3aa73974ba9",
+    "adversarial/unsupported_v99.json": "b3975b59c2922984132d9a7e8febb142abb6ef7b36640e1c8db382cbd18d8265",
+    "adversarial/wrong_kind.json": "d13d994a831fe9c7b156a08bfa30c4e1bbd8db28aa7628490fc33396db830875"
+  },
+  "clean_install": {
+    "venv": "/tmp/ww3-gate2-final4-venv",
+    "python": "3.12.13",
+    "freeze_count": 131,
+    "pip_check": "No broken requirements found",
+    "origins": {
+      "rompy": "/tmp/ww3-gate2-final4-venv/lib/python3.12/site-packages/rompy/__init__.py",
+      "rompy_ww3": "/tmp/ww3-gate2-final4-venv/lib/python3.12/site-packages/rompy_ww3/__init__.py"
+    },
+    "core_direct_url_commit": "e4fca8d6193a4315684417a31ccd101cba8c2b1c",
+    "pythonpath": "unset for subprocess acceptance"
+  },
+  "results": {
+    "source_tests": "336 passed, 66 warnings",
+    "installed_sdist_tests": "336 passed, 66 warnings",
+    "installed_acceptance_matrix": "1 passed, 1 warning",
+    "ruff_changed_gate2_tests": "passed",
+    "compileall": "passed",
+    "twine_check": "passed",
+    "ci": "SUCCESS"
+  },
+  "commands": [
+    "git archive 5a9a37699c4004ae2a4a434efd7aae7e68554f94 | tar -x -C /tmp/ww3-gate2-candidate-5a9a/src",
+    "uv build --out-dir /tmp/ww3-gate2-candidate-5a9a/dist /tmp/ww3-gate2-candidate-5a9a/src",
+    "env -u PYTHONPATH python -m pytest -q /tmp/ww3-gate2-sdist-5a9a/rompy_ww3-0.1.0/tests",
+    "python -m pip check",
+    "twine check wheel sdist"
+  ],
+  "no_publish_or_deploy": true
+}
