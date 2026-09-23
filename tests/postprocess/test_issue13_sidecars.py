@@ -43,9 +43,9 @@ FIXTURES = Path(__file__).parents[1] / "fixtures" / "core_return_schema_v2"
 CORE_SHA = "e4fca8d6193a4315684417a31ccd101cba8c2b1c"
 
 
-def _declared_core_dependency() -> str:
+def _declared_core_dependency(source_root: Path | None = None) -> str:
     """Read the exact project pin when source metadata is available."""
-    source_root = Path(__file__).resolve().parents[2]
+    source_root = source_root or Path(__file__).resolve().parents[2]
     pyproject = source_root / "pyproject.toml"
     source_package = source_root / "src" / "rompy_ww3"
     if pyproject.is_file() and source_package.is_dir():
@@ -57,6 +57,11 @@ def _declared_core_dependency() -> str:
     return next(
         dependency for dependency in dependencies if dependency.startswith("rompy @ ")
     )
+
+
+def test_core_dependency_fallback_reads_installed_metadata(tmp_path: Path) -> None:
+    """Use installed metadata when no matching source tree is present."""
+    assert _declared_core_dependency(tmp_path).endswith(f"@{CORE_SHA}")
 
 
 def test_core_fixture_hashes_and_provenance_are_frozen() -> None:
