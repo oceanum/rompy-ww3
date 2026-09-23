@@ -138,6 +138,27 @@ def test_shel_expected_point_track_and_restart_types():
     assert paths["restart001.ww3"] is ArtifactType.RESTART
 
 
+def test_shel_strict_track_window_does_not_use_domain_stop():
+    """A split track without component count does not fabricate later periods."""
+    config = ShelConfig(
+        ww3_shel=Shel(
+            domain=Domain(
+                start=datetime(2023, 1, 1, tzinfo=timezone.utc).replace(tzinfo=None),
+                stop=datetime(2023, 1, 5, tzinfo=timezone.utc).replace(tzinfo=None),
+            ),
+            output_type=OutputType(track=OutputTypeTrack(format=True)),
+        ),
+        ww3_track=Trnc(
+            track=Track(
+                timestart=datetime(2023, 1, 1, tzinfo=timezone.utc).replace(tzinfo=None),
+                timesplit=8,
+            )
+        ),
+    )
+    paths = {artifact.path for artifact in config.expected_artifacts()}
+    assert not any(path.startswith("track.") for path in paths)
+
+
 def test_shel_expected_controls_match_actual_generation(tmp_path):
     from types import SimpleNamespace
 

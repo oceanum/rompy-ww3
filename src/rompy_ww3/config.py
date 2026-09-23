@@ -1099,6 +1099,7 @@ class ShelConfig(BaseWW3Config):
             track_start_date=track_start_date,
             track_stop_date=track_stop_date,
             point_window_strict=True,
+            track_window_strict=True,
             always_present=self._expected_control_artifacts(),
             include_always_present=True,
         )

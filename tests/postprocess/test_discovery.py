@@ -375,6 +375,76 @@ def test_generate_manifest_uses_calendar_boundaries_for_split_periods(tmp_path):
     ]
 
 
+def test_yearly_splits_normalize_to_january_first_for_all_output_paths(tmp_path):
+    """Yearly periods include each intersected year exactly once."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    cases = [
+        (
+            {"field": {"list": "HS"}},
+            {"field_samefile": False, "field_timesplit": 4},
+            ["ww3.2020.nc", "ww3.2021.nc"],
+        ),
+        (
+            {"point": {}},
+            {
+                "point_samefile": False,
+                "point_timesplit": 4,
+                "point_start_date": "20201231 000000",
+                "point_stop_date": "20210101 000000",
+            },
+            ["points.2020.nc", "points.2021.nc"],
+        ),
+        (
+            {"track": {}},
+            {
+                "track_timesplit": 4,
+                "track_start_date": "20201231 000000",
+                "track_stop_date": "20210101 000000",
+            },
+            ["track.2020.nc", "track.2021.nc"],
+        ),
+    ]
+    for output_types, options, expected in cases:
+        result = generate_manifest(
+            output_dir,
+            output_types,
+            start_date="20201231 000000",
+            stop_date="20210101 000000",
+            include_always_present=False,
+            **options,
+        )
+        assert [artifact.path for artifact in result] == expected
+
+    leap = generate_manifest(
+        output_dir,
+        {"point": {}},
+        point_samefile=False,
+        point_timesplit=4,
+        point_start_date="20200229 000000",
+        point_stop_date="20210301 000000",
+        include_always_present=False,
+    )
+    assert [artifact.path for artifact in leap] == [
+        "points.2020.nc",
+        "points.2021.nc",
+    ]
+
+
+def test_strict_track_split_without_component_stop_is_not_fabricated(tmp_path):
+    """A strict track schedule without a derivable stop emits no split files."""
+    result = generate_manifest(
+        tmp_path,
+        {"track": {}},
+        track_timesplit=8,
+        track_start_date="20230101 000000",
+        track_stop_date=None,
+        track_window_strict=True,
+        include_always_present=False,
+    )
+    assert result == []
+
+
 def test_generate_manifest_always_present_no_duplicates():
     """Test always-present artifacts are not duplicated."""
     config = {"restart": {"extra": "DW"}}

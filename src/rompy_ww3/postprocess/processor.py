@@ -380,6 +380,27 @@ class WW3TransferPostprocessor:
         return result
 
     @staticmethod
+    def _record_skipped_pairs(
+        metadata: dict[str, Any],
+        pairs: list[tuple[Artifact, Path, str, str]],
+        reason: str,
+    ) -> None:
+        """Record unattempted transfer pairs as deterministic skipped evidence."""
+        for artifact, source, target, destination in pairs:
+            metadata["skipped_transfers"].append(
+                {
+                    "path": artifact.path,
+                    "local_path": str(source),
+                    "target_name": target,
+                    "destination": destination,
+                    "dest_uri": destination,
+                    "reason": reason,
+                }
+            )
+        metadata["skipped_transfer_count"] += len(pairs)
+        metadata["skipped_count"] += len(pairs)
+
+    @staticmethod
     def _final_error(
         model_run: ModelRunPayload,
         operational_error: str,
@@ -517,6 +538,7 @@ class WW3TransferPostprocessor:
             "remote_count": len(remote),
             "skipped_count": len(skipped_artifacts),
             "skipped_transfer_count": 0,
+            "skipped_transfers": [],
             "transferred_count": 0,
             "successful_transfer_count": 0,
             "failed_count": 0,
@@ -759,7 +781,7 @@ class WW3TransferPostprocessor:
         metadata["transfer_records"] = list(pair_records.values())
         metadata["reused_count"] = len(pair_records)
         metadata["skipped_count"] += len(pair_records)
-        metadata["skipped_transfer_count"] = len(pair_records)
+        metadata["skipped_transfer_count"] += len(pair_records)
         metadata["requested_transfer_count"] = (
             len(all_pairs) + len(required_missing) * len(destinations)
         )
@@ -803,7 +825,12 @@ class WW3TransferPostprocessor:
                     items = []
                     succeeded = 0
                     failed = 0
-                    for artifact, source, target, destination in pending_pairs:
+                    for index, (
+                        artifact,
+                        source,
+                        target,
+                        destination,
+                    ) in enumerate(pending_pairs):
                         single = manager.transfer_files(
                             files=[source],
                             destinations=[destination],
@@ -814,6 +841,11 @@ class WW3TransferPostprocessor:
                         succeeded += single.succeeded
                         failed += single.failed
                         if single.failed:
+                            self._record_skipped_pairs(
+                                metadata,
+                                pending_pairs[index + 1 :],
+                                "fail_fast_not_attempted",
+                            )
                             break
                     batch = TransferBatchResult(
                         total=succeeded + failed,
@@ -832,7 +864,12 @@ class WW3TransferPostprocessor:
                 items = []
                 succeeded = 0
                 failed = 0
-                for artifact, source, target, destination in pending_pairs:
+                for index, (
+                    artifact,
+                    source,
+                    target,
+                    destination,
+                ) in enumerate(pending_pairs):
                     single = manager.transfer_files(
                         files=[source],
                         destinations=[destination],
@@ -843,6 +880,11 @@ class WW3TransferPostprocessor:
                     succeeded += single.succeeded
                     failed += single.failed
                     if failed and policy is TransferFailurePolicy.FAIL_FAST:
+                        self._record_skipped_pairs(
+                            metadata,
+                            pending_pairs[index + 1 :],
+                            "fail_fast_not_attempted",
+                        )
                         break
                 batch = TransferBatchResult(
                     total=succeeded + failed,
@@ -910,16 +952,37 @@ class WW3TransferPostprocessor:
             primary_error = f"Transfer failed: {type(exc).__name__}: {exc}"
             metadata["failed_count"] = 1
             metadata["failed_transfer_count"] = 1
-            metadata["transfer_failures"].append(
-                {
-                    "path": str(resolved_paths[0]),
-                    "target_name": name_map[resolved_paths[0]],
-                    "destination": destinations[0],
-                    "dest_uri": destinations[0],
-                    "error": str(exc),
-                    "reason": "transfer_failed",
-                }
-            )
+            if pending_pairs:
+                failed_artifact, failed_source, failed_target, failed_destination = (
+                    pending_pairs[0]
+                )
+                metadata["transfer_failures"].append(
+                    {
+                        "path": failed_artifact.path,
+                        "local_path": str(failed_source),
+                        "target_name": failed_target,
+                        "destination": self._destination_identity(failed_destination),
+                        "dest_uri": failed_destination,
+                        "error": str(exc),
+                        "reason": "transfer_failed",
+                    }
+                )
+                self._record_skipped_pairs(
+                    metadata,
+                    pending_pairs[1:],
+                    "transfer_exception_not_attempted",
+                )
+            else:
+                metadata["transfer_failures"].append(
+                    {
+                        "path": str(resolved_paths[0]),
+                        "target_name": name_map[resolved_paths[0]],
+                        "destination": destinations[0],
+                        "dest_uri": destinations[0],
+                        "error": str(exc),
+                        "reason": "transfer_failed",
+                    }
+                )
 
         transferred_artifacts = [
             artifact.model_copy(

@@ -261,7 +261,9 @@ def generate_manifest(
                     tzinfo=timezone.utc
                 )
                 current = start_dt
-                if field_timesplit == 6:
+                if field_timesplit == 4:
+                    current = current.replace(month=1, day=1)
+                elif field_timesplit == 6:
                     current = current.replace(day=1)
                 while current <= stop_dt:
                     date_suffix = current.strftime(fmt)
@@ -311,7 +313,9 @@ def generate_manifest(
             return split_output_names(prefix, True, None, effective_start, effective_stop, None, None)
         current = datetime.strptime(effective_start, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
         stop = datetime.strptime(effective_stop, "%Y%m%d %H%M%S").replace(tzinfo=timezone.utc)
-        if timesplit == 6:
+        if timesplit == 4:
+            current = current.replace(month=1, day=1)
+        elif timesplit == 6:
             current = current.replace(day=1)
         names: list[str] = []
         while current <= stop:
@@ -336,9 +340,15 @@ def generate_manifest(
             )
         )
     if output_type_config.get("track") is not None:
-        manifest.extend(
-            Artifact(path=name, artifact_type=ArtifactType.NETCDF)
-            for name in split_output_names(
+        if (
+            track_window_strict
+            and track_timesplit not in (None, 0)
+            and track_start_date
+            and not track_stop_date
+        ):
+            track_names: list[str] = []
+        else:
+            track_names = split_output_names(
                 track_prefix,
                 False,
                 track_timesplit,
@@ -347,6 +357,9 @@ def generate_manifest(
                 None if track_window_strict else start_date,
                 None if track_window_strict else stop_date,
             )
+        manifest.extend(
+            Artifact(path=name, artifact_type=ArtifactType.NETCDF)
+            for name in track_names
         )
 
     # --- Always-present artifacts ---

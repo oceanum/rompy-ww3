@@ -168,6 +168,113 @@ def test_accounting_includes_missing_pairs_and_replay_without_retry_inflation(
     )
 
 
+@pytest.mark.parametrize("failed_index", [0, 1])
+def test_fail_fast_marks_unattempted_pairs_skipped(tmp_path, monkeypatch, failed_index):
+    root = tmp_path / "run-fail-fast"
+    root.mkdir()
+    paths = ["one.txt", "two.txt", "three.txt"]
+    for path in paths:
+        (root / path).write_text(path)
+    destination = "mock://fail-fast"
+    batches = []
+    for index, path in enumerate(paths):
+        source = root / path
+        ok = index != failed_index
+        batches.append(
+            TransferBatchResult(
+                total=1,
+                succeeded=int(ok),
+                failed=int(not ok),
+                items=[
+                    TransferItemResult(
+                        source,
+                        destination,
+                        path,
+                        f"{destination}/{path}",
+                        ok,
+                        None if ok else f"failed-{path}",
+                    )
+                ],
+            )
+        )
+
+    class FailFastManager:
+        def transfer_files(self, **kwargs):
+            return batches.pop(0)
+
+    monkeypatch.setattr(
+        "rompy_ww3.postprocess.processor.TransferManager", FailFastManager
+    )
+    result = WW3TransferPostprocessor().process(
+        _run(root, [Artifact(path=path) for path in paths]),
+        [destination],
+        failure_policy="FAIL_FAST",
+    )
+    assert isinstance(result, PostprocessFailure)
+    assert result.metadata["requested_transfer_count"] == 3
+    assert result.metadata["successful_transfer_count"] == failed_index
+    assert result.metadata["failed_transfer_count"] == 1
+    assert result.metadata["skipped_transfer_count"] == 2 - failed_index
+    assert [item["path"] for item in result.metadata["skipped_transfers"]] == paths[
+        failed_index + 1 :
+    ]
+    assert all(
+        item["destination"] == destination
+        for item in result.metadata["skipped_transfers"]
+    )
+    assert all(
+        item["reason"] == "fail_fast_not_attempted"
+        for item in result.metadata["skipped_transfers"]
+    )
+    assert (
+        result.metadata["successful_transfer_count"]
+        + result.metadata["failed_transfer_count"]
+        + result.metadata["skipped_transfer_count"]
+        == result.metadata["requested_transfer_count"]
+    )
+
+
+def test_transfer_manager_exception_marks_first_pair_failed_and_rest_skipped(
+    tmp_path, monkeypatch
+):
+    root = tmp_path / "run-exception"
+    root.mkdir()
+    paths = ["one.txt", "two.txt", "three.txt"]
+    for path in paths:
+        (root / path).write_text(path)
+
+    def raise_manager():
+        raise RuntimeError("manager unavailable")
+
+    monkeypatch.setattr(
+        "rompy_ww3.postprocess.processor.TransferManager", raise_manager
+    )
+    result = WW3TransferPostprocessor().process(
+        _run(root, [Artifact(path=path) for path in paths]),
+        ["mock://exception"],
+    )
+    assert isinstance(result, PostprocessFailure)
+    assert result.metadata["requested_transfer_count"] == 3
+    assert result.metadata["successful_transfer_count"] == 0
+    assert result.metadata["failed_transfer_count"] == 1
+    assert result.metadata["skipped_transfer_count"] == 2
+    assert result.metadata["transfer_failures"][0]["path"] == "one.txt"
+    assert [item["path"] for item in result.metadata["skipped_transfers"]] == [
+        "two.txt",
+        "three.txt",
+    ]
+    assert all(
+        item["reason"] == "transfer_exception_not_attempted"
+        for item in result.metadata["skipped_transfers"]
+    )
+    assert (
+        result.metadata["successful_transfer_count"]
+        + result.metadata["failed_transfer_count"]
+        + result.metadata["skipped_transfer_count"]
+        == result.metadata["requested_transfer_count"]
+    )
+
+
 def test_partial_transfer_returns_successful_artifacts_and_failures(tmp_path, monkeypatch):
     root = tmp_path / "run"
     root.mkdir()
