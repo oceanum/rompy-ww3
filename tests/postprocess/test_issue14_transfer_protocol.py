@@ -1040,13 +1040,16 @@ def test_uri_credentials_and_remote_artifacts_are_canonical_in_success_serializa
     (root / "one.txt").write_text("one")
     raw_destination = (
         "https://user:PASS@example.test/out?"
-        "X-AmZ-Credential=AWSVALUE&X-AmZ-Signature=SIGVALUE"
-        "&X-Amz-Security-Token=TOKENVALUE&Keep=2&keep=1#fragment"
+        "X-AmZ-Credential=AWSVALUE&AWSAccessKeyId=AWSID"
+        "&X-AmZ-Signature=SIGVALUE&Azure-Sig=AZURESIG"
+        "&X-Amz-Security-Token=TOKENVALUE&Keep=2&keep=1"
+        "&algorithm=ALG&signedheaders=HOST&date=DATE&expiry=TTL"
+        "&permissions=rw&resource=blob&version=1#fragment"
     )
     remote_uri = (
         "s3://remote-user:REMOTE_PASS@bucket/input?"
-        "X-Goog-Credential=GOOGVALUE&X-Goog-Signature=GOOGSIG"
-        "&api-Key=APIVALUE&Keep=2"
+        "X-Goog-Credential=GOOGVALUE&GoogleAccessId=GOOGID"
+        "&X-Goog-Signature=GOOGSIG&api-Key=APIVALUE&Keep=2"
     )
     remote = RemoteArtifact(uri=remote_uri, artifact_type=ArtifactType.NETCDF)
     calls = []
@@ -1086,16 +1089,22 @@ def test_uri_credentials_and_remote_artifacts_are_canonical_in_success_serializa
         "PASS",
         "REMOTE_PASS",
         "AWSVALUE",
+        "AWSID",
         "SIGVALUE",
+        "AZURESIG",
         "TOKENVALUE",
         "GOOGVALUE",
+        "GOOGID",
         "GOOGSIG",
         "APIVALUE",
     ):
         assert secret not in serialized + state + sidecar
     assert "user@" not in serialized + state + sidecar
     assert "remote-user@" not in serialized + state + sidecar
-    assert "https://example.test/out?Keep=2&keep=1" in serialized
+    assert (
+        "https://example.test/out?Keep=2&algorithm=ALG&date=DATE&expiry=TTL"
+        "&keep=1&permissions=rw&resource=blob&signedheaders=HOST&version=1"
+    ) in serialized
     assert "s3://bucket/input?Keep=2" in serialized
 
 
@@ -1108,6 +1117,9 @@ def test_uri_credentials_are_scrubbed_from_failure_and_state_serialization(
     raw_destination = (
         "https://user:PASS@example.test/out?"
         "authorization=AUTHVALUE&x-api-key=APIVALUE&session-Token=SESSIONVALUE"
+        "AWSAccessKeyId=AWSID&Signature=SIGVALUE&algorithm=ALG"
+        "&signedheaders=HOST&date=DATE&expiry=TTL&permissions=rw"
+        "&resource=blob&version=1"
     )
     remote_uri = "gs://remote:REMOTE_PASS@bucket/input?Signature=REMOTESIG&keep=3"
     remote = RemoteArtifact(uri=remote_uri, artifact_type=ArtifactType.NETCDF)
@@ -1140,6 +1152,8 @@ def test_uri_credentials_are_scrubbed_from_failure_and_state_serialization(
         "AUTHVALUE",
         "APIVALUE",
         "SESSIONVALUE",
+        "AWSID",
+        "SIGVALUE",
         "REMOTESIG",
     ):
         assert secret not in serialized + state + sidecar
@@ -1147,6 +1161,7 @@ def test_uri_credentials_are_scrubbed_from_failure_and_state_serialization(
     assert remote_uri not in serialized + state + sidecar
     assert "https://example.test/out?x-api-key" not in serialized
     assert "https://example.test/out" in serialized
+    assert "algorithm=ALG&date=DATE&expiry=TTL&permissions=rw&resource=blob" in serialized
 
 
 def test_model_failure_remains_primary_with_transfer_failure_diagnostic(tmp_path, monkeypatch):

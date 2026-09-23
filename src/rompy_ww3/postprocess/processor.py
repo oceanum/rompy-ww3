@@ -126,40 +126,45 @@ class WW3TransferPostprocessor:
 
     @staticmethod
     def _is_credential_query_key(key: str) -> bool:
-        """Identify standard and provider-specific credential query keys."""
-        normalized = key.lower().replace("-", "_")
-        secret_keys = {
+        """Identify credential families after structural key normalization."""
+        normalized = re.sub(r"[^a-z0-9]", "", key.lower())
+        exact_secret_keys = {
             "auth",
             "authorization",
-            "api_key",
             "apikey",
             "token",
-            "access_token",
-            "security_token",
-            "session_token",
+            "accesstoken",
+            "securitytoken",
+            "sessiontoken",
             "credential",
             "signature",
+            "sig",
             "secret",
             "password",
             "passwd",
             "key",
+            "accesskeyid",
+            "accessid",
+            "awsaccesskeyid",
+            "googleaccessid",
         }
-        if normalized in secret_keys:
+        if normalized in exact_secret_keys:
             return True
-        return normalized.endswith(
-            (
-                "_auth",
-                "_authorization",
-                "_api_key",
-                "_apikey",
-                "_token",
-                "_credential",
-                "_signature",
-                "_secret",
-                "_password",
-                "_passwd",
-            )
+        secret_suffixes = (
+            "auth",
+            "authorization",
+            "apikey",
+            "token",
+            "credential",
+            "signature",
+            "sig",
+            "secret",
+            "password",
+            "passwd",
+            "accesskeyid",
+            "accessid",
         )
+        return normalized.endswith(secret_suffixes)
 
     @classmethod
     def _destination_identity(cls, destination: str) -> str:
