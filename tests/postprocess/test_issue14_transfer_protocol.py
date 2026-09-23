@@ -614,14 +614,14 @@ def test_partial_retry_skips_audited_success_and_merges_evidence(tmp_path, monke
 
 
 @pytest.mark.parametrize(
-    ("failure_policy", "expected_paths", "expected_skipped"),
+    ("failure_policy", "expected_paths", "expected_skipped", "throw_at"),
     [
-        ("CONTINUE", ["one.txt", "three.txt"], 1),
-        ("FAIL_FAST", ["one.txt"], 2),
+        ("CONTINUE", ["one.txt", "three.txt"], 1, 4),
+        ("FAIL_FAST", ["one.txt"], 2, 3),
     ],
 )
 def test_partial_retry_pair_exception_preserves_prior_success(
-    tmp_path, monkeypatch, failure_policy, expected_paths, expected_skipped
+    tmp_path, monkeypatch, failure_policy, expected_paths, expected_skipped, throw_at
 ):
     root = tmp_path / "run-pair-retry"
     root.mkdir()
@@ -635,7 +635,7 @@ def test_partial_retry_pair_exception_preserves_prior_success(
         def transfer_files(self, **kwargs):
             source = kwargs["files"][0]
             calls.append(source.name)
-            if len(calls) == 4:
+            if len(calls) == throw_at:
                 raise RuntimeError("pair two unavailable")
             if source.name == "one.txt":
                 ok, error = True, None
@@ -689,6 +689,11 @@ def test_partial_retry_pair_exception_preserves_prior_success(
     assert second.metadata["failed_transfer_count"] == 1
     assert second.metadata["skipped_transfer_count"] == expected_skipped
     assert second.metadata["transfer_failures"][0]["path"] == "two.txt"
+    assert calls == (
+        ["one.txt", "two.txt", "three.txt", "two.txt", "three.txt"]
+        if failure_policy == "CONTINUE"
+        else ["one.txt", "two.txt", "two.txt"]
+    )
     if failure_policy == "FAIL_FAST":
         assert [item["path"] for item in second.metadata["skipped_transfers"]] == [
             "three.txt",
@@ -808,6 +813,104 @@ def test_destination_query_order_is_canonical_and_credentials_are_excluded():
     assert first == second
     assert "token" not in first
     assert processor._destination_identity("s3://bucket/path?a=1") != first
+
+
+def test_duplicate_destinations_and_artifacts_transfer_once_and_replay(tmp_path, monkeypatch):
+    root = tmp_path / "duplicate-replay"
+    root.mkdir()
+    source = root / "one.txt"
+    source.write_text("one")
+    destinations = [
+        "mock://bucket/path?b=2&a=1&token=first",
+        "mock://bucket/path?a=1&b=2&token=second",
+    ]
+    calls = []
+
+    class DuplicateManager:
+        def transfer_files(self, **kwargs):
+            calls.append(kwargs)
+            files = kwargs["files"]
+            destination = kwargs["destinations"][0]
+            target = kwargs["name_map"][files[0]]
+            ok = len(calls) > 1
+            return TransferBatchResult(
+                1,
+                int(ok),
+                int(not ok),
+                [
+                    TransferItemResult(
+                        files[0],
+                        destination,
+                        target,
+                        f"{destination}/{target}",
+                        ok,
+                        None if ok else "retry me",
+                    )
+                ],
+            )
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", DuplicateManager)
+    model_run = _run(
+        root,
+        [Artifact(path="one.txt"), Artifact(path="one.txt")],
+        run_id="duplicate-replay",
+    )
+    processor = WW3TransferPostprocessor()
+    first = processor.process(model_run, destinations)
+    second = processor.process(model_run, list(reversed(destinations)))
+    third = processor.process(model_run, destinations)
+
+    assert isinstance(first, PostprocessFailure)
+    assert isinstance(second, PostprocessSuccess)
+    assert isinstance(third, PostprocessSuccess)
+    assert len(calls) == 2
+    assert len(calls[0]["files"]) == 1
+    assert len(calls[0]["destinations"]) == 1
+    assert first.metadata["requested_transfer_count"] == 1
+    assert first.metadata["successful_transfer_count"] == 0
+    assert first.metadata["failed_transfer_count"] == 1
+    assert first.metadata["skipped_transfer_count"] == 0
+    assert second.metadata["successful_transfer_count"] == 1
+    assert second.metadata["failed_transfer_count"] == 0
+    assert len(second.metadata["transfer_records"]) == 1
+    assert len(second.metadata["transferred_artifacts"]) == 1
+    assert first.metadata["transfer_identity"] == second.metadata["transfer_identity"] == third.metadata["transfer_identity"]
+
+
+def test_duplicate_artifact_conflict_is_typed_and_preserves_model_error(tmp_path, monkeypatch):
+    root = tmp_path / "duplicate-conflict"
+    root.mkdir()
+    (root / "one.txt").write_text("one")
+    calls = []
+
+    class UnexpectedManager:
+        def transfer_files(self, **kwargs):
+            calls.append(kwargs)
+            raise AssertionError("conflicting duplicates must not transfer")
+
+    monkeypatch.setattr("rompy_ww3.postprocess.processor.TransferManager", UnexpectedManager)
+    result = WW3TransferPostprocessor().process(
+        _run(
+            root,
+            [
+                Artifact(path="one.txt", size_bytes=3),
+                Artifact(path="one.txt", size_bytes=99),
+            ],
+            success=False,
+            run_id="duplicate-conflict",
+        ),
+        ["mock://destination"],
+    )
+
+    assert isinstance(result, PostprocessFailure)
+    assert result.error == "Model run failed: model failed"
+    assert calls == []
+    assert result.metadata["requested_transfer_count"] == 1
+    assert result.metadata["successful_transfer_count"] == 0
+    assert result.metadata["failed_transfer_count"] == 1
+    assert result.metadata["skipped_transfer_count"] == 0
+    assert result.metadata["transfer_failures"][0]["reason"] == "duplicate_artifact_conflict"
+    assert "one.txt" in result.metadata["duplicate_conflicts"][0]
 
 
 def test_model_failure_remains_primary_with_transfer_failure_diagnostic(tmp_path, monkeypatch):

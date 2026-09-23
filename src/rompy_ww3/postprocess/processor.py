@@ -252,6 +252,15 @@ class WW3TransferPostprocessor:
         return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
 
     @staticmethod
+    def _pair_identity(source: Path, target_name: str, destination: str) -> tuple[str, str, str]:
+        """Return the canonical identity used for one transfer pair."""
+        return (
+            str(source.resolve()),
+            WW3TransferPostprocessor._destination_identity(destination),
+            target_name,
+        )
+
+    @staticmethod
     def _file_destination_path(record: dict[str, Any]) -> Path | None:
         destination = str(record.get("destination", ""))
         if not destination.startswith("file://"):
@@ -525,6 +534,14 @@ class WW3TransferPostprocessor:
             raise ValueError("destinations must be a non-empty list of strings")
         if any(not isinstance(destination, str) or not destination for destination in destinations):
             raise ValueError("destinations must be a non-empty list of strings")
+        unique_destinations: list[str] = []
+        destination_keys: set[str] = set()
+        for destination in destinations:
+            identity = self._destination_identity(destination)
+            if identity not in destination_keys:
+                destination_keys.add(identity)
+                unique_destinations.append(destination)
+        destinations = unique_destinations
         if failure_policy == "CONTINUE":
             policy = TransferFailurePolicy.CONTINUE
         elif failure_policy == "FAIL_FAST":
@@ -571,6 +588,29 @@ class WW3TransferPostprocessor:
         required_missing = (
             missing_required if required_policy == "expected_outputs_required" else []
         )
+        duplicate_conflicts: list[str] = []
+        unique_missing: list[Artifact] = []
+        missing_fingerprints: dict[str, str] = {}
+        for artifact in required_missing:
+            fingerprint = json.dumps(
+                {
+                    "artifact_type": self._artifact_type_identity(artifact.artifact_type),
+                    "declared_size_bytes": artifact.size_bytes,
+                    "date": artifact.date,
+                    "reason": artifact.reason,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            prior_fingerprint = missing_fingerprints.get(artifact.path)
+            if prior_fingerprint is None:
+                missing_fingerprints[artifact.path] = fingerprint
+                unique_missing.append(artifact)
+            elif prior_fingerprint != fingerprint:
+                duplicate_conflicts.append(
+                    f"conflicting required artifact evidence for {artifact.path}"
+                )
+        required_missing = unique_missing
 
         metadata: dict[str, Any] = {
             "destinations": list(destinations),
@@ -601,6 +641,7 @@ class WW3TransferPostprocessor:
             "retry_history": [],
             "transfer_identity": None,
             "reused_count": 0,
+            "duplicate_conflicts": [],
         }
         if isinstance(model_run.metadata.get("artifact_checksums"), dict):
             metadata["source_checksums"].update(model_run.metadata["artifact_checksums"])
@@ -708,10 +749,11 @@ class WW3TransferPostprocessor:
         resolved_paths: list[Path] = []
         name_map: dict[Path, str] = {}
         source_checksums: dict[str, str] = dict(metadata["source_checksums"])
+        canonical_artifacts: list[Artifact] = []
+        artifact_fingerprints: dict[tuple[str, str], str] = {}
         for artifact in local_artifacts:
             source = Path(artifact.path)
             source = source if source.is_absolute() else workspace_dir / source
-            resolved_paths.append(source)
             checksum = self._checksum(source)
             source_checksums[artifact.path] = checksum
             date = self._coerce_ww3_date(artifact.date) or fallback_date
@@ -730,7 +772,32 @@ class WW3TransferPostprocessor:
                 target = compute_target_name(source, date_str=date)
             else:
                 target = source.name
+            key = (str(source.resolve()), target)
+            fingerprint = json.dumps(
+                {
+                    "artifact_type": self._artifact_type_identity(artifact.artifact_type),
+                    "declared_size_bytes": artifact.size_bytes,
+                    "date": artifact.date,
+                    "reason": artifact.reason,
+                    "source_checksum": checksum,
+                    "source_size_bytes": source.stat().st_size if source.is_file() else None,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            prior_fingerprint = artifact_fingerprints.get(key)
+            if prior_fingerprint is not None:
+                if prior_fingerprint != fingerprint:
+                    duplicate_conflicts.append(
+                        f"conflicting artifact evidence for {artifact.path} targeting {target}"
+                    )
+                continue
+            artifact_fingerprints[key] = fingerprint
+            canonical_artifacts.append(artifact)
+            resolved_paths.append(source)
             name_map[source] = target
+        local_artifacts = canonical_artifacts
+        metadata["local_count"] = len(local_artifacts)
 
         metadata["name_map"] = {str(path): name for path, name in name_map.items()}
         metadata["source_checksums"] = source_checksums
@@ -792,11 +859,7 @@ class WW3TransferPostprocessor:
             for artifact, source in zip(local_artifacts, resolved_paths):
                 target = name_map[source]
                 for destination in destinations:
-                    key = (
-                        artifact.path,
-                        self._destination_identity(destination),
-                        target,
-                    )
+                    key = self._pair_identity(source, target, destination)
                     if self._record_valid(
                         record,
                         source=source,
@@ -806,20 +869,19 @@ class WW3TransferPostprocessor:
                     ):
                         pair_records[key] = record
 
-        all_pairs = [
-            (artifact, source, name_map[source], destination)
-            for artifact, source in zip(local_artifacts, resolved_paths)
-            for destination in destinations
-        ]
+        all_pairs: list[tuple[Artifact, Path, str, str]] = []
+        pair_keys: set[tuple[str, str, str]] = set()
+        for artifact, source in zip(local_artifacts, resolved_paths):
+            target = name_map[source]
+            for destination in destinations:
+                key = self._pair_identity(source, target, destination)
+                if key not in pair_keys:
+                    pair_keys.add(key)
+                    all_pairs.append((artifact, source, target, destination))
         pending_pairs = [
             pair
             for pair in all_pairs
-            if (
-                pair[0].path,
-                self._destination_identity(pair[3]),
-                pair[2],
-            )
-            not in pair_records
+            if self._pair_identity(pair[1], pair[2], pair[3]) not in pair_records
         ]
         metadata["transfer_records"] = list(pair_records.values())
         metadata["reused_count"] = len(pair_records)
@@ -829,6 +891,45 @@ class WW3TransferPostprocessor:
             len(all_pairs) + len(required_missing) * len(destinations)
         )
         metadata["requested_count"] = len(local_artifacts) + len(required_missing)
+        metadata["duplicate_conflicts"] = list(dict.fromkeys(duplicate_conflicts))
+        if duplicate_conflicts:
+            conflict_error = (
+                "Conflicting duplicate artifact evidence: "
+                + "; ".join(metadata["duplicate_conflicts"])
+            )
+            conflict_failures = [
+                {
+                    "path": artifact.path,
+                    "target_name": target,
+                    "destination": self._destination_identity(destination),
+                    "error": conflict_error,
+                    "reason": "duplicate_artifact_conflict",
+                }
+                for artifact, source, target, destination in all_pairs
+            ]
+            conflict_failures.extend(
+                {
+                    "path": artifact.path,
+                    "target_name": artifact.path.rsplit("/", 1)[-1],
+                    "destination": self._destination_identity(destination),
+                    "error": conflict_error,
+                    "reason": "duplicate_artifact_conflict",
+                }
+                for artifact in required_missing
+                for destination in destinations
+            )
+            metadata["failed_count"] = len(conflict_failures)
+            metadata["failed_transfer_count"] = len(conflict_failures)
+            metadata["transfer_failures"] = conflict_failures
+            return self._result(
+                model_run,
+                output_dir=output_dir,
+                artifacts=[],
+                metadata=metadata,
+                start_time=start_time,
+                error=self._final_error(model_run, conflict_error, metadata),
+                persistence_dir=persistence_path,
+            )
 
         # A complete prior result is reusable only when every requested pair is
         # still valid.  Failure sidecars and incomplete state never enter this
@@ -848,11 +949,7 @@ class WW3TransferPostprocessor:
         successful_paths: set[Path] = {
             source
             for artifact, source, target, destination in all_pairs
-            if (
-                artifact.path,
-                self._destination_identity(destination),
-                target,
-            ) in pair_records
+            if self._pair_identity(source, target, destination) in pair_records
         }
         primary_error: str | None = None
         if pending_pairs:
