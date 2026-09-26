@@ -40,7 +40,7 @@ from rompy_ww3.postprocess.persistence import (
 from rompy_ww3.postprocess.processor import WW3TransferPostprocessor
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "core_return_schema_v2"
-CORE_SHA = "e4fca8d6193a4315684417a31ccd101cba8c2b1c"
+CORE_SHA = "b43c11ae0fe0f24e25786117d30128812a188760"
 
 
 def _declared_core_dependency(source_root: Path | None = None) -> str:

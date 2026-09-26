@@ -14,7 +14,7 @@ The `rompy-ww3` package provides a plugin for the [rompy](https://github.com/rom
 
 WW3 consumes the canonical rompy response-schema **v2** `run_result.json`
 envelope through core's strict public loader. The dependency is pinned to core
-merge `e4fca8d6193a4315684417a31ccd101cba8c2b1c`; this is a source commit pin,
+merge `b43c11ae0fe0f24e25786117d30128812a188760`; this is a source commit pin,
 not a claimed released rompy version. Distributable PyPI publication remains
 blocked until a compatible rompy 2.0 alpha/final release is available; clean
 installation publication proof belongs to the #16 integration gate. Missing,
