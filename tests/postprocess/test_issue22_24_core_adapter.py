@@ -4,9 +4,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from rompy.core import result_persistence
-from rompy.core.responses import Artifact, ArtifactType, ModelRunSuccess, TimingInfo
+from rompy.core.responses import (
+    Artifact,
+    ArtifactType,
+    ModelRunFailure,
+    ModelRunSuccess,
+    PostprocessFailure,
+    TimingInfo,
+)
 from rompy.model import ModelRun
 from rompy.postprocess import transfer as core_transfer
+from rompy.postprocess.config import PostprocessPipelineConfig
 from rompy.postprocess.protocol import PostprocessContext
 
 from rompy_ww3.postprocess.config import WW3TransferConfig
@@ -97,6 +105,38 @@ def test_modelrun_postprocess_uses_the_same_core_adapter(tmp_path):
         ).payload.success
         is True
     )
+
+
+def test_modelrun_pipeline_preserves_failed_run(tmp_path):
+    failed = ModelRunFailure(
+        run_id="failed-pipeline",
+        backend_used="local",
+        output_dir=str(tmp_path),
+        workspace_dir=str(tmp_path),
+        artifacts=[],
+        expected_outputs=[],
+        missing_outputs=[],
+        error="model blew up",
+        timing=TimingInfo(
+            start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            end_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        ),
+    )
+
+    result = ModelRun(run_id=failed.run_id, output_dir=tmp_path).postprocess(
+        PostprocessPipelineConfig(
+            steps=[
+                WW3TransferConfig(
+                    destinations=[f"file://{tmp_path / 'destination'}"]
+                )
+            ],
+            failure_policy="continue",
+        ),
+        processor_input=failed,
+    )
+
+    assert isinstance(result, PostprocessFailure)
+    assert result.error == "model blew up"
 
 
 def test_standalone_lifecycle_uses_core_sidecar(tmp_path):
