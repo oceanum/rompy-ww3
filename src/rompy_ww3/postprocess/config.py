@@ -64,6 +64,13 @@ class WW3TransferConfig(BasePostprocessorConfig):
         description="Whether expected but unobserved local outputs must transfer successfully.",
     )
 
+    max_retries: int = Field(
+        0,
+        ge=0,
+        le=20,
+        description="Retries delegated to the core transfer processor for each pair.",
+    )
+
     @field_validator("destinations")
     @classmethod
     def validate_destinations(cls, v):
@@ -73,7 +80,7 @@ class WW3TransferConfig(BasePostprocessorConfig):
         return v
 
     def get_postprocessor_class(self):
-        """Return the WW3TransferPostprocessor class."""
+        """Return the thin WW3 adapter over core transfer."""
         from .processor import WW3TransferPostprocessor
 
         return WW3TransferPostprocessor
