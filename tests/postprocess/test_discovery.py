@@ -1,5 +1,9 @@
 """Tests for WW3 output file discovery module."""
 
+from pathlib import Path
+
+from rompy.core.responses import ArtifactType
+
 from rompy_ww3.namelists.output_type import (
     OutputType,
     OutputTypeCoupling,
@@ -13,7 +17,6 @@ from rompy_ww3.postprocess.discovery import (
     generate_manifest,
     parse_output_type,
 )
-from pathlib import Path
 
 
 def test_parse_output_type_with_field():
@@ -110,18 +113,33 @@ def test_generate_manifest_restart_configured(tmp_path):
     stop_date = "20230101 120000"
     output_stride = 21600
 
-    result = generate_manifest(output_dir, config, start_date, stop_date, output_stride)
+    result = generate_manifest(
+        output_dir,
+        config,
+        start_date,
+        stop_date,
+        output_stride,
+        include_always_present=False,
+    )
 
+    # Now returns List[Artifact], not List[Path]
     assert len(result) == 2
-    assert output_dir / "restart001.ww3" in result
-    assert output_dir / "restart002.ww3" in result
+    paths = {a.path for a in result}
+    assert "restart001.ww3" in paths
+    assert "restart002.ww3" in paths
+    assert all(a.artifact_type == ArtifactType.RESTART for a in result)
 
 
 def test_generate_manifest_no_restart():
     """Test generate_manifest returns empty list when restart is not configured."""
     config = {}
     result = generate_manifest(
-        Path("/out"), config, "20230101 000000", "20230102 000000", 3600
+        Path("/out"),
+        config,
+        "20230101 000000",
+        "20230102 000000",
+        3600,
+        include_always_present=False,
     )
     assert len(result) == 0
 
@@ -180,3 +198,273 @@ def test_parse_output_type_with_all_types():
     assert result["partition"] is not None
     assert result["coupling"] is not None
     assert result["restart"] is not None
+
+
+def test_generate_manifest_field_output_samefile(tmp_path):
+    """Test generate_manifest predicts single NetCDF when samefile=True."""
+    config = {"field": {"list": "HS DIR"}}
+    start_date = "20260618 000000"
+    stop_date = "20260619 000000"
+
+    result = generate_manifest(
+        Path("."),
+        config,
+        start_date=start_date,
+        stop_date=stop_date,
+        field_samefile=True,
+        field_prefix="ww3.",
+        include_always_present=False,
+    )
+
+    assert len(result) == 1
+    assert result[0].path == "ww3.202606.nc"
+    assert result[0].artifact_type == ArtifactType.NETCDF
+
+
+def test_generate_manifest_always_present():
+    """Test generate_manifest includes always-present artifacts."""
+    config = {}
+
+    result = generate_manifest(
+        Path("."),
+        config,
+        include_always_present=True,
+    )
+
+    paths = {a.path for a in result}
+    assert "mod_def.ww3" in paths
+    assert "log.ww3" in paths
+    assert "ww3_grid.nml" in paths
+    assert "full_ww3.sh" in paths
+    # Check types
+    mod_def = next(a for a in result if a.path == "mod_def.ww3")
+    assert mod_def.artifact_type == ArtifactType.OTHER
+    log = next(a for a in result if a.path == "log.ww3")
+    assert log.artifact_type == ArtifactType.TEXT
+
+
+def test_generate_manifest_no_field_when_not_configured():
+    """Test generate_manifest skips field output when not in config."""
+    config = {"restart": {"extra": "DW"}}
+    start_date = "20260618 000000"
+    stop_date = "20260619 000000"
+
+    result = generate_manifest(
+        Path("."),
+        config,
+        start_date=start_date,
+        stop_date=stop_date,
+        output_stride=21600,
+        include_always_present=False,
+    )
+
+    # Only restart files, no field files
+    paths = {a.path for a in result}
+    assert all(p.startswith("restart") for p in paths)
+
+
+def test_generate_manifest_field_outputs_empty(tmp_path):
+    """Test generate_manifest returns empty for field-only when include_always_present=False."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    config = {"field": {"list": "HS DIR"}}
+    start_date = "20230101 000000"
+    stop_date = "20230101 120000"
+
+    result = generate_manifest(
+        output_dir,
+        config,
+        start_date,
+        stop_date,
+        include_always_present=False,
+    )
+
+    # Field outputs with samefile=True should produce one file
+    assert len(result) == 1
+    assert result[0].path == "ww3.202301.nc"
+    assert result[0].artifact_type == ArtifactType.NETCDF
+
+
+def test_generate_manifest_point_outputs(tmp_path):
+    """Test generate_manifest predicts deterministic point NetCDF output."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    config = {"point": {"file": "points.txt", "name": "buoys"}}
+    start_date = "20230101 000000"
+    stop_date = "20230101 120000"
+
+    result = generate_manifest(
+        output_dir,
+        config,
+        start_date,
+        stop_date,
+        include_always_present=False,
+    )
+
+    assert len(result) == 1
+    assert result[0].path == "points.202301.nc"
+    assert result[0].artifact_type == ArtifactType.NETCDF
+
+
+def test_generate_manifest_track_outputs(tmp_path):
+    """Test generate_manifest predicts deterministic track NetCDF output."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    config = {"track": {"format": True}}
+    start_date = "20230101 000000"
+    stop_date = "20230101 120000"
+
+    result = generate_manifest(
+        output_dir,
+        config,
+        start_date,
+        stop_date,
+        include_always_present=False,
+    )
+
+    assert len(result) == 1
+    assert result[0].path == "track.202301.nc"
+    assert result[0].artifact_type == ArtifactType.NETCDF
+
+
+def test_generate_manifest_uses_calendar_boundaries_for_split_periods(tmp_path):
+    """Monthly/yearly splits include every calendar period deterministically."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    yearly = generate_manifest(
+        output_dir,
+        {"field": {"list": "HS"}},
+        start_date="20200229 000000",
+        stop_date="20210301 000000",
+        field_samefile=False,
+        field_timesplit=4,
+        include_always_present=False,
+    )
+    monthly = generate_manifest(
+        output_dir,
+        {"field": {"list": "HS"}},
+        start_date="20201231 000000",
+        stop_date="20210201 000000",
+        field_samefile=False,
+        field_timesplit=6,
+        include_always_present=False,
+    )
+    month_end = generate_manifest(
+        output_dir,
+        {"field": {"list": "HS"}},
+        start_date="20230131 000000",
+        stop_date="20230401 000000",
+        field_samefile=False,
+        field_timesplit=6,
+        include_always_present=False,
+    )
+    assert [artifact.path for artifact in yearly] == ["ww3.2020.nc", "ww3.2021.nc"]
+    assert [artifact.path for artifact in monthly] == [
+        "ww3.202012.nc",
+        "ww3.202101.nc",
+        "ww3.202102.nc",
+    ]
+    assert [artifact.path for artifact in month_end] == [
+        "ww3.202301.nc",
+        "ww3.202302.nc",
+        "ww3.202303.nc",
+        "ww3.202304.nc",
+    ]
+
+
+def test_yearly_splits_normalize_to_january_first_for_all_output_paths(tmp_path):
+    """Yearly periods include each intersected year exactly once."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    cases = [
+        (
+            {"field": {"list": "HS"}},
+            {"field_samefile": False, "field_timesplit": 4},
+            ["ww3.2020.nc", "ww3.2021.nc"],
+        ),
+        (
+            {"point": {}},
+            {
+                "point_samefile": False,
+                "point_timesplit": 4,
+                "point_start_date": "20201231 000000",
+                "point_stop_date": "20210101 000000",
+            },
+            ["points.2020.nc", "points.2021.nc"],
+        ),
+        (
+            {"track": {}},
+            {
+                "track_timesplit": 4,
+                "track_start_date": "20201231 000000",
+                "track_stop_date": "20210101 000000",
+            },
+            ["track.2020.nc", "track.2021.nc"],
+        ),
+    ]
+    for output_types, options, expected in cases:
+        result = generate_manifest(
+            output_dir,
+            output_types,
+            start_date="20201231 000000",
+            stop_date="20210101 000000",
+            include_always_present=False,
+            **options,
+        )
+        assert [artifact.path for artifact in result] == expected
+
+    leap = generate_manifest(
+        output_dir,
+        {"point": {}},
+        point_samefile=False,
+        point_timesplit=4,
+        point_start_date="20200229 000000",
+        point_stop_date="20210301 000000",
+        include_always_present=False,
+    )
+    assert [artifact.path for artifact in leap] == [
+        "points.2020.nc",
+        "points.2021.nc",
+    ]
+
+
+def test_strict_track_split_without_component_stop_is_not_fabricated(tmp_path):
+    """A strict track schedule without a derivable stop emits no split files."""
+    result = generate_manifest(
+        tmp_path,
+        {"track": {}},
+        track_timesplit=8,
+        track_start_date="20230101 000000",
+        track_stop_date=None,
+        track_window_strict=True,
+        include_always_present=False,
+    )
+    assert result == []
+
+
+def test_generate_manifest_always_present_no_duplicates():
+    """Test always-present artifacts are not duplicated."""
+    config = {"restart": {"extra": "DW"}}
+    start_date = "20260618 000000"
+    stop_date = "20260619 000000"
+    output_stride = 21600
+
+    result = generate_manifest(
+        Path("."),
+        config,
+        start_date=start_date,
+        stop_date=stop_date,
+        output_stride=output_stride,
+        include_always_present=True,
+    )
+
+    # Should include 4 restarts + always-present files
+    paths = [a.path for a in result]
+    # No duplicates
+    assert len(paths) == len(set(paths))
+    # Restart files present
+    assert "restart001.ww3" in paths
+    assert "restart004.ww3" in paths

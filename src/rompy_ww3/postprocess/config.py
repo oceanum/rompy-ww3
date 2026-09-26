@@ -4,9 +4,10 @@ This module provides Pydantic-based configuration classes for WW3-specific
 postprocessor types, following the rompy postprocessor configuration framework.
 """
 
-from typing import Any, Dict, List, Literal
+from typing import Literal
 
 from pydantic import Field, field_validator
+from rompy.core.responses import ArtifactType
 from rompy.postprocess.config import BasePostprocessorConfig
 
 
@@ -32,17 +33,16 @@ class WW3TransferConfig(BasePostprocessorConfig):
 
     type: Literal["ww3_transfer"] = "ww3_transfer"
 
-    destinations: List[str] = Field(
+    destinations: list[str] = Field(
         ...,
         min_length=1,
         description="List of destination URIs where outputs will be transferred. "
         "Supports any rompy.transfer backend (file://, s3://, gs://, az://, etc.)",
     )
 
-    output_types: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Manifest filter describing which WW3 output types to include. "
-        "Accepted by generate_manifest. Example: {'restart': {'extra': 'DW'}, 'field': {'list': [1, 2, 3]}}",
+    artifact_types: list[ArtifactType] | None = Field(
+        None,
+        description="Optional list of artifact types (e.g., NETCDF, PLOT, TEXT) to include in post-processing",
     )
 
     failure_policy: Literal["CONTINUE", "FAIL_FAST"] = Field(
@@ -50,6 +50,25 @@ class WW3TransferConfig(BasePostprocessorConfig):
         description="How to react to transfer failures. "
         "CONTINUE: log errors but keep transferring. "
         "FAIL_FAST: stop on first error.",
+    )
+
+    naming_policy: Literal["restart_only", "datestamp_all"] = Field(
+        "restart_only",
+        description="How transferred files are renamed. "
+        "restart_only: only restart files receive WW3-valid datestamps. "
+        "datestamp_all: apply datestamps to all files when a date source is available.",
+    )
+
+    required_policy: Literal["expected_outputs_required", "optional"] = Field(
+        "expected_outputs_required",
+        description="Whether expected but unobserved local outputs must transfer successfully.",
+    )
+
+    max_retries: int = Field(
+        0,
+        ge=0,
+        le=20,
+        description="Retries delegated to the core transfer processor for each pair.",
     )
 
     @field_validator("destinations")
@@ -61,7 +80,7 @@ class WW3TransferConfig(BasePostprocessorConfig):
         return v
 
     def get_postprocessor_class(self):
-        """Return the WW3TransferPostprocessor class."""
+        """Return the thin WW3 adapter over core transfer."""
         from .processor import WW3TransferPostprocessor
 
         return WW3TransferPostprocessor

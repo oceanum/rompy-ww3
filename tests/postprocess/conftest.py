@@ -1,6 +1,9 @@
 """Pytest fixtures for postprocess tests."""
 
 import pytest
+from types import SimpleNamespace
+from datetime import datetime, timezone
+from typing import List
 
 from rompy_ww3.namelists.output_date import OutputDate, OutputDateRestart
 
@@ -53,3 +56,39 @@ def temp_upload_dest(tmp_path):
     dest_dir = tmp_path / "upload_dest"
     dest_dir.mkdir()
     return dest_dir
+
+
+@pytest.fixture
+def make_model_run_result():
+    """Factory fixture to create ModelRunResult-shaped objects.
+
+    Returns a factory function that creates SimpleNamespace objects
+    mimicking ModelRunResult with artifacts, output_dir, timing, and run_id.
+
+    Usage:
+        model_run_result = make_model_run_result(
+            output_dir=str(tmp_path),
+            artifacts=[Artifact(path="restart001.ww3", artifact_type=ArtifactType.RESTART)]
+        )
+    """
+
+    def _make_model_run_result(
+        output_dir: str,
+        artifacts: List = None,
+        run_id: str = "test-run-001",
+        start_time: datetime = None,
+    ):
+        if artifacts is None:
+            artifacts = []
+        if start_time is None:
+            start_time = datetime(2024, 1, 15, tzinfo=timezone.utc)
+
+        timing = SimpleNamespace(start_time=start_time)
+        return SimpleNamespace(
+            output_dir=output_dir,
+            artifacts=artifacts,
+            timing=timing,
+            run_id=run_id,
+        )
+
+    return _make_model_run_result

@@ -1,0 +1,517 @@
+"""Tests for complete artifact handling integration in WW3TransferPostprocessor."""
+
+from datetime import datetime, timezone
+from types import SimpleNamespace
+
+from rompy.core.responses import (
+    Artifact,
+    ArtifactType,
+    ModelRunSuccess,
+    PostprocessSuccess,
+    TimingInfo,
+)
+
+from rompy_ww3.postprocess.processor import WW3TransferPostprocessor
+
+
+def _typed_result(raw):
+    start = raw.timing.start_time
+    end = getattr(raw.timing, "end_time", start)
+    return ModelRunSuccess(
+        success=True,
+        run_id=raw.run_id,
+        backend_used=getattr(raw, "backend_used", "local"),
+        output_dir=raw.output_dir,
+        workspace_dir=getattr(raw, "workspace_dir", raw.output_dir),
+        artifacts=raw.artifacts,
+        expected_outputs=[],
+        missing_outputs=[],
+        timing=TimingInfo(start_time=start, end_time=end),
+        metadata=getattr(raw, "metadata", {}),
+    )
+
+
+class TestCompleteArtifactHandling:
+    """Test complete artifact handling for all WW3 output types."""
+
+    def test_restart_file_handling(self, tmp_path):
+        """Test restart file handling with artifacts."""
+        output_dir = tmp_path / "ww3_output"
+        output_dir.mkdir()
+
+        restart_file1 = output_dir / "restart001.ww3"
+        restart_file1.write_text("test restart data 1")
+        restart_file2 = output_dir / "restart002.ww3"
+        restart_file2.write_text("test restart data 2")
+
+        artifacts = [
+            Artifact(
+                path="restart001.ww3",
+                artifact_type=ArtifactType.RESTART,
+                size_bytes=None,
+                description=None,
+                date=None,
+            ),
+            Artifact(
+                path="restart002.ww3",
+                artifact_type=ArtifactType.RESTART,
+                size_bytes=None,
+                description=None,
+                date=None,
+            ),
+        ]
+
+        model_run_result = SimpleNamespace(
+            output_dir=str(output_dir),
+            artifacts=artifacts,
+            timing=SimpleNamespace(
+                start_time=datetime(2023, 1, 1, tzinfo=timezone.utc)
+            ),
+            run_id="test-run-001",
+        )
+
+        processor = WW3TransferPostprocessor()
+        result = processor.process(
+            _typed_result(model_run_result),
+            destinations=[f"file://{tmp_path}/dest"],
+            failure_policy="CONTINUE",
+        )
+
+        assert isinstance(result, PostprocessSuccess)
+        assert any(
+            pair["status"] == "succeeded"
+            for pair in result.metadata["transfer"]["pairs"]
+        )
+        assert isinstance(result.artifacts, list)
+
+        paths = [a.path for a in result.artifacts]
+        assert any("restart" in p for p in paths)
+
+    def test_field_output_handling(self, tmp_path):
+        """Test field output handling with artifacts."""
+        output_dir = tmp_path / "ww3_output"
+        output_dir.mkdir()
+
+        field_file1 = output_dir / "ww3.20230101_000000.nc"
+        field_file1.write_text("test field data 1")
+        field_file2 = output_dir / "ww3.20230101_060000.nc"
+        field_file2.write_text("test field data 2")
+
+        artifacts = [
+            Artifact(
+                path="ww3.20230101_000000.nc",
+                artifact_type=ArtifactType.NETCDF,
+                size_bytes=None,
+                description=None,
+                date=None,
+            ),
+            Artifact(
+                path="ww3.20230101_060000.nc",
+                artifact_type=ArtifactType.NETCDF,
+                size_bytes=None,
+                description=None,
+                date=None,
+            ),
+        ]
+
+        model_run_result = SimpleNamespace(
+            output_dir=str(output_dir),
+            artifacts=artifacts,
+            timing=SimpleNamespace(
+                start_time=datetime(2023, 1, 1, tzinfo=timezone.utc)
+            ),
+            run_id="test-run-001",
+        )
+
+        processor = WW3TransferPostprocessor()
+        result = processor.process(
+            _typed_result(model_run_result),
+            destinations=[f"file://{tmp_path}/dest"],
+            failure_policy="CONTINUE",
+        )
+
+        assert isinstance(result, PostprocessSuccess)
+        assert any(
+            pair["status"] == "succeeded"
+            for pair in result.metadata["transfer"]["pairs"]
+        )
+        assert isinstance(result.artifacts, list)
+
+    def test_point_output_handling(self, tmp_path):
+        """Test point output handling with artifacts."""
+        output_dir = tmp_path / "ww3_output"
+        output_dir.mkdir()
+
+        point_file1 = output_dir / "points.20230101_000000.nc"
+        point_file1.write_text("test point data 1")
+        point_file2 = output_dir / "points.20230101_060000.nc"
+        point_file2.write_text("test point data 2")
+
+        artifacts = [
+            Artifact(
+                path="points.20230101_000000.nc",
+                artifact_type=ArtifactType.NETCDF,
+                size_bytes=None,
+                description=None,
+                date=None,
+            ),
+            Artifact(
+                path="points.20230101_060000.nc",
+                artifact_type=ArtifactType.NETCDF,
+                size_bytes=None,
+                description=None,
+                date=None,
+            ),
+        ]
+
+        model_run_result = SimpleNamespace(
+            output_dir=str(output_dir),
+            artifacts=artifacts,
+            timing=SimpleNamespace(
+                start_time=datetime(2023, 1, 1, tzinfo=timezone.utc)
+            ),
+            run_id="test-run-001",
+        )
+
+        processor = WW3TransferPostprocessor()
+        result = processor.process(
+            _typed_result(model_run_result),
+            destinations=[f"file://{tmp_path}/dest"],
+            failure_policy="CONTINUE",
+        )
+
+        assert isinstance(result, PostprocessSuccess)
+        assert all(
+            artifact.artifact_type == ArtifactType.NETCDF
+            for artifact in result.artifacts
+        )
+        assert all("points." in artifact.path for artifact in result.artifacts)
+
+    def test_track_output_handling(self, tmp_path):
+        """Test track output handling with artifacts."""
+        output_dir = tmp_path / "ww3_output"
+        output_dir.mkdir()
+
+        track_file1 = output_dir / "track.20230101_000000.nc"
+        track_file1.write_text("test track data 1")
+        track_file2 = output_dir / "track.20230101_060000.nc"
+        track_file2.write_text("test track data 2")
+
+        artifacts = [
+            Artifact(
+                path="track.20230101_000000.nc",
+                artifact_type=ArtifactType.NETCDF,
+                size_bytes=None,
+                description=None,
+                date=None,
+            ),
+            Artifact(
+                path="track.20230101_060000.nc",
+                artifact_type=ArtifactType.NETCDF,
+                size_bytes=None,
+                description=None,
+                date=None,
+            ),
+        ]
+
+        model_run_result = SimpleNamespace(
+            output_dir=str(output_dir),
+            artifacts=artifacts,
+            timing=SimpleNamespace(
+                start_time=datetime(2023, 1, 1, tzinfo=timezone.utc)
+            ),
+            run_id="test-run-001",
+        )
+
+        processor = WW3TransferPostprocessor()
+        result = processor.process(
+            _typed_result(model_run_result),
+            destinations=[f"file://{tmp_path}/dest"],
+            failure_policy="CONTINUE",
+        )
+
+        assert isinstance(result, PostprocessSuccess)
+        assert all(
+            artifact.artifact_type == ArtifactType.NETCDF
+            for artifact in result.artifacts
+        )
+        assert all("track." in artifact.path for artifact in result.artifacts)
+
+    def test_artifact_type_filtering(self, tmp_path):
+        """Test artifact_types filter includes only matching artifacts."""
+        output_dir = tmp_path / "ww3_output"
+        output_dir.mkdir()
+
+        restart_file = output_dir / "restart001.ww3"
+        restart_file.write_text("test restart data")
+
+        field_file = output_dir / "ww3.20230101_000000.nc"
+        field_file.write_text("test field data")
+
+        artifacts = [
+            Artifact(
+                path="restart001.ww3",
+                artifact_type=ArtifactType.RESTART,
+                size_bytes=None,
+                description=None,
+                date=None,
+            ),
+            Artifact(
+                path="ww3.20230101_000000.nc",
+                artifact_type=ArtifactType.NETCDF,
+                size_bytes=None,
+                description=None,
+                date=None,
+            ),
+        ]
+
+        model_run_result = SimpleNamespace(
+            output_dir=str(output_dir),
+            artifacts=artifacts,
+            timing=SimpleNamespace(
+                start_time=datetime(2023, 1, 1, tzinfo=timezone.utc)
+            ),
+            run_id="test-run-001",
+        )
+
+        processor = WW3TransferPostprocessor()
+
+        result = processor.process(
+            _typed_result(model_run_result),
+            destinations=[f"file://{tmp_path}/dest"],
+            artifact_types=[ArtifactType.NETCDF],
+            failure_policy="CONTINUE",
+        )
+
+        assert isinstance(result, PostprocessSuccess)
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        # Core preserves all observed run evidence; the filter controls the
+        # transfer pairs rather than deleting untransferred artifacts.
+        assert {artifact.path for artifact in result.artifacts} == {
+            "restart001.ww3",
+            "ww3.20230101_000000.nc",
+        }
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["source"] == (
+            "local:ww3.20230101_000000.nc"
+        )
+
+    def test_all_output_types_combined(self, tmp_path):
+        """Test all WW3 output types combined in a single run."""
+        output_dir = tmp_path / "ww3_output"
+        output_dir.mkdir()
+
+        files_to_create = [
+            ("restart001.ww3", "restart data", ArtifactType.RESTART),
+            ("restart002.ww3", "restart data", ArtifactType.RESTART),
+            ("ww3.20230101_000000.nc", "field data", ArtifactType.NETCDF),
+            ("ww3.20230101_060000.nc", "field data", ArtifactType.NETCDF),
+            ("points.20230101_000000.nc", "point data", ArtifactType.NETCDF),
+            ("points.20230101_060000.nc", "point data", ArtifactType.NETCDF),
+            ("track.20230101_000000.nc", "track data", ArtifactType.NETCDF),
+            ("track.20230101_060000.nc", "track data", ArtifactType.NETCDF),
+        ]
+
+        artifacts = []
+        for filename, content, artifact_type in files_to_create:
+            file_path = output_dir / filename
+            file_path.write_text(content)
+            artifacts.append(
+                Artifact(
+                    path=filename,
+                    artifact_type=artifact_type,
+                    size_bytes=None,
+                    description=None,
+                    date=None,
+                )
+            )
+
+        model_run_result = SimpleNamespace(
+            output_dir=str(output_dir),
+            artifacts=artifacts,
+            timing=SimpleNamespace(
+                start_time=datetime(2023, 1, 1, tzinfo=timezone.utc)
+            ),
+            run_id="test-run-001",
+        )
+
+        processor = WW3TransferPostprocessor()
+        result = processor.process(
+            _typed_result(model_run_result),
+            destinations=[f"file://{tmp_path}/dest"],
+            failure_policy="CONTINUE",
+        )
+
+        assert isinstance(result, PostprocessSuccess)
+        assert any(
+            pair["status"] == "succeeded"
+            for pair in result.metadata["transfer"]["pairs"]
+        )
+        assert isinstance(result.artifacts, list)
+
+        paths = [a.path for a in result.artifacts]
+        assert any("restart" in p for p in paths)
+
+
+class TestArtifactDateNormalization:
+    def _process_with_artifact_date(self, tmp_path, artifact_date):
+        output_dir = tmp_path / "ww3_output"
+        output_dir.mkdir()
+
+        artifact_file = output_dir / "ww3.20230101_000000.nc"
+        artifact_file.write_text("test field data")
+
+        dest_dir = tmp_path / "dest"
+        dest_dir.mkdir()
+
+        artifacts = [
+            Artifact(
+                path="ww3.20230101_000000.nc",
+                artifact_type=ArtifactType.NETCDF,
+                size_bytes=None,
+                description=None,
+                date=artifact_date,
+            )
+        ]
+
+        model_run_result = SimpleNamespace(
+            output_dir=str(output_dir),
+            artifacts=artifacts,
+            timing=SimpleNamespace(
+                start_time=datetime(2023, 1, 1, tzinfo=timezone.utc)
+            ),
+            run_id="test-run-001",
+        )
+
+        processor = WW3TransferPostprocessor()
+        return processor.process(
+            _typed_result(model_run_result),
+            destinations=[f"file://{dest_dir}"],
+            failure_policy="CONTINUE",
+        )
+
+    def test_basic_iso_artifact_date_succeeds(self, tmp_path):
+        result = self._process_with_artifact_date(tmp_path, "2024-01-15T00:00:00")
+
+        assert isinstance(result, PostprocessSuccess)
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+            "/ww3.20230101_000000.nc"
+        )
+
+    def test_timezone_iso_artifact_date_succeeds(self, tmp_path):
+        result = self._process_with_artifact_date(tmp_path, "2024-01-15T00:00:00+00:00")
+
+        assert isinstance(result, PostprocessSuccess)
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+            "/ww3.20230101_000000.nc"
+        )
+
+    def test_fractional_seconds_artifact_date_succeeds(self, tmp_path):
+        result = self._process_with_artifact_date(
+            tmp_path, "2024-01-15T00:00:00.123456"
+        )
+
+        assert isinstance(result, PostprocessSuccess)
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+            "/ww3.20230101_000000.nc"
+        )
+
+    def test_none_artifact_date_keeps_non_restart_name_by_default(self, tmp_path):
+        result = self._process_with_artifact_date(tmp_path, None)
+
+        assert isinstance(result, PostprocessSuccess)
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+            "/ww3.20230101_000000.nc"
+        )
+
+    def test_none_artifact_date_datestamps_non_restart_in_legacy_mode(self, tmp_path):
+        output_dir = tmp_path / "ww3_output"
+        output_dir.mkdir()
+
+        field_file = output_dir / "ww3.20230101_000000.nc"
+        field_file.write_text("field data")
+
+        dest_dir = tmp_path / "dest"
+        dest_dir.mkdir()
+
+        artifacts = [
+            Artifact(
+                path="ww3.20230101_000000.nc",
+                artifact_type=ArtifactType.NETCDF,
+                size_bytes=None,
+                description=None,
+                date=None,
+            )
+        ]
+        model_run_result = SimpleNamespace(
+            output_dir=str(output_dir),
+            artifacts=artifacts,
+            timing=SimpleNamespace(
+                start_time=datetime(2023, 1, 1, tzinfo=timezone.utc)
+            ),
+            run_id="test-run-001",
+        )
+
+        processor = WW3TransferPostprocessor()
+        result = processor.process(
+            _typed_result(model_run_result),
+            destinations=[f"file://{dest_dir}"],
+            failure_policy="CONTINUE",
+            naming_policy="datestamp_all",
+        )
+
+        assert isinstance(result, PostprocessSuccess)
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+            "/20230101_000000_ww3.20230101_000000.nc"
+        )
+
+    def test_restart_artifact_date_with_timezone_succeeds(self, tmp_path):
+        output_dir = tmp_path / "ww3_output"
+        output_dir.mkdir()
+
+        restart_file = output_dir / "restart002.ww3"
+        restart_file.write_text("test restart data")
+
+        dest_dir = tmp_path / "dest"
+        dest_dir.mkdir()
+
+        artifacts = [
+            Artifact(
+                path="restart002.ww3",
+                artifact_type=ArtifactType.RESTART,
+                size_bytes=None,
+                description=None,
+                date="2024-01-15T00:00:00+00:00",
+            )
+        ]
+
+        model_run_result = SimpleNamespace(
+            success=True,
+            output_dir=str(output_dir),
+            artifacts=artifacts,
+            backend_used="local",
+            timing=SimpleNamespace(
+                start_time=datetime(2023, 1, 1, tzinfo=timezone.utc),
+                end_time=datetime(2023, 1, 1, tzinfo=timezone.utc),
+            ),
+            run_id="test-run-001",
+            metadata={"ww3": {"restart_stride_seconds": 3600}},
+        )
+
+        processor = WW3TransferPostprocessor()
+        result = processor.process(
+            _typed_result(model_run_result),
+            destinations=[f"file://{dest_dir}"],
+            failure_policy="CONTINUE",
+        )
+
+        assert isinstance(result, PostprocessSuccess)
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+            "/20240115_010000_restart.ww3"
+        )

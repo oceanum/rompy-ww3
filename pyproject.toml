@@ -11,7 +11,7 @@ maintainers = [{ name = "Rompy Developers", email = "developers@rompy.com" }]
 classifiers = []
 license = { text = "Apache Software License 2.0" }
 dependencies = [
-    "rompy @ git+https://github.com/rom-py/rompy.git@main",
+    "rompy @ git+https://github.com/rom-py/rompy.git@61ef30d0035e09ab5244059089b085bd1a9745b4", # core failure-preserving postprocess transfer
     "typer",
     "rich",
 ]
@@ -19,7 +19,15 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = ["coverage", "mypy", "pytest", "ruff", "black", "requests"]
+dev = [
+    "coverage",
+    "mypy",
+    "pytest",
+    "ruff",
+    "black",
+    "requests",
+    "tomli; python_version < '3.11'",
+]
 docs = ["mkdocs", "mkdocs-material", "mkdocstrings[python]"]
 
 [project.scripts]
