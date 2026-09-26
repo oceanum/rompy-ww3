@@ -209,7 +209,10 @@ filtered_destination = fixture_root.parent / "filtered-destination"
 filtered_result = cli(filtered, f"file://{filtered_destination}", "-a", "netcdf")
 assert filtered_result.returncode == 0, filtered_result.stdout + filtered_result.stderr
 filtered_raw = raw_postprocess(filtered)
-assert filtered_raw["payload"]["metadata"]["transferred_count"] == 1
+assert sum(
+    pair["status"] == "succeeded"
+    for pair in filtered_raw["payload"]["metadata"]["transfer"]["pairs"]
+) == 1
 assert (filtered_destination / "wave.nc").is_file()
 assert not (filtered_destination / "note.txt").exists()
 
@@ -235,22 +238,26 @@ for policy in ("CONTINUE", "FAIL_FAST"):
     assert result.returncode == 1
     payload = raw_postprocess(root)["payload"]
     assert payload["success"] is False
-    assert payload["metadata"].get("transferred_count", 0) == 0
+    assert sum(
+    pair["status"] == "succeeded"
+    for pair in payload["metadata"].get("transfer", {}).get("pairs", [])
+) == 0
     assert "not a regular file" in payload["error"].lower()
     assert not (destination_path / "z-ok.txt").exists()
 
-# A failed run still crosses the public pipeline as a typed postprocess
-# result; core transfer has no local artifacts to execute in this case.
+# A failed run remains the primary typed postprocess failure through the
+# public lifecycle and CLI; transfer evidence cannot mask the model error.
 model_failure_root = fixture_root.parent / "model-failure"
 write_run(
     model_failure_root,
     model(model_failure_root, "gate2-model-failure", [], failure="model blew up"),
 )
 model_failure_result = cli(model_failure_root, "mock://temporary-model-failure")
-assert model_failure_result.returncode == 0
+assert model_failure_result.returncode == 1
 model_failure_payload = raw_postprocess(model_failure_root)["payload"]
-assert model_failure_payload["success"] is True
-assert isinstance(load_postprocess(model_failure_root), PostprocessSuccess)
+assert model_failure_payload["success"] is False
+assert model_failure_payload["error"] == "model blew up"
+assert isinstance(load_postprocess(model_failure_root), PostprocessFailure)
 
 # Persistence errors map to a typed failure while retaining the canonical
 # sidecar captured immediately before the write failure.

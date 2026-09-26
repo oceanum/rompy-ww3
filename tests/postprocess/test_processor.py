@@ -111,9 +111,9 @@ def test_single_destination_transfer(tmp_path):
     assert isinstance(result, PostprocessSuccess)
     assert result.success is True
 
-    # Check metadata
-    assert result.metadata["transferred_count"] >= 1
-    assert result.metadata["failed_count"] == 0
+    pairs = result.metadata["transfer"]["pairs"]
+    assert len(pairs) == 2
+    assert all(pair["status"] == "succeeded" for pair in pairs)
 
     # Validate artifacts list
     assert isinstance(result.artifacts, list)
@@ -161,60 +161,6 @@ def test_multi_destination_transfer(tmp_path):
     assert isinstance(result.artifacts, list)
 
 
-def test_output_dir_resolution_direct(tmp_path):
-    """Test output_dir resolved from a canonical model run result."""
-    output_dir = tmp_path / "output"
-    output_dir.mkdir()
-
-    model_run = ModelRunSuccess(
-        run_id="output-dir", backend_used="local", output_dir=str(output_dir),
-        workspace_dir=str(output_dir), artifacts=[], expected_outputs=[], missing_outputs=[],
-        timing=TimingInfo(start_time=datetime.now(timezone.utc), end_time=datetime.now(timezone.utc)),
-    )
-
-    processor = WW3TransferPostprocessor()
-
-    resolved = processor._get_output_dir(model_run)
-    assert resolved == output_dir
-
-
-def test_output_dir_resolution_run_dir(tmp_path):
-    """Test output_dir resolved from a canonical model run result."""
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
-
-    model_run = ModelRunSuccess(
-        run_id="run-dir", backend_used="local", output_dir=str(run_dir),
-        workspace_dir=str(run_dir), artifacts=[], expected_outputs=[], missing_outputs=[],
-        timing=TimingInfo(start_time=datetime.now(timezone.utc), end_time=datetime.now(timezone.utc)),
-    )
-
-    processor = WW3TransferPostprocessor()
-
-    resolved = processor._get_output_dir(model_run)
-    assert resolved == run_dir
-
-
-def test_output_dir_resolution_rejects_private_config(tmp_path):
-    """Config-only v1 objects are not an accepted sidecar contract."""
-    output_dir = tmp_path / "output"
-    output_dir.mkdir()
-    model_run = SimpleNamespace(config=SimpleNamespace(output_dir=str(output_dir)))
-    processor = WW3TransferPostprocessor()
-    with pytest.raises(TypeError, match="ModelRunSuccess or ModelRunFailure"):
-        processor._get_output_dir(model_run)
-
-
-def test_output_dir_resolution_missing():
-    """Arbitrary objects are rejected rather than duck-typed."""
-    model_run = SimpleNamespace()
-
-    processor = WW3TransferPostprocessor()
-
-    with pytest.raises(TypeError, match="ModelRunSuccess or ModelRunFailure"):
-        processor._get_output_dir(model_run)
-
-
 def test_no_files_to_transfer(tmp_path):
     """Test graceful handling when no artifacts to transfer."""
     output_dir = tmp_path / "output"
@@ -235,10 +181,9 @@ def test_no_files_to_transfer(tmp_path):
         failure_policy="CONTINUE",
     )
 
-    # Empty artifacts now returns success with zero transfers
+    # Empty artifacts now returns success with zero transfer pairs.
     assert isinstance(result, PostprocessSuccess)
-    assert result.metadata["transferred_count"] == 0
-    assert result.metadata["failed_count"] == 0
+    assert result.metadata.get("transfer", {}).get("pairs", []) == []
 
     # Artifacts list is empty
     assert isinstance(result.artifacts, list)
@@ -267,8 +212,6 @@ def test_processor_uses_typed_timing_and_metadata(tmp_path):
         metadata={"ww3": {"restart_stride_seconds": 3600}},
     )
     processor = WW3TransferPostprocessor()
-    assert processor._extract_start_date(model_run_result) == "20240115 000000"
-    assert processor._extract_output_stride(model_run_result) == 3600
     result = processor.process(
         _typed_result(model_run_result),
         destinations=[f"file://{dest_dir}"],
@@ -276,31 +219,9 @@ def test_processor_uses_typed_timing_and_metadata(tmp_path):
     )
     assert isinstance(result, PostprocessSuccess)
     assert result.success is True
-    assert (
-        result.metadata["name_map"][str(output_dir / "restart001.ww3")]
-        == "20240115_000000_restart.ww3"
+    assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+        "/20240115_000000_restart.ww3"
     )
-
-
-def test_processor_ignores_private_config_fallback(tmp_path):
-    """Private v1 config data is not consulted for transfer naming."""
-    output_dir = tmp_path / "output"
-    output_dir.mkdir()
-    start = datetime(2024, 1, 10, tzinfo=timezone.utc)
-    processor = WW3TransferPostprocessor()
-    typed = ModelRunSuccess(
-        success=True,
-        run_id="test-run-v1",
-        backend_used="local",
-        output_dir=str(output_dir),
-        artifacts=[],
-        expected_outputs=[],
-        missing_outputs=[],
-        timing=TimingInfo(start_time=start, end_time=start),
-        metadata={},
-    )
-    assert processor._extract_output_stride(typed) is None
-
 
 def test_processor_restart_only_default_keeps_non_restart_name(tmp_path):
     output_dir = tmp_path / "output"
@@ -335,9 +256,8 @@ def test_processor_restart_only_default_keeps_non_restart_name(tmp_path):
     )
 
     assert isinstance(result, PostprocessSuccess)
-    assert (
-        result.metadata["name_map"][str(output_dir / "ww3.202001.nc")]
-        == "ww3.202001.nc"
+    assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+        "/ww3.202001.nc"
     )
 
 
@@ -374,8 +294,9 @@ def test_processor_exposes_transfer_log_entries(tmp_path):
     )
 
     assert isinstance(result, PostprocessSuccess)
-    assert result.metadata["transferred_count"] == 1
-    assert result.metadata["failed_count"] == 0
+    pairs = result.metadata["transfer"]["pairs"]
+    assert len(pairs) == 1
+    assert pairs[0]["status"] == "succeeded"
 
 
 def test_processor_v1_sidecar_is_not_an_accepted_result_contract():
@@ -392,8 +313,6 @@ def test_processor_v1_sidecar_is_not_an_accepted_result_contract():
             destinations=["file:///tmp/dest"],
             failure_policy="CONTINUE",
         )
-    with pytest.raises(TypeError, match="ModelRunSuccess or ModelRunFailure"):
-        processor._get_output_dir(model_run_result)
 
 
 def test_shel_config_populates_extensions():

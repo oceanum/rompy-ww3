@@ -78,7 +78,10 @@ class TestCompleteArtifactHandling:
         )
 
         assert isinstance(result, PostprocessSuccess)
-        assert result.metadata["transferred_count"] >= 1
+        assert any(
+            pair["status"] == "succeeded"
+            for pair in result.metadata["transfer"]["pairs"]
+        )
         assert isinstance(result.artifacts, list)
 
         paths = [a.path for a in result.artifacts]
@@ -128,7 +131,10 @@ class TestCompleteArtifactHandling:
         )
 
         assert isinstance(result, PostprocessSuccess)
-        assert result.metadata["transferred_count"] >= 1
+        assert any(
+            pair["status"] == "succeeded"
+            for pair in result.metadata["transfer"]["pairs"]
+        )
         assert isinstance(result.artifacts, list)
 
     def test_point_output_handling(self, tmp_path):
@@ -278,7 +284,7 @@ class TestCompleteArtifactHandling:
         )
 
         assert isinstance(result, PostprocessSuccess)
-        assert result.metadata["transferred_count"] == 1
+        assert len(result.metadata["transfer"]["pairs"]) == 1
         # Core preserves all observed run evidence; the filter controls the
         # transfer pairs rather than deleting untransferred artifacts.
         assert {artifact.path for artifact in result.artifacts} == {
@@ -337,7 +343,10 @@ class TestCompleteArtifactHandling:
         )
 
         assert isinstance(result, PostprocessSuccess)
-        assert result.metadata["transferred_count"] >= 1
+        assert any(
+            pair["status"] == "succeeded"
+            for pair in result.metadata["transfer"]["pairs"]
+        )
         assert isinstance(result.artifacts, list)
 
         paths = [a.path for a in result.artifacts]
@@ -385,24 +394,18 @@ class TestArtifactDateNormalization:
         result = self._process_with_artifact_date(tmp_path, "2024-01-15T00:00:00")
 
         assert isinstance(result, PostprocessSuccess)
-        assert result.metadata["transferred_count"] == 1
-        assert (
-            result.metadata["name_map"][
-                str(tmp_path / "ww3_output" / "ww3.20230101_000000.nc")
-            ]
-            == "ww3.20230101_000000.nc"
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+            "/ww3.20230101_000000.nc"
         )
 
     def test_timezone_iso_artifact_date_succeeds(self, tmp_path):
         result = self._process_with_artifact_date(tmp_path, "2024-01-15T00:00:00+00:00")
 
         assert isinstance(result, PostprocessSuccess)
-        assert result.metadata["transferred_count"] == 1
-        assert (
-            result.metadata["name_map"][
-                str(tmp_path / "ww3_output" / "ww3.20230101_000000.nc")
-            ]
-            == "ww3.20230101_000000.nc"
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+            "/ww3.20230101_000000.nc"
         )
 
     def test_fractional_seconds_artifact_date_succeeds(self, tmp_path):
@@ -411,24 +414,18 @@ class TestArtifactDateNormalization:
         )
 
         assert isinstance(result, PostprocessSuccess)
-        assert result.metadata["transferred_count"] == 1
-        assert (
-            result.metadata["name_map"][
-                str(tmp_path / "ww3_output" / "ww3.20230101_000000.nc")
-            ]
-            == "ww3.20230101_000000.nc"
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+            "/ww3.20230101_000000.nc"
         )
 
     def test_none_artifact_date_keeps_non_restart_name_by_default(self, tmp_path):
         result = self._process_with_artifact_date(tmp_path, None)
 
         assert isinstance(result, PostprocessSuccess)
-        assert result.metadata["transferred_count"] == 1
-        assert (
-            result.metadata["name_map"][
-                str(tmp_path / "ww3_output" / "ww3.20230101_000000.nc")
-            ]
-            == "ww3.20230101_000000.nc"
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+            "/ww3.20230101_000000.nc"
         )
 
     def test_none_artifact_date_datestamps_non_restart_in_legacy_mode(self, tmp_path):
@@ -468,10 +465,9 @@ class TestArtifactDateNormalization:
         )
 
         assert isinstance(result, PostprocessSuccess)
-        assert result.metadata["transferred_count"] == 1
-        assert (
-            result.metadata["name_map"][str(output_dir / "ww3.20230101_000000.nc")]
-            == "20230101_000000_ww3.20230101_000000.nc"
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+            "/20230101_000000_ww3.20230101_000000.nc"
         )
 
     def test_restart_artifact_date_with_timezone_succeeds(self, tmp_path):
@@ -515,8 +511,7 @@ class TestArtifactDateNormalization:
         )
 
         assert isinstance(result, PostprocessSuccess)
-        assert result.metadata["transferred_count"] == 1
-        assert (
-            result.metadata["name_map"][str(tmp_path / "ww3_output" / "restart002.ww3")]
-            == "20240115_010000_restart.ww3"
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
+            "/20240115_010000_restart.ww3"
         )

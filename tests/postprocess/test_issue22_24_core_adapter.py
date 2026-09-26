@@ -7,6 +7,7 @@ from rompy.core import result_persistence
 from rompy.core.responses import Artifact, ArtifactType, ModelRunSuccess, TimingInfo
 from rompy.model import ModelRun
 from rompy.postprocess import transfer as core_transfer
+from rompy.postprocess.protocol import PostprocessContext
 
 from rompy_ww3.postprocess.config import WW3TransferConfig
 from rompy_ww3.postprocess.lifecycle import run_transfer_postprocess
@@ -60,6 +61,27 @@ def test_transfer_delegates_to_core_and_keeps_evidence_secret_free(tmp_path):
     assert "transfer" in result.metadata
 
 
+def test_context_and_direct_result_use_workspace_relative_artifacts(tmp_path):
+    workspace = tmp_path / "workspace"
+    output = workspace / "generated-output"
+    output.mkdir(parents=True)
+    (workspace / "field.txt").write_text("field")
+    run = _run(workspace, [Artifact(path="field.txt", artifact_type=ArtifactType.TEXT)])
+    run = run.model_copy(update={"output_dir": str(output)})
+    destination = f"file://{tmp_path / 'destination'}"
+
+    direct = WW3TransferPostprocessor().process(run, [destination])
+    context = PostprocessContext.from_run_result(run, staging_dir=workspace)
+    through_context = WW3TransferPostprocessor().process(context, [destination])
+
+    assert direct.success is True
+    assert through_context.success is True
+    assert (tmp_path / "destination" / "field.txt").read_text() == "field"
+    assert direct.metadata["transfer"]["pairs"][0]["source"] == (
+        through_context.metadata["transfer"]["pairs"][0]["source"]
+    )
+
+
 def test_modelrun_postprocess_uses_the_same_core_adapter(tmp_path):
     (tmp_path / "field.txt").write_text("field")
     run = _run(tmp_path, [Artifact(path="field.txt", artifact_type=ArtifactType.TEXT)])
@@ -78,14 +100,18 @@ def test_modelrun_postprocess_uses_the_same_core_adapter(tmp_path):
 
 
 def test_standalone_lifecycle_uses_core_sidecar(tmp_path):
-    (tmp_path / "field.txt").write_text("field")
-    run = _run(tmp_path, [Artifact(path="field.txt", artifact_type=ArtifactType.TEXT)])
-    write_persisted(build_persisted(run), tmp_path)
-    result = run_transfer_postprocess(tmp_path, [f"file://{tmp_path / 'destination'}"])
+    workspace = tmp_path / "workspace"
+    output = workspace / "generated-output"
+    output.mkdir(parents=True)
+    (workspace / "field.txt").write_text("field")
+    run = _run(workspace, [Artifact(path="field.txt", artifact_type=ArtifactType.TEXT)])
+    run = run.model_copy(update={"output_dir": str(output)})
+    write_persisted(build_persisted(run), workspace)
+    result = run_transfer_postprocess(workspace, [f"file://{tmp_path / 'destination'}"])
     assert result.success is True
-    loaded = result_persistence.load_postprocess_result(tmp_path)
+    loaded = result_persistence.load_postprocess_result(workspace)
     assert loaded.payload.success is True
-    assert result_persistence.load_run_result(tmp_path).payload.run_id == "core-adapter"
+    assert result_persistence.load_run_result(workspace).payload.run_id == "core-adapter"
 
 
 def test_core_retry_and_replay_are_used_by_the_adapter(tmp_path, monkeypatch):

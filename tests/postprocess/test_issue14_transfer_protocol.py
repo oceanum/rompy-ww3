@@ -211,8 +211,8 @@ def test_public_modelrun_continue_accounts_for_failed_core_pairs(tmp_path, monke
     statuses = {pair["source"]: pair["status"] for pair in pairs}
     assert statuses == {"local:ok.txt": "succeeded", "local:bad.txt": "failed"}
     assert next(pair for pair in pairs if pair["source"] == "local:bad.txt")["error"] == "denied"
-    assert result.metadata["failed_count"] == 1
-    assert result.metadata["transferred_count"] == 1
+    assert sum(pair["status"] == "failed" for pair in pairs) == 1
+    assert sum(pair["status"] == "succeeded" for pair in pairs) == 1
 
 
 @pytest.mark.parametrize("failed_name", ["one.txt", "two.txt"])
@@ -293,9 +293,10 @@ def test_public_pipeline_accepts_typed_model_failure_without_private_fallback(tm
 
     result = run_transfer_postprocess(root, [f"file://{tmp_path / 'destination'}"])
 
-    assert isinstance(result, PostprocessSuccess)
-    assert result.success is True
-    assert isinstance(load_postprocess(root), PostprocessSuccess)
+    assert isinstance(result, PostprocessFailure)
+    assert result.success is False
+    assert result.error == "model failed"
+    assert isinstance(load_postprocess(root), PostprocessFailure)
 
 
 def test_public_core_redacts_destination_and_backend_secrets(tmp_path, monkeypatch):
@@ -332,13 +333,13 @@ def test_public_core_preserves_remote_and_local_observed_evidence(tmp_path):
     )
 
     assert isinstance(result, PostprocessSuccess)
-    assert result.metadata["transferred_count"] == 1
+    assert len(result.metadata["transfer"]["pairs"]) == 1
     assert any(artifact.kind == "remote" for artifact in result.artifacts)
     remote_only = _public_postprocess(
         root, _run(root, [remote]), [f"file://{tmp_path / 'destination2'}"]
     )
     assert isinstance(remote_only, PostprocessSuccess)
-    assert remote_only.metadata["transferred_count"] == 0
+    assert remote_only.metadata.get("transfer", {}).get("pairs", []) == []
     assert _pairs(remote_only) == []
 
 
@@ -381,10 +382,34 @@ def test_public_lifecycle_and_cli_use_canonical_postprocess_sidecar(tmp_path):
     assert isinstance(direct, PostprocessSuccess)
     assert cli.exit_code == 0, cli.stdout
     assert json.loads((root / "postprocess_result.json").read_text())["kind"] == "postprocess_result"
-    assert load_postprocess(root).metadata["transferred_count"] == direct.metadata["transferred_count"]
+    assert load_postprocess(root).metadata["transfer"]["pairs"]
     replayed = load_postprocess(root).metadata["transfer"]
     assert replayed["replayed_pairs"] == 1
     assert replayed["pairs"][0]["request_id"] == direct_raw["payload"]["metadata"]["transfer"]["pairs"][0]["request_id"]
+
+
+def test_public_cli_uses_workspace_for_relative_artifacts(tmp_path):
+    workspace = tmp_path / "workspace"
+    output = workspace / "generated-output"
+    output.mkdir(parents=True)
+    (workspace / "field.txt").write_text("field")
+    run = _run(workspace, [Artifact(path="field.txt")]).model_copy(
+        update={"output_dir": str(output)}
+    )
+    _write_run(workspace, run)
+
+    result = runner.invoke(
+        app,
+        [
+            "postprocess",
+            str(workspace),
+            "-d",
+            f"file://{tmp_path / 'destination'}",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert (tmp_path / "destination" / "field.txt").read_text() == "field"
 
 
 def test_public_cli_failure_reports_canonical_error_and_nonzero_exit(tmp_path):

@@ -40,7 +40,7 @@ from rompy_ww3.postprocess.persistence import (
 from rompy_ww3.postprocess.processor import WW3TransferPostprocessor
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "core_return_schema_v2"
-CORE_SHA = "b43c11ae0fe0f24e25786117d30128812a188760"
+CORE_SHA = "61ef30d0035e09ab5244059089b085bd1a9745b4"
 
 
 def _declared_core_dependency(source_root: Path | None = None) -> str:
@@ -197,10 +197,11 @@ def test_checksums_and_transfer_resolve_paths_from_workspace(tmp_path: Path) -> 
         result, destinations=[f"file://{destination}"]
     )
     assert isinstance(transferred, PostprocessSuccess)
-    assert transferred.metadata["transferred_count"] == 2
-    assert set(transferred.metadata["name_map"]) == {
-        str(workspace / "one" / "same.txt"),
-        str(workspace / "two" / "same.txt"),
+    pairs = transferred.metadata["transfer"]["pairs"]
+    assert len(pairs) == 2
+    assert {pair["source"] for pair in pairs} == {
+        "local:one/same.txt",
+        "local:two/same.txt",
     }
 
 
@@ -218,14 +219,14 @@ def test_remote_and_mixed_observed_evidence_survives_transfer_result(
     mixed = WW3TransferPostprocessor().process(
         result, destinations=[f"file://{tmp_path / 'destination'}"]
     )
-    assert mixed.metadata["transferred_count"] == 1
+    assert len(mixed.metadata["transfer"]["pairs"]) == 1
     remote_evidence = [artifact for artifact in mixed.artifacts if artifact.kind == "remote"]
     assert remote_evidence[0].uri == "s3://bucket/run/remote.txt"
     remote_only = _run_result(workspace, [remote])
     empty = WW3TransferPostprocessor().process(
         remote_only, destinations=[f"file://{tmp_path / 'destination2'}"]
     )
-    assert empty.metadata["transferred_count"] == 0
+    assert empty.metadata.get("transfer", {}).get("pairs", []) == []
     assert any(artifact.kind == "remote" for artifact in empty.artifacts)
 
 

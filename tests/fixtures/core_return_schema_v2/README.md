@@ -1,7 +1,7 @@
 # WW3 issue #13 sidecar fixtures
 
 Copied byte-for-byte from the frozen core return-schema-v2 corpus at merge
-`b43c11ae0fe0f24e25786117d30128812a188760` (core Gate 1 handoff).
+`61ef30d0035e09ab5244059089b085bd1a9745b4` (core Gate 1 handoff).
 
 | fixture | SHA-256 |
 |---|---|

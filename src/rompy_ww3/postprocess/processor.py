@@ -40,20 +40,22 @@ class WW3TransferPostprocessor:
     @staticmethod
     def _context(
         value: PostprocessContext | ModelRunPayload, persistence_dir: Path | str | None
-    ):
+    ) -> PostprocessContext:
         if isinstance(value, PostprocessContext):
+            # Core creates contexts with ``output_dir`` from the run result.
+            # WW3 artifacts are workspace-relative, so use the same workspace
+            # authority as direct typed-result calls when a generated output
+            # child is present.
+            workspace = value.run_result.workspace_dir
+            if workspace:
+                return replace(value, output_dir=Path(workspace))
             return value
         if isinstance(value, (ModelRunSuccess, ModelRunFailure)):
             context = PostprocessContext.from_run_result(
                 value, staging_dir=persistence_dir
             )
-            # Older WW3 results may use ``output_dir`` for a generated child
-            # directory while artifact paths remain relative to workspace_dir.
-            # Keep that compatibility at the adapter boundary; core still
-            # owns reconciliation and path safety.
             if value.workspace_dir:
-                workspace = Path(value.workspace_dir)
-                context = replace(context, output_dir=workspace)
+                context = replace(context, output_dir=Path(value.workspace_dir))
             return context
         raise TypeError(
             "WW3 transfer requires a PostprocessContext or concrete "
@@ -116,112 +118,6 @@ class WW3TransferPostprocessor:
         )
         return transfer_config, effective_naming
 
-    @staticmethod
-    def _legacy_metadata(
-        context: PostprocessContext, result: PostprocessResult
-    ) -> dict[str, Any]:
-        """Project core pair evidence for callers of the old WW3 result API.
-
-        Transfer decisions and accounting remain core-owned; these aliases are
-        read-only compatibility evidence and are not consulted for replay.
-        """
-        metadata = dict(result.metadata)
-        transfer = metadata.get("transfer", {})
-        pairs = transfer.get("pairs", []) if isinstance(transfer, dict) else []
-        succeeded = [item for item in pairs if item.get("status") == "succeeded"]
-        failed = [item for item in pairs if item.get("status") == "failed"]
-        skipped = [
-            item for item in pairs if item.get("status") in {"skipped", "unattempted"}
-        ]
-        name_map: dict[str, str] = {}
-        source_checksums: dict[str, str] = {}
-        for item in pairs:
-            source = str(item.get("source", ""))
-            if source.startswith("local:"):
-                path = source.removeprefix("local:")
-                name = str(item.get("destination", "")).rsplit("/", 1)[-1]
-                root = context.output_dir or context.staging_dir
-                name_map[str(root / path) if root is not None else path] = name
-                if item.get("source_checksum"):
-                    source_checksums[path] = str(item["source_checksum"])
-        replayed = [item for item in pairs if item.get("status") == "skipped"]
-        local_count = len(
-            {
-                str(item.get("source", ""))
-                for item in pairs
-                if str(item.get("source", "")).startswith("local:")
-            }
-        )
-        remote_count = sum(
-            1 for item in context.artifacts if getattr(item, "kind", None) == "remote"
-        )
-        metadata.update(
-            {
-                "destinations": sorted(
-                    {
-                        str(item.get("destination", "")).rsplit("/", 1)[0]
-                        for item in pairs
-                        if item.get("destination")
-                    }
-                ),
-                "name_map": name_map,
-                "source_checksums": source_checksums,
-                "transfer_records": succeeded,
-                "transfer_failures": failed,
-                "requested_count": local_count,
-                "requested_transfer_count": len(pairs),
-                "local_count": local_count,
-                "remote_count": remote_count,
-                "transferred_count": len(succeeded) + len(replayed),
-                "successful_transfer_count": len(succeeded),
-                "failed_count": len(failed),
-                "failed_transfer_count": len(failed),
-                "skipped_transfer_count": len(skipped),
-                "skipped_count": len(skipped) + remote_count,
-                "reused_count": len(replayed),
-                "transferred_artifacts": [
-                    item.model_dump(mode="json") for item in result.artifacts
-                ],
-            }
-        )
-        return metadata
-
-    @staticmethod
-    def _get_output_dir(model_run: ModelRunPayload) -> Path:
-        """Compatibility accessor for canonical typed run results."""
-        if not isinstance(model_run, (ModelRunSuccess, ModelRunFailure)):
-            raise TypeError(
-                "WW3 transfer requires a concrete ModelRunSuccess or ModelRunFailure"
-            )
-        if not model_run.output_dir:
-            raise AttributeError("Cannot determine output directory from model_run")
-        return Path(model_run.output_dir)
-
-    @staticmethod
-    def _extract_start_date(model_run: ModelRunPayload) -> str | None:
-        """Compatibility accessor for the WW3 naming strategy input."""
-        if not isinstance(model_run, (ModelRunSuccess, ModelRunFailure)):
-            raise TypeError(
-                "WW3 transfer requires a concrete ModelRunSuccess or ModelRunFailure"
-            )
-        value = getattr(model_run.timing, "start_time", None)
-        return value.strftime("%Y%m%d %H%M%S") if value is not None else None
-
-    @staticmethod
-    def _extract_output_stride(model_run: ModelRunPayload) -> int | None:
-        """Read the typed WW3 restart stride hint without private config access."""
-        if not isinstance(model_run, (ModelRunSuccess, ModelRunFailure)):
-            raise TypeError(
-                "WW3 transfer requires a concrete ModelRunSuccess or ModelRunFailure"
-            )
-        value = (model_run.metadata.get("ww3", {}) or {}).get("restart_stride_seconds")
-        if isinstance(value, bool) or value is None:
-            return None
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return None
-
     def process(
         self,
         context_or_result: PostprocessContext | ModelRunPayload,
@@ -253,10 +149,7 @@ class WW3TransferPostprocessor:
             transfer_config,
             target_naming=target_naming_for_run(context.run_result, effective_naming),
         )
-        result = delegate.process(context)
-        return result.model_copy(
-            update={"metadata": self._legacy_metadata(context, result)}
-        )
+        return delegate.process(context)
 
 
 __all__ = ["WW3TransferPostprocessor"]

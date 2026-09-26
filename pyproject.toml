@@ -11,7 +11,7 @@ maintainers = [{ name = "Rompy Developers", email = "developers@rompy.com" }]
 classifiers = []
 license = { text = "Apache Software License 2.0" }
 dependencies = [
-    "rompy @ git+https://github.com/rom-py/rompy.git@b43c11ae0fe0f24e25786117d30128812a188760", # core generic postprocess transfer
+    "rompy @ git+https://github.com/rom-py/rompy.git@61ef30d0035e09ab5244059089b085bd1a9745b4", # core failure-preserving postprocess transfer
     "typer",
     "rich",
 ]

@@ -5,14 +5,15 @@ This branch keeps WW3 artifact discovery, validation, and target naming in
 
 | Source | Exact ref |
 | --- | --- |
-| WW3 baseline | `1c125bd2da170d77b21e95d44b1320fcb244e2d8` |
-| Core generic transfer | `b43c11ae0fe0f24e25786117d30128812a188760` |
+| WW3 reviewed origin/response_schema | `b946e85c02be1620068df13295c5fe9afcc15685` |
+| Core reviewed origin/return_schema | `61ef30d0035e09ab5244059089b085bd1a9745b4` |
 
 `WW3TransferPostprocessor` is a compatibility/configuration adapter. It supplies
-`WW3TargetNaming` to core and does not own transfer reconciliation, checksums,
-credential redaction, retries, locks, result construction, or canonical
-postprocess persistence. `expected_artifacts()`, `validate_outputs()`, and
-`generate_manifest()` remain WW3-owned because they encode namelist rules.
+`WW3TargetNaming` to core and returns the core `PostprocessResult` unchanged. It
+does not own transfer reconciliation, checksums, credential redaction, retries,
+locks, result construction, accounting, or canonical postprocess persistence.
+`expected_artifacts()`, `validate_outputs()`, and `generate_manifest()` remain
+WW3-owned because they encode namelist rules.
 
 ## Test migration for the #22–#24 integration gate
 
@@ -35,10 +36,29 @@ parameterized cases) were migrated to 18 public-behavior tests in
 | `test_persistence_failure_keeps_transfer_error`, `test_fresh_subprocess_loads_and_executes_typed_transfer`, `test_cli_displays_canonical_failure_error_and_exits_nonzero`, `test_cli_and_lifecycle_use_same_canonical_sidecar` | `test_public_lifecycle_and_cli_use_canonical_postprocess_sidecar`, `test_public_cli_failure_reports_canonical_error_and_nonzero_exit`; installed acceptance remains in `test_gate2_installed_acceptance.py` |
 | `test_concurrent_public_replay_transfers_each_pair_once`, `test_incomplete_or_malformed_state_never_reuses_success_sidecar`, `test_destination_disappearance_invalidates_recorded_success`, `test_nested_state_shapes_are_repaired_and_replay_reuses`, `test_atomic_state_updates_remain_valid_under_concurrent_writes` | `test_public_core_rejects_malformed_replay_state_without_reusing_success`; WW3 marker atomicity remains covered by `test_persistence.py`, while core locking/replay is exercised through the public ModelRun path |
 
-The migrated assertions retain typed result checks, pair accounting, target
-names, checksums/replay identities, redaction, canonical sidecars, and CLI exit
+The migrated assertions retain typed result checks, core pair evidence, target
+names, checksums/replay identities, redaction, canonical sidecars, workspace
+relative artifact resolution, failed-model primary errors, and CLI exit
 behavior. They use only `tmp_path` destinations or a monkeypatched core
 `get_transfer` backend. No production destination or credential is used.
+
+## Reviewed validation matrix
+
+The exact core pin is declared in `pyproject.toml`, README, and the fixture
+provenance. Public coverage is split as follows:
+
+| Area | Public tests |
+| --- | --- |
+| Core adapter delegation and workspace authority | `test_issue22_24_core_adapter.py` |
+| Lifecycle and CLI failure/nonzero parity | `test_issue14_transfer_protocol.py`, `test_cli_postprocess.py` |
+| Naming and artifact contracts | `test_naming.py`, `test_artifact_handling.py`, `test_validate_outputs.py` |
+| Canonical sidecars and fresh-process install | `test_issue13_sidecars.py`, `test_gate2_installed_acceptance.py` |
+| Full package regression | `pytest -q` |
+
+A failed `ModelRunFailure` is asserted as `PostprocessFailure` with the original
+model error through lifecycle, pipeline, and CLI paths. Existing `PostprocessContext`
+inputs are normalized to `workspace_dir` when output is a generated child, so
+context and direct typed-result calls resolve the same relative artifacts.
 
 WW3-specific naming, expected-artifact, and `validate_outputs` tests remain in
 their original suites (`test_naming.py`, `test_artifact_handling.py`,
@@ -55,9 +75,9 @@ core schema-v2 run sidecars and persist one core postprocess sidecar. The
 legacy `postprocess_state.json` completion hint remains readable for callers but
 is not the transfer authority.
 
-Rollback is the exact WW3 baseline above together with core response-schema pin
-`e4fca8d6193a4315684417a31ccd101cba8c2b1c`; do not mix WW3 adapter code with
-that older core.
+Rollback is the exact WW3 reviewed baseline above together with core
+response-schema pin `e4fca8d6193a4315684417a31ccd101cba8c2b1c`; do not mix WW3
+adapter code with that older core.
 
 ## Residual risks
 
