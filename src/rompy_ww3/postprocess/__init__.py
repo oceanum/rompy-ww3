@@ -6,6 +6,7 @@ WW3 model output processing.
 
 from .config import WW3TransferConfig
 from .lifecycle import run_transfer_postprocess
+from .naming import WW3TargetNaming, target_naming_for_run
 from .persistence import (
     POSTPROCESS_JSON,
     POSTPROCESS_STATE_JSON,
@@ -34,6 +35,7 @@ __all__ = [
     "SCHEMA_VERSION",
     "ModelRunPayload",
     "PostprocessPayload",
+    "WW3TargetNaming",
     "WW3TransferConfig",
     "WW3TransferPostprocessor",
     "build_persisted",
@@ -46,6 +48,7 @@ __all__ = [
     "persist_postprocess",
     "require_postprocess",
     "run_transfer_postprocess",
+    "target_naming_for_run",
     "write_persisted",
     "write_postprocess",
 ]
