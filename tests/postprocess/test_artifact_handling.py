@@ -279,8 +279,16 @@ class TestCompleteArtifactHandling:
 
         assert isinstance(result, PostprocessSuccess)
         assert result.metadata["transferred_count"] == 1
-        assert len(result.artifacts) == 1
-        assert result.artifacts[0].artifact_type == ArtifactType.NETCDF
+        # Core preserves all observed run evidence; the filter controls the
+        # transfer pairs rather than deleting untransferred artifacts.
+        assert {artifact.path for artifact in result.artifacts} == {
+            "restart001.ww3",
+            "ww3.20230101_000000.nc",
+        }
+        assert len(result.metadata["transfer"]["pairs"]) == 1
+        assert result.metadata["transfer"]["pairs"][0]["source"] == (
+            "local:ww3.20230101_000000.nc"
+        )
 
     def test_all_output_types_combined(self, tmp_path):
         """Test all WW3 output types combined in a single run."""

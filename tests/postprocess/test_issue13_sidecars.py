@@ -219,13 +219,14 @@ def test_remote_and_mixed_observed_evidence_survives_transfer_result(
         result, destinations=[f"file://{tmp_path / 'destination'}"]
     )
     assert mixed.metadata["transferred_count"] == 1
-    assert mixed.metadata["remote_observed_artifacts"][0]["uri"] == remote.uri
+    remote_evidence = [artifact for artifact in mixed.artifacts if artifact.kind == "remote"]
+    assert remote_evidence[0].uri == "s3://bucket/run/remote.txt"
     remote_only = _run_result(workspace, [remote])
     empty = WW3TransferPostprocessor().process(
         remote_only, destinations=[f"file://{tmp_path / 'destination2'}"]
     )
     assert empty.metadata["transferred_count"] == 0
-    assert empty.metadata["remote_observed_artifacts"][0]["kind"] == "remote"
+    assert any(artifact.kind == "remote" for artifact in empty.artifacts)
 
 
 def test_fresh_process_loads_same_typed_model_run_result(tmp_path: Path) -> None:

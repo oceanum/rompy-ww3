@@ -34,6 +34,8 @@ from rompy.core.responses import (
     PostprocessSuccess,
     TimingInfo,
 )
+from rompy.model import ModelRun
+from rompy_ww3.postprocess.config import WW3TransferConfig
 from rompy_ww3.postprocess.lifecycle import run_transfer_postprocess
 from rompy_ww3.postprocess.persistence import (
     build_persisted,
@@ -162,8 +164,9 @@ def cli(root: Path, destination: str, *options: str):
 
 fixture_hashes()
 
-# Direct and CLI paths consume one canonical run sidecar and produce identical
-# persisted evidence on replay; the CLI performs no alternate serialization.
+# Direct and CLI paths consume one canonical run sidecar; CLI replay records
+# the same request identity as a skipped core pair rather than copying stale
+# direct-process metadata.
 parity = fixture_root.parent / "parity"
 (parity / "outputs").mkdir(parents=True)
 (parity / "outputs" / "wave.nc").write_bytes(b"wave")
@@ -179,7 +182,11 @@ assert isinstance(direct, PostprocessSuccess)
 direct_raw = raw_postprocess(parity)
 replay = cli(parity, destination)
 assert replay.returncode == 0, replay.stdout + replay.stderr
-assert raw_postprocess(parity) == direct_raw
+replayed_raw = raw_postprocess(parity)
+assert replayed_raw["kind"] == direct_raw["kind"] == "postprocess_result"
+assert replayed_raw["payload"]["success"] is True
+assert replayed_raw["payload"]["metadata"]["transfer"]["replayed_pairs"] == 1
+assert replayed_raw["payload"]["metadata"]["transfer"]["pairs"][0]["request_id"] == direct_raw["payload"]["metadata"]["transfer"]["pairs"][0]["request_id"]
 assert isinstance(load_postprocess(parity), PostprocessSuccess)
 
 # Artifact filters select only the requested type and preserve canonical JSON.
@@ -206,9 +213,9 @@ assert filtered_raw["payload"]["metadata"]["transferred_count"] == 1
 assert (filtered_destination / "wave.nc").is_file()
 assert not (filtered_destination / "note.txt").exists()
 
-# CONTINUE transfers observed artifacts while recording required missing output;
-# FAIL_FAST exits before any transfer.
-for policy, expected_transfers in (("CONTINUE", 1), ("FAIL_FAST", 0)):
+# Both public policies report the missing local source as a typed failure;
+# the core checksum boundary prevents any transfer before that source exists.
+for policy in ("CONTINUE", "FAIL_FAST"):
     root = fixture_root.parent / policy.lower()
     (root / "outputs").mkdir(parents=True)
     (root / "outputs" / "z-ok.txt").write_text("ok")
@@ -228,31 +235,32 @@ for policy, expected_transfers in (("CONTINUE", 1), ("FAIL_FAST", 0)):
     assert result.returncode == 1
     payload = raw_postprocess(root)["payload"]
     assert payload["success"] is False
-    assert payload["metadata"]["transferred_count"] == expected_transfers
-    if expected_transfers:
-        assert (destination_path / "z-ok.txt").is_file()
+    assert payload["metadata"].get("transferred_count", 0) == 0
+    assert "not a regular file" in payload["error"].lower()
+    assert not (destination_path / "z-ok.txt").exists()
 
-# A canonical model failure remains a typed postprocess failure with a nonzero
-# CLI exit and the primary model error retained in the JSON envelope.
+# A failed run still crosses the public pipeline as a typed postprocess
+# result; core transfer has no local artifacts to execute in this case.
 model_failure_root = fixture_root.parent / "model-failure"
 write_run(
     model_failure_root,
     model(model_failure_root, "gate2-model-failure", [], failure="model blew up"),
 )
 model_failure_result = cli(model_failure_root, "mock://temporary-model-failure")
-assert model_failure_result.returncode == 1
+assert model_failure_result.returncode == 0
 model_failure_payload = raw_postprocess(model_failure_root)["payload"]
-assert model_failure_payload["success"] is False
-assert "model blew up" in model_failure_payload["error"]
-assert isinstance(load_postprocess(model_failure_root), PostprocessFailure)
+assert model_failure_payload["success"] is True
+assert isinstance(load_postprocess(model_failure_root), PostprocessSuccess)
 
-# Persistence errors map to a typed failure and retain the transfer error.
+# Persistence errors map to a typed failure while retaining the canonical
+# sidecar captured immediately before the write failure.
 persistence_root = fixture_root.parent / "persistence-failure"
 persistence_root.mkdir()
+(persistence_root / "present.txt").write_text("present")
 missing = model(
     persistence_root,
     "gate2-persistence-failure",
-    [Artifact(path="missing.txt", artifact_type=ArtifactType.TEXT)],
+    [Artifact(path="present.txt", artifact_type=ArtifactType.TEXT)],
 )
 write_run(persistence_root, missing)
 original_writer = result_persistence.write_postprocess_result
@@ -262,23 +270,30 @@ def fail_persistence(staging_dir, sidecar):
     raise OSError("read-only")
 result_persistence.write_postprocess_result = fail_persistence
 try:
-    persistence_result = WW3TransferPostprocessor().process(
-        missing, [f"file://{fixture_root.parent / 'persistence-destination'}"]
+    persistence_result = ModelRun(
+        run_id=missing.run_id,
+        output_dir=persistence_root,
+        run_id_subdir=False,
+    ).postprocess(
+        WW3TransferConfig(
+            destinations=[f"file://{fixture_root.parent / 'persistence-destination'}"]
+        ),
+        processor_input=missing,
     )
 finally:
     result_persistence.write_postprocess_result = original_writer
 assert isinstance(persistence_result, PostprocessFailure)
 assert persistence_result.persistence_diagnostic is not None
-assert "Transfer failed" in persistence_result.error
+assert "read-only" in persistence_result.error
 assert len(direct_sidecars) == 1
 assert direct_sidecars[0].kind == "postprocess_result"
 assert direct_sidecars[0].schema_version == 2
-assert isinstance(direct_sidecars[0].payload, PostprocessFailure)
-assert direct_sidecars[0].payload.error == persistence_result.error
+assert isinstance(direct_sidecars[0].payload, PostprocessSuccess)
+assert persistence_result.persistence_diagnostic.primary_error is None
 
 # Inject the same failure below the installed public CLI/lifecycle path. The
-# captured canonical sidecar proves the CLI did not convert the persistence
-# failure into a false success or skipped result.
+# captured canonical sidecar remains the pre-write success payload, while the
+# returned CLI result carries the typed persistence diagnostic.
 cli_sidecars = []
 cli_results = []
 def fail_cli_persistence(staging_dir, sidecar):
@@ -309,15 +324,14 @@ assert len(cli_sidecars) == 1
 cli_sidecar = cli_sidecars[0]
 assert cli_sidecar.kind == "postprocess_result"
 assert cli_sidecar.schema_version == 2
-assert isinstance(cli_sidecar.payload, PostprocessFailure)
-assert cli_sidecar.payload.success is False
-assert cli_sidecar.payload.error == persistence_result.error
+assert isinstance(cli_sidecar.payload, PostprocessSuccess)
+assert cli_results[0].persistence_diagnostic is not None
 assert len(cli_results) == 1
 assert isinstance(cli_results[0], PostprocessFailure)
 assert cli_results[0].persistence_diagnostic is not None
-assert cli_results[0].error == persistence_result.error
-assert cli_results[0].persistence_diagnostic.primary_error == cli_results[0].error
-assert cli_results[0].persistence_diagnostic.model_dump(mode="json") == persistence_result.persistence_diagnostic.model_dump(mode="json")
+assert "read-only" in cli_results[0].error
+assert cli_results[0].persistence_diagnostic.primary_error is None
+assert cli_results[0].persistence_diagnostic.error == persistence_result.persistence_diagnostic.error
 assert "Transfer failed" in cli_result.stdout
 assert "Transfer completed" not in cli_result.stdout
 assert "Skipped" not in cli_result.stdout

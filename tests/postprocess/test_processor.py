@@ -64,7 +64,9 @@ def test_processor_empty_destinations():
         timing=TimingInfo(start_time=datetime.now(timezone.utc), end_time=datetime.now(timezone.utc)),
     )
 
-    with pytest.raises(ValueError, match="destinations must be a non-empty list"):
+    # Empty destinations are rejected by the core config contract before the
+    # adapter can dispatch a transfer.
+    with pytest.raises(ValueError, match="at least 1 item"):
         processor.process(
             model_run,
             destinations=[],
