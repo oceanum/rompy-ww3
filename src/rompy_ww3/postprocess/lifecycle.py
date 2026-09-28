@@ -5,15 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from rompy.core.result_persistence import load_run_result
 from rompy.core.responses import PostprocessResult
 from rompy.postprocess.protocol import PostprocessFailurePolicy
 from rompy.postprocess.runner import run_postprocess_pipeline
 
 from .config import WW3TransferConfig
-from .persistence import load_persisted, mark_step_completed, require_postprocess
 from .processor import WW3TransferPostprocessor
-
-TRANSFER_STEP = "transfer"
 
 
 def run_transfer_postprocess(
@@ -27,12 +25,12 @@ def run_transfer_postprocess(
 ) -> PostprocessResult:
     """Run WW3 transfer from a persisted canonical run result.
 
-    Core owns the context handoff, transfer lifecycle, result construction, and
-    canonical postprocess sidecar.  The legacy ``postprocess_state.json`` marker
-    is retained only as a read-compatible completion hint for existing callers.
+    Core owns the sidecar loading, context handoff, transfer lifecycle, result
+    construction, and canonical postprocess persistence.  WW3 does not maintain
+    a second lifecycle marker or persistence state document.
     """
     path = Path(path_or_dir)
-    persisted = load_persisted(path)
+    persisted = load_run_result(path).payload
     root = path if path.is_dir() else path.parent
     config = WW3TransferConfig(
         destinations=destinations,
@@ -53,7 +51,4 @@ def run_transfer_postprocess(
         staging_dir=root,
         failure_policy=policy,
     )
-    result = require_postprocess(result)
-    if result.success:
-        mark_step_completed(root, TRANSFER_STEP, state={"core_owned": True})
     return result

@@ -49,8 +49,8 @@ def test_postprocess_success(tmp_path):
     dest = f"file://{tmp_path / 'dest'}"
     result = runner.invoke(app, ["postprocess", str(out), "-d", dest])
     assert result.exit_code == 0
-    data = json.loads((out / "postprocess_state.json").read_text())
-    assert data["steps"]["transfer"]["completed"] is True
+    assert (out / "postprocess_result.json").exists()
+    assert not (out / "postprocess_state.json").exists()
     run_data = json.loads((out / "run_result.json").read_text())
     assert run_data["schema_version"] == 2
     assert "postprocess" not in run_data
