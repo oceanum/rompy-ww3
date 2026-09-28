@@ -45,11 +45,11 @@ config:
               date: "${CYCLE}"
               value1: 10.0 # Wind speed (m/s)
               value2: 90.0 # Wind direction (degrees, coming from)
-            # - name: "WND"
-            #   date: "${CYCLE|as_datetime|shift:+24h}"
-            #   # date: "${CYCLE|shift:+24h}"
-            #   value1: 15.0 # Wind speed (m/s)
-            #   value2: 120.0 # Wind direction (degrees, coming from)
+            - name: "WND"
+              date: "${CYCLE|as_datetime|shift:+24h}"
+              # date: "${CYCLE|shift:+24h}"
+              value1: 15.0 # Wind speed (m/s)
+              value2: 120.0 # Wind direction (degrees, coming from)
 
     # Grid component for ww3_grid.nml (grid preprocessing configuration)
     ww3_grid:

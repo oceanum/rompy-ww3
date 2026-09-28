@@ -10,6 +10,18 @@
 
 The `rompy-ww3` package provides a plugin for the [rompy](https://github.com/rom-py/rompy) framework to facilitate the setup, configuration, and execution of WAVEWATCH III (WW3) models. It leverages rompy's modular architecture to streamline the creation of WW3 model control files, input datasets, and boundary conditions using templated configurations and pydantic validation.
 
+## Canonical run-result sidecars
+
+WW3 consumes the canonical rompy response-schema **v2** `run_result.json`
+envelope through core's strict public loader. The dependency is pinned to core
+merge `61ef30d0035e09ab5244059089b085bd1a9745b4`; this is a source commit pin,
+not a claimed released rompy version. Distributable PyPI publication remains
+blocked until a compatible rompy 2.0 alpha/final release is available; clean
+installation publication proof belongs to the #16 integration gate. Missing,
+malformed, legacy v1, wrong-kind, wrong-version, and envelope-mismatch sidecars
+are rejected and must be regenerated. WW3 does not migrate or rewrite
+run-result documents.
+
 ## Development Status
 
 **⚠️ ACTIVE DEVELOPMENT - UNRELEASED**
@@ -82,6 +94,7 @@ Automatically transfers WW3 model outputs (restart files, field outputs, point o
 - Failure policies: continue on error or fail-fast
 - Backend-agnostic: works with any rompy.transfer backend (file://, s3://, gs://, az://, etc.)
 - Standalone configuration files: processor configs can be run independently via CLI
+- Typed responses: returns `PostprocessSuccess` or `PostprocessFailure` Pydantic objects with timing, metadata, and artifact details
 
 **Configuration-Based Usage (Recommended):**
 
@@ -106,18 +119,40 @@ result = processor.process(
     output_types=config.output_types,
     failure_policy=config.failure_policy
 )
-print(f"Transferred: {result['transferred_count']}, Failed: {result['failed_count']}")
+
+# Result is a PostprocessSuccess or PostprocessFailure object
+if result.success:
+    print(f"✓ Transfer completed successfully")
+    print(f"  Duration: {result.timing.duration_seconds:.2f}s")
+    print(f"  Observed artifacts: {len(result.artifacts)} files transferred")
+    for artifact in result.artifacts:
+        print(f"    - {artifact.path} ({artifact.size_bytes} bytes)")
+    # Planned artifacts are available in result.metadata["artifacts_planned"]
+    print(f"  Planned artifacts: {len(result.metadata.get('artifacts_planned', []))}")
+else:
+    print(f"✗ Transfer failed: {result.error}")
+    print(f"  Successfully transferred: {len(result.artifacts)} files")
+    print(f"  Failed transfers: {len(result.metadata.get('transfer_failures', []))}")
+    # Strict failure semantics: any failed transfer results in PostprocessFailure
 ```
 
 **CLI Usage:**
 
 ```bash
-# Using standalone processor config file
-rompy postprocess --processor-config examples/postprocessor_configs/ww3_transfer_basic.yaml
+# Using a standalone processor config file after `rompy run`
+rompy postprocess examples/global_3deg_homog.yaml \
+  --processor-config examples/postprocessor_configs/ww3_transfer_basic.yaml
+
+# Or point postprocess at an explicit sidecar path
+rompy postprocess examples/global_3deg_homog.yaml \
+  --processor-config examples/postprocessor_configs/ww3_transfer_basic.yaml \
+  --run-result /path/to/run_result.json
 
 # Or load from YAML
 from rompy_ww3.postprocess import WW3TransferConfig
-config = WW3TransferConfig.parse_file("ww3_transfer_config.yaml")
+config = WW3TransferConfig.model_validate(
+    yaml.safe_load(Path("ww3_transfer_config.yaml").read_text())
+)
 ```
 
 **Example Configuration File (`ww3_transfer_config.yaml`):**

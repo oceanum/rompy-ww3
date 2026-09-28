@@ -35,13 +35,17 @@ def validate_date_format(date_str: Union[str, datetime]) -> str:
         elif len(date_str) == 17:  # 'YYYYMMDD HHMMSSSSS' format (with extra chars)
             datetime.strptime(date_str[:15], "%Y%m%d %H%M%S")
             return date_str[:15]
-        elif (
-            "-" in date_str and ":" in date_str
-        ):  # 'YYYY-MM-DD HHMMSS' or 'YYYY-MM-DDTHHMMSS' format
-            for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"]:
+        elif "-" in date_str and ":" in date_str:
+            for fmt in [
+                "%Y-%m-%dT%H:%M:%S.%f%z",
+                "%Y-%m-%dT%H:%M:%S%z",
+                "%Y-%m-%dT%H:%M:%S.%f",
+                "%Y-%m-%d %H:%M:%S",
+                "%Y-%m-%dT%H:%M:%S",
+            ]:
                 try:
                     date_obj = datetime.strptime(date_str, fmt)
-                    return date_obj.strftime("%Y%m%d %H%M%S")
+                    return date_obj.replace(tzinfo=None).strftime("%Y%m%d %H%M%S")
                 except ValueError:
                     continue
         else:

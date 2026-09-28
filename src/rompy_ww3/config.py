@@ -1,30 +1,51 @@
 """WW3 Rompy config."""
 
+from __future__ import annotations
+
 import logging
 import os
+from datetime import timedelta
 from pathlib import Path
-from typing import Literal, Optional, List, Dict, Any
-from pydantic import BaseModel, Field as PydanticField, model_validator, ConfigDict
+from typing import TYPE_CHECKING, Any, Literal
 
+if TYPE_CHECKING:
+    from rompy.core.responses import Artifact
+from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import Field as PydanticField
 from rompy.core.config import BaseConfig
+from rompy.core.responses import ArtifactType
 from rompy.core.types import RompyBaseModel
 
 from .components import (
-    Shel,
+    Bounc,
     Grid,
     Multi,
-    Bounc,
-    Prnc,
-    Trnc,
+    Namelists,
     Ounf,
     Ounp,
+    Prnc,
+    Shel,
+    Trnc,
     Uptstr,
-    Namelists,
 )
 
 logger = logging.getLogger(__name__)
 
 HERE = Path(__file__).parent
+
+
+def _component_window(component: Any) -> tuple[str | None, str | None]:
+    """Return a component's configured output window from its own time fields."""
+    start = getattr(component, "timestart", None)
+    if start is None:
+        return None, None
+    stride = getattr(component, "timestride", None)
+    count = getattr(component, "timecount", None)
+    stop = None
+    if stride is not None and count is not None and count > 0:
+        stop = start + timedelta(seconds=stride * (count - 1))
+    formatter = "%Y%m%d %H%M%S"
+    return start.strftime(formatter), stop.strftime(formatter) if stop else None
 
 
 def _format_value_skip_none(lines: list, obj: Any, level: int, field_name: str) -> None:
@@ -70,10 +91,10 @@ class GridSpec(BaseModel):
     grid: Grid = PydanticField(
         ..., description="Grid component for ww3_grid_{name}.nml"
     )
-    prnc: Optional[Prnc] = PydanticField(
+    prnc: Prnc | None = PydanticField(
         default=None, description="Optional input preprocessing"
     )
-    bounc: Optional[Bounc] = PydanticField(
+    bounc: Bounc | None = PydanticField(
         default=None, description="Optional boundary conditions"
     )
 
@@ -136,16 +157,16 @@ class MultiConfig(BaseConfig):
     multi: Multi = PydanticField(
         ..., description="Multi-grid namelist configuration (ww3_multi.nml)"
     )
-    grids: List[GridSpec] = PydanticField(
+    grids: list[GridSpec] = PydanticField(
         ..., description="Per-grid specifications with Grid, Prnc, and Bounc components"
     )
-    ounf: Optional[Ounf] = PydanticField(
+    ounf: Ounf | None = PydanticField(
         default=None, description="Optional field output configuration (ww3_ounf.nml)"
     )
-    ounp: Optional[Ounp] = PydanticField(
+    ounp: Ounp | None = PydanticField(
         default=None, description="Optional point output configuration (ww3_ounp.nml)"
     )
-    namelists: Optional[Namelists] = PydanticField(
+    namelists: Namelists | None = PydanticField(
         default=None, description="Optional physics parameters (namelists.nml)"
     )
 
@@ -203,7 +224,7 @@ class MultiConfig(BaseConfig):
         return self
 
     @property
-    def components(self) -> List[str]:
+    def components(self) -> list[str]:
         """Return list of component names for template rendering."""
         return ["multi", "grids", "ounf", "ounp"]
 
@@ -316,11 +337,56 @@ class MultiConfig(BaseConfig):
 
         return run_path
 
+    def get_normalized_extensions(self) -> dict[str, Any]:
+        """Extract WW3-specific extensions for normalized_context.
+
+        Returns:
+            Dict with 'ww3' key containing:
+                - restart_stride_seconds: int | None
+                - config_variant: "ww3multi"
+        """
+        restart_stride = None
+        if (
+            self.multi
+            and self.multi.output_date
+            and self.multi.output_date.restart
+            and self.multi.output_date.restart.stride is not None
+        ):
+            restart_stride = self.multi.output_date.restart.stride
+
+        return {
+            "ww3": {
+                "restart_stride_seconds": restart_stride,
+                "config_variant": "ww3multi",
+            }
+        }
+
+    def _update_sidecar_extensions(self, runtime) -> None:
+        """Update generate_result.json sidecar with WW3-specific extensions."""
+        try:
+            from rompy.core.result_persistence import (
+                load_generate_result,
+                write_generate_result,
+            )
+
+            sidecar_path = Path(runtime.staging_dir) / "generate_result.json"
+            if not sidecar_path.exists():
+                return
+
+            sidecar = load_generate_result(runtime.staging_dir)
+            if sidecar.normalized_context:
+                extensions = self.get_normalized_extensions()
+                sidecar.normalized_context.extensions.update(extensions)
+                write_generate_result(runtime.staging_dir, sidecar)
+        except Exception:
+            logger.debug("Unable to update generate_result extensions", exc_info=True)
+
     def __call__(self, runtime) -> dict:
         """Callable invoked by rompy to generate namelists and scripts."""
         self._set_default_dates(runtime)
         self.write_control_files(runtime)
         self.generate_run_script(runtime)
+        self._update_sidecar_extensions(runtime)
         return {}
 
     def _set_default_dates(self, runtime):
@@ -435,6 +501,179 @@ echo "Workflow finished successfully."
             return "\n".join(lines)
         return None
 
+    def expected_artifacts(self) -> list[Artifact]:
+        """Return the list of artifacts this multi-grid config expects to produce.
+
+        Generates a config-driven manifest using the Multi component's output
+        type and timing parameters plus global ounf/ounp settings.
+
+        Returns:
+            List[Artifact]: Expected artifacts with correct ArtifactType.
+        """
+        from rompy_ww3.postprocess.discovery import (
+            generate_manifest,
+            parse_output_type,
+        )
+
+        # Extract output_type configuration from the Multi component.
+        output_type_config: dict[str, Any] = {}
+        if self.multi and self.multi.output_type:
+            output_type_config = parse_output_type(self.multi.output_type)
+        point_component = self.ounp and self.ounp.point_nml
+        if point_component is None:
+            output_type_config.pop("point", None)
+        else:
+            output_type_config["point"] = {}
+        # Multi has no ww3_trnc execution path, so track output is not generated.
+        output_type_config.pop("track", None)
+
+        # Extract domain timing (start/stop)
+        start_date: str | None = None
+        stop_date: str | None = None
+        if self.multi and self.multi.domain:
+            domain = self.multi.domain
+            if domain.start:
+                start_date = domain.start.strftime("%Y%m%d %H%M%S")
+            if domain.stop:
+                stop_date = domain.stop.strftime("%Y%m%d %H%M%S")
+
+        # Restart stride from output_date
+        output_stride: int | None = None
+        if (
+            self.multi
+            and self.multi.output_date
+            and self.multi.output_date.restart
+            and self.multi.output_date.restart.stride is not None
+        ):
+            output_stride = self.multi.output_date.restart.stride
+
+        # If restart stride is set but output_type doesn't explicitly declare
+        # restart, treat it as active (WW3 convention)
+        if output_stride is not None and output_type_config.get("restart") is None:
+            output_type_config["restart"] = {}
+
+        # Field output configuration from global ounf
+        field_samefile: bool = True
+        field_prefix: str = "ww3."
+        field_timesplit: int | None = None
+        point_prefix: str = "points."
+        point_samefile: bool = True
+        point_timesplit: int | None = None
+        point_start_date: str | None = None
+        point_stop_date: str | None = None
+        track_prefix: str = "track."
+        track_timesplit: int | None = None
+        track_start_date: str | None = None
+        track_stop_date: str | None = None
+        if point_component is not None:
+            point_samefile = point_component.samefile is not False
+            point_timesplit = point_component.timesplit
+            point_start_date, point_stop_date = _component_window(point_component)
+            if point_start_date is None:
+                point_start_date = start_date
+            if self.ounp.file_nml and self.ounp.file_nml.prefix:
+                point_prefix = self.ounp.file_nml.prefix
+        if self.ounf:
+            if self.ounf.field and self.ounf.field.samefile is not None:
+                field_samefile = self.ounf.field.samefile
+            if self.ounf.field and self.ounf.field.timesplit is not None:
+                field_timesplit = self.ounf.field.timesplit
+            if self.ounf.file and self.ounf.file.prefix is not None:
+                field_prefix = self.ounf.file.prefix
+
+        output_dir = Path(".")
+
+        return generate_manifest(
+            output_dir=output_dir,
+            output_type_config=output_type_config,
+            start_date=start_date,
+            stop_date=stop_date,
+            output_stride=output_stride,
+            field_samefile=field_samefile,
+            field_prefix=field_prefix,
+            field_timesplit=field_timesplit,
+            point_prefix=point_prefix,
+            track_prefix=track_prefix,
+            point_samefile=point_samefile,
+            point_timesplit=point_timesplit,
+            point_start_date=point_start_date,
+            point_stop_date=point_stop_date,
+            track_timesplit=track_timesplit,
+            track_start_date=track_start_date,
+            track_stop_date=track_stop_date,
+            point_window_strict=True,
+            track_window_strict=True,
+            always_present=self._expected_control_artifacts(),
+            include_always_present=True,
+        )
+
+    def _expected_control_artifacts(self) -> list[tuple[str, ArtifactType]]:
+        """Return controls/scripts generated by this multi-grid configuration."""
+        controls: list[tuple[str, ArtifactType]] = [
+            (name, ArtifactType.TEXT)
+            for name in (
+                "full_ww3.sh",
+                "preprocess_ww3.sh",
+                "postprocess_ww3.sh",
+                "run_ww3.sh",
+                getattr(self.multi, "nml_filename", "ww3_multi.nml"),
+            )
+        ]
+        for grid in self.grids:
+            controls.append((f"ww3_grid_{grid.name}.nml", ArtifactType.TEXT))
+            if grid.prnc:
+                controls.append((f"ww3_prnc_{grid.name}.nml", ArtifactType.TEXT))
+            if grid.bounc:
+                controls.append((f"ww3_bounc_{grid.name}.nml", ArtifactType.TEXT))
+        for component in (self.ounf, self.ounp, self.namelists):
+            if component is not None:
+                controls.append((component.nml_filename, ArtifactType.TEXT))
+        return list(dict.fromkeys(controls))
+
+    def validate_outputs(self, output_dir: Path | str) -> list[Artifact]:
+        """Validate that expected artifacts exist in the output directory.
+
+        Generates the expected manifest from config via expected_artifacts(),
+        checks each expected file exists, warns for missing artifacts, and
+        returns the artifact list with filesystem metadata filled in.
+
+        Args:
+            output_dir: Directory to validate against.
+
+        Returns:
+            List[Artifact]: All expected artifacts with size_bytes filled
+            for those that exist on disk.
+        """
+        import warnings
+
+        output_dir = Path(output_dir)
+
+        # Get expected artifacts from config
+        expected = self.expected_artifacts()
+
+        validated: list[Artifact] = []
+        for artifact in expected:
+            artifact_path = Path(artifact.path)
+            if not artifact_path.is_absolute():
+                artifact_path = output_dir / artifact_path
+
+            if artifact_path.exists() and artifact_path.is_file():
+                validated.append(
+                    artifact.model_copy(
+                        update={"size_bytes": artifact_path.stat().st_size}
+                    )
+                )
+            else:
+                warnings.warn(
+                    f"Expected artifact not found: {artifact.path}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                validated.append(artifact.model_copy())
+
+        return validated
+
+
 
 class BaseWW3Config(BaseConfig):
     """Base config class for WW3 models."""
@@ -449,7 +688,7 @@ class BaseWW3Config(BaseConfig):
     )
 
     @property
-    def components(self) -> List[str]:
+    def components(self) -> list[str]:
         """Return a list of component names for WW3 namelists."""
         return [
             "ww3_grid",
@@ -560,38 +799,38 @@ class ShelConfig(BaseWW3Config):
         return str(HERE / "templates" / "base" / "ww3_shel.nml")
 
     # WW3-specific component configurations
-    ww3_shel: Optional[Shel] = PydanticField(
+    ww3_shel: Shel | None = PydanticField(
         default=None, description="Shell component (ww3_shel.nml) configuration"
     )
-    ww3_grid: Optional[Grid] = PydanticField(
+    ww3_grid: Grid | None = PydanticField(
         default=None, description="Grid component (ww3_grid.nml) configuration"
     )
-    multi_component: Optional[Multi] = PydanticField(
+    multi_component: Multi | None = PydanticField(
         default=None, description="Multi-grid component (ww3_multi.nml) configuration"
     )
-    ww3_bounc: Optional[Bounc] = PydanticField(
+    ww3_bounc: Bounc | None = PydanticField(
         default=None,
         description="Boundary component (ww3_bounc.nml) configuration",
     )
-    ww3_prnc: Optional[list[Prnc]] = PydanticField(
+    ww3_prnc: list[Prnc] | None = PydanticField(
         default=None,
         description="Field preprocessor component (ww3_prnc.nml) configuration",
     )
-    ww3_track: Optional[Trnc] = PydanticField(
+    ww3_track: Trnc | None = PydanticField(
         default=None, description="Track component (ww3_trnc.nml) configuration"
     )
-    ww3_ounf: Optional[Ounf] = PydanticField(
+    ww3_ounf: Ounf | None = PydanticField(
         default=None,
         description="Field output component (ww3_ounf.nml) configuration",
     )
-    ww3_ounp: Optional[Ounp] = PydanticField(
+    ww3_ounp: Ounp | None = PydanticField(
         default=None, description="Point output component (ww3_ounp.nml) configuration"
     )
-    ww3_upstr: Optional[Uptstr] = PydanticField(
+    ww3_upstr: Uptstr | None = PydanticField(
         default=None,
         description="Restart update component (ww3_uprstr.nml) configuration",
     )
-    namelists: Optional[Namelists] = PydanticField(
+    namelists: Namelists | None = PydanticField(
         default=None, description="Namelists component (namelists.nml) configuration"
     )
 
@@ -662,7 +901,7 @@ class ShelConfig(BaseWW3Config):
                             active_forcings[forcing_type] = "T"
 
             # Apply all active forcings to the shel input
-            if active_forcings:  # If we found any active forcings
+            if active_forcings:  # noqa: SIM102 - nested setup preserves optional objects
                 # Ensure ww3_shel exists
                 if self.ww3_shel:
                     # Ensure input_nml exists
@@ -688,6 +927,50 @@ class ShelConfig(BaseWW3Config):
                             )
         return self
 
+    def get_normalized_extensions(self) -> dict[str, Any]:
+        """Extract WW3-specific extensions for normalized_context.
+
+        Returns:
+            Dict with 'ww3' key containing:
+                - restart_stride_seconds: int | None
+                - config_variant: "ww3shel"
+        """
+        restart_stride = None
+        if (
+            self.ww3_shel
+            and self.ww3_shel.output_date
+            and self.ww3_shel.output_date.restart
+            and self.ww3_shel.output_date.restart.stride is not None
+        ):
+            restart_stride = self.ww3_shel.output_date.restart.stride
+
+        return {
+            "ww3": {
+                "restart_stride_seconds": restart_stride,
+                "config_variant": "ww3shel",
+            }
+        }
+
+    def _update_sidecar_extensions(self, runtime) -> None:
+        """Update generate_result.json sidecar with WW3-specific extensions."""
+        try:
+            from rompy.core.result_persistence import (
+                load_generate_result,
+                write_generate_result,
+            )
+
+            sidecar_path = Path(runtime.staging_dir) / "generate_result.json"
+            if not sidecar_path.exists():
+                return
+
+            sidecar = load_generate_result(runtime.staging_dir)
+            if sidecar.normalized_context:
+                extensions = self.get_normalized_extensions()
+                sidecar.normalized_context.extensions.update(extensions)
+                write_generate_result(runtime.staging_dir, sidecar)
+        except Exception:
+            logger.debug("Unable to update generate_result extensions", exc_info=True)
+
     def __call__(self, runtime) -> dict:
         """Callable where data and config are interfaced and CMD is rendered."""
 
@@ -699,6 +982,200 @@ class ShelConfig(BaseWW3Config):
 
         # Generate execution scripts based on what files and executables are needed
         self.generate_run_script(runtime.staging_dir)
+
+        self._update_sidecar_extensions(runtime)
+
+    def expected_artifacts(self) -> list[Artifact]:
+        """Return the list of artifacts this config expects to produce.
+
+        Generates a config-driven manifest using WW3 output type and timing
+        parameters. Calls generate_manifest() from the discovery module.
+
+        Returns:
+            List[Artifact]: Expected artifacts with correct ArtifactType.
+        """
+        from rompy_ww3.postprocess.discovery import (
+            generate_manifest,
+            parse_output_type,
+        )
+
+        # Extract output_type configuration. Point/track outputs are only
+        # expected when their executable component is configured.
+        output_type_config: dict[str, Any] = {}
+        if self.ww3_shel and self.ww3_shel.output_type:
+            output_type_config = parse_output_type(self.ww3_shel.output_type)
+        point_component = self.ww3_ounp and self.ww3_ounp.point_nml
+        track_component = self.ww3_track and self.ww3_track.track
+        if point_component is None:
+            output_type_config.pop("point", None)
+        else:
+            output_type_config["point"] = {}
+        if track_component is None:
+            output_type_config.pop("track", None)
+        else:
+            output_type_config["track"] = {}
+
+        # Extract domain timing (start/stop) — used for restart and field predictions
+        start_date: str | None = None
+        stop_date: str | None = None
+        if self.ww3_shel and self.ww3_shel.domain:
+            domain = self.ww3_shel.domain
+            if domain.start:
+                start_date = domain.start.strftime("%Y%m%d %H%M%S")
+            if domain.stop:
+                stop_date = domain.stop.strftime("%Y%m%d %H%M%S")
+
+        # Restart stride from output_date
+        output_stride: int | None = None
+        if (
+            self.ww3_shel
+            and self.ww3_shel.output_date
+            and self.ww3_shel.output_date.restart
+            and self.ww3_shel.output_date.restart.stride is not None
+        ):
+            output_stride = self.ww3_shel.output_date.restart.stride
+
+        # If restart stride is set but output_type doesn't explicitly declare
+        # restart, treat it as active (WW3 convention: output_date.restart
+        # enables restart output even without an explicit output_type.restart)
+        if output_stride is not None and output_type_config.get("restart") is None:
+            output_type_config["restart"] = {}
+
+        # Field output configuration
+        field_samefile: bool = True
+        field_prefix: str = "ww3."
+        field_timesplit: int | None = None
+        point_prefix: str = "points."
+        point_samefile: bool = True
+        point_timesplit: int | None = None
+        point_start_date: str | None = None
+        point_stop_date: str | None = None
+        track_prefix: str = "track."
+        track_timesplit: int | None = None
+        track_start_date: str | None = None
+        track_stop_date: str | None = None
+        if point_component is not None:
+            point_samefile = point_component.samefile is not False
+            point_timesplit = point_component.timesplit
+            point_start_date, point_stop_date = _component_window(point_component)
+            if point_start_date is None:
+                point_start_date = start_date
+            if self.ww3_ounp.file_nml and self.ww3_ounp.file_nml.prefix:
+                point_prefix = self.ww3_ounp.file_nml.prefix
+        if track_component is not None:
+            track_timesplit = track_component.timesplit
+            track_start_date, track_stop_date = _component_window(track_component)
+            if track_start_date is None:
+                track_start_date = start_date
+            if self.ww3_track.file_nml and self.ww3_track.file_nml.prefix:
+                track_prefix = self.ww3_track.file_nml.prefix
+        if self.ww3_ounf:
+            if self.ww3_ounf.field and self.ww3_ounf.field.samefile is not None:
+                field_samefile = self.ww3_ounf.field.samefile
+            if self.ww3_ounf.field and self.ww3_ounf.field.timesplit is not None:
+                field_timesplit = self.ww3_ounf.field.timesplit
+            if self.ww3_ounf.file and self.ww3_ounf.file.prefix is not None:
+                field_prefix = self.ww3_ounf.file.prefix
+
+        # Use a dummy output_dir — paths are relative, resolved later by validate_outputs
+        output_dir = Path(".")
+
+        return generate_manifest(
+            output_dir=output_dir,
+            output_type_config=output_type_config,
+            start_date=start_date,
+            stop_date=stop_date,
+            output_stride=output_stride,
+            field_samefile=field_samefile,
+            field_prefix=field_prefix,
+            field_timesplit=field_timesplit,
+            point_prefix=point_prefix,
+            track_prefix=track_prefix,
+            point_samefile=point_samefile,
+            point_timesplit=point_timesplit,
+            point_start_date=point_start_date,
+            point_stop_date=point_stop_date,
+            track_timesplit=track_timesplit,
+            track_start_date=track_start_date,
+            track_stop_date=track_stop_date,
+            point_window_strict=True,
+            track_window_strict=True,
+            always_present=self._expected_control_artifacts(),
+            include_always_present=True,
+        )
+
+    def validate_outputs(self, output_dir: Path | str) -> list[Artifact]:
+        """Validate that expected artifacts exist in the output directory.
+
+        Generates the expected manifest from config via expected_artifacts(),
+        checks each expected file exists, warns for missing artifacts, and
+        returns the artifact list with filesystem metadata filled in.
+
+        Args:
+            output_dir: Directory to validate against.
+
+        Returns:
+            List[Artifact]: All expected artifacts with size_bytes filled
+            for those that exist on disk.
+        """
+        import warnings
+
+        output_dir = Path(output_dir)
+
+        # Get expected artifacts from config
+        expected = self.expected_artifacts()
+
+        validated: list[Artifact] = []
+        for artifact in expected:
+            artifact_path = Path(artifact.path)
+            # Resolve relative paths against output_dir
+            if not artifact_path.is_absolute():
+                artifact_path = output_dir / artifact_path
+
+            if artifact_path.exists() and artifact_path.is_file():
+                validated.append(
+                    artifact.model_copy(
+                        update={"size_bytes": artifact_path.stat().st_size}
+                    )
+                )
+            else:
+                warnings.warn(
+                    f"Expected artifact not found: {artifact.path}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                # Still include the artifact in results (without size)
+                validated.append(artifact.model_copy())
+
+        return validated
+
+    def _expected_control_artifacts(self) -> list[tuple[str, ArtifactType]]:
+        """Return only controls/scripts generated by configured components."""
+        controls: list[tuple[str, ArtifactType]] = [
+            (name, ArtifactType.TEXT)
+            for name in (
+                "full_ww3.sh",
+                "preprocess_ww3.sh",
+                "postprocess_ww3.sh",
+                "run_ww3.sh",
+            )
+        ]
+        components = (
+            self.ww3_shel,
+            self.ww3_grid,
+            self.ww3_bounc,
+            self.ww3_track,
+            self.ww3_ounf,
+            self.ww3_ounp,
+            self.namelists,
+            self.ww3_upstr,
+        )
+        for component in components:
+            if component is not None:
+                controls.append((component.nml_filename, ArtifactType.TEXT))
+        if self.ww3_prnc:
+            controls.append((self.ww3_prnc[0].nml_filename, ArtifactType.TEXT))
+        return list(dict.fromkeys(controls))
 
     def _set_default_dates(self, runtime):
         """Set default start and end dates from the runtime period if not already set in components."""
@@ -717,11 +1194,11 @@ class ShelConfig(BaseWW3Config):
         if self.ww3_shel and self.ww3_shel.output_type:
             from rompy_ww3.namelists.output_date import (
                 OutputDate,
+                OutputDateCoupling,
                 OutputDateField,
+                OutputDatePartition,
                 OutputDatePoint,
                 OutputDateTrack,
-                OutputDatePartition,
-                OutputDateCoupling,
             )
 
             # Check if any output type is active (not None) and initialize corresponding output_date components
@@ -794,7 +1271,7 @@ class ShelConfig(BaseWW3Config):
         if hasattr(obj, "set_default_dates"):
             obj.set_default_dates(period)
         # For non-namelist objects, process their fields recursively
-        elif hasattr(obj, "__dict__") or hasattr(obj, "__pydantic_fields__"):
+        elif hasattr(obj, "__dict__") or hasattr(obj, "__pydantic_fields__"):  # noqa: SIM102
             if hasattr(obj, "model_fields"):
                 # Process Pydantic model fields
                 for field_name in obj.model_fields:
@@ -810,7 +1287,7 @@ class ShelConfig(BaseWW3Config):
                     # Also process lists of objects
                     elif isinstance(field_value, list):
                         for item in field_value:
-                            if hasattr(item, "__dict__") or hasattr(
+                            if hasattr(item, "__dict__") or hasattr(  # noqa: SIM102
                                 item, "__pydantic_fields__"
                             ):
                                 if item is not None and not isinstance(
@@ -827,14 +1304,14 @@ class ShelConfig(BaseWW3Config):
             interval_seconds: The time interval in seconds to use for default stride
         """
         # If this is a namelist object with stride attribute, set it if not already set
-        if hasattr(obj, "stride") and getattr(obj, "stride") is None:
+        if hasattr(obj, "stride") and obj.stride is None:
             obj.stride = interval_seconds
         # If this is a namelist object with timestride attribute, set it if not already set
-        if hasattr(obj, "timestride") and getattr(obj, "timestride") is None:
+        if hasattr(obj, "timestride") and obj.timestride is None:
             obj.timestride = interval_seconds
 
         # For non-namelist objects, process their fields recursively
-        elif hasattr(obj, "__dict__") or hasattr(obj, "__pydantic_fields__"):
+        elif hasattr(obj, "__dict__") or hasattr(obj, "__pydantic_fields__"):  # noqa: SIM102
             if hasattr(obj, "model_fields"):
                 # Process Pydantic model fields
                 for field_name in obj.model_fields:
@@ -852,7 +1329,7 @@ class ShelConfig(BaseWW3Config):
                     # Also process lists of objects
                     elif isinstance(field_value, list):
                         for item in field_value:
-                            if hasattr(item, "__dict__") or hasattr(
+                            if hasattr(item, "__dict__") or hasattr(  # noqa: SIM102
                                 item, "__pydantic_fields__"
                             ):
                                 if item is not None and not isinstance(
@@ -862,7 +1339,7 @@ class ShelConfig(BaseWW3Config):
                                         item, interval_seconds
                                     )
 
-    def render_namelists(self) -> Dict[str, str]:
+    def render_namelists(self) -> dict[str, str]:
         """Render all component namelists as a dictionary of strings.
 
         Returns:
@@ -907,7 +1384,7 @@ class ShelConfig(BaseWW3Config):
 
         return namelists
 
-    def get_template_context(self) -> Dict[str, Any]:
+    def get_template_context(self) -> dict[str, Any]:
         """Generate template context for Jinja2 templates.
 
         Returns:

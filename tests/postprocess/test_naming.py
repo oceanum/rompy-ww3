@@ -49,3 +49,30 @@ def test_compute_target_name_missing_params_raises():
 
     with pytest.raises(ValueError, match="start_date and output_stride required"):
         compute_target_name(Path("restart.ww3"), is_restart=True)
+
+
+def test_compute_target_name_ww3_file():
+    """Test compute_target_name for a ww3 file with given date_str."""
+    result = compute_target_name(
+        Path("ww3.202001.nc"),
+        date_str="20100101 000000",
+    )
+    assert result == "20100101_000000_ww3.202001.nc"
+
+
+def test_compute_target_name_points_file():
+    """Test compute_target_name for a points file with given date_str."""
+    result = compute_target_name(
+        Path("points.buoys.nc"),
+        date_str="20100101 000000",
+    )
+    assert result == "20100101_000000_points.buoys.nc"
+
+
+def test_compute_target_name_track_file():
+    """Test compute_target_name for a track file with given date_str."""
+    result = compute_target_name(
+        Path("track.1.nc"),
+        date_str="20100101 000000",
+    )
+    assert result == "20100101_000000_track.1.nc"

@@ -5,8 +5,9 @@
 # Usage:
 #   rompy pipeline examples/postprocess_transfer_example.yaml
 #
-# Or run just postprocessing:
-#   rompy postprocess <run_id> --processor-config postprocessor_configs/ww3_transfer_multi_dest.yaml
+# Or run just postprocessing (requires run_result.json from a prior `rompy run`):
+#   rompy postprocess examples/postprocess_transfer_example.yaml \
+#     --processor-config examples/postprocessor_configs/ww3_transfer_multi_dest.yaml
 
 # Model configuration
 config:
