@@ -63,6 +63,29 @@ class WW3TransferPostprocessor:
         return result.model_copy(update={"metadata": metadata})
 
     @staticmethod
+    def _artifact_root(result: ModelRunPayload) -> Path | None:
+        """Choose the run root containing the declared local artifacts.
+
+        Core normally uses ``output_dir``.  Older WW3 runs can declare paths
+        relative to their workspace, so retain that compatibility only when
+        the declared artifacts are not present under the output directory.
+        """
+        output = Path(result.output_dir) if result.output_dir else None
+        workspace = Path(result.workspace_dir) if result.workspace_dir else None
+        paths = [
+            Path(artifact.path)
+            for artifact in result.artifacts
+            if isinstance(getattr(artifact, "path", None), str)
+            and "://" not in artifact.path
+            and not Path(artifact.path).is_absolute()
+        ]
+        if output is not None and all((output / path).is_file() for path in paths):
+            return output
+        if workspace is not None and all((workspace / path).is_file() for path in paths):
+            return workspace
+        return output or workspace
+
+    @staticmethod
     def _context(
         value: PostprocessContext | ModelRunPayload, persistence_dir: Path | str | None
     ) -> PostprocessContext:
@@ -72,23 +95,18 @@ class WW3TransferPostprocessor:
             )
             if restored is not value.run_result:
                 value = replace(value, run_result=restored)
-            # Core creates contexts with ``output_dir`` from the run result.
-            # WW3 artifacts are workspace-relative, so use the same workspace
-            # authority as direct typed-result calls when a generated output
-            # child is present.
-            workspace = value.run_result.workspace_dir
-            if workspace:
-                return replace(value, output_dir=Path(workspace))
+            root = WW3TransferPostprocessor._artifact_root(value.run_result)
+            if root is not None and root != value.output_dir:
+                return replace(value, output_dir=root)
             return value
         if isinstance(value, (ModelRunSuccess, ModelRunFailure)):
             value = WW3TransferPostprocessor._restore_ww3_extensions(
                 value, persistence_dir or value.workspace_dir or value.output_dir
             )
-            context = PostprocessContext.from_run_result(
-                value, staging_dir=persistence_dir
-            )
-            if value.workspace_dir:
-                context = replace(context, output_dir=Path(value.workspace_dir))
+            context = PostprocessContext.from_run_result(value, staging_dir=persistence_dir)
+            root = WW3TransferPostprocessor._artifact_root(value)
+            if root is not None and root != context.output_dir:
+                context = replace(context, output_dir=root)
             return context
         raise TypeError(
             "WW3 transfer requires a PostprocessContext or concrete "
