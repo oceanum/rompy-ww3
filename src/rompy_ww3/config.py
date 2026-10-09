@@ -647,6 +647,7 @@ echo "Workflow finished successfully."
         import warnings
 
         output_dir = Path(output_dir)
+        output_root = output_dir.resolve(strict=False)
 
         # Get expected artifacts from config
         expected = self.expected_artifacts()
@@ -654,13 +655,22 @@ echo "Workflow finished successfully."
         validated: list[Artifact] = []
         for artifact in expected:
             artifact_path = Path(artifact.path)
-            if not artifact_path.is_absolute():
-                artifact_path = output_dir / artifact_path
+            candidate = (output_root / artifact_path).resolve(strict=False)
+            try:
+                candidate.relative_to(output_root)
+            except ValueError:
+                warnings.warn(
+                    f"Expected artifact path escapes output directory: {artifact.path}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                validated.append(artifact.model_copy())
+                continue
 
-            if artifact_path.exists() and artifact_path.is_file():
+            if candidate.exists() and candidate.is_file():
                 validated.append(
                     artifact.model_copy(
-                        update={"size_bytes": artifact_path.stat().st_size}
+                        update={"size_bytes": candidate.stat().st_size}
                     )
                 )
             else:
@@ -1121,6 +1131,7 @@ class ShelConfig(BaseWW3Config):
         import warnings
 
         output_dir = Path(output_dir)
+        output_root = output_dir.resolve(strict=False)
 
         # Get expected artifacts from config
         expected = self.expected_artifacts()
@@ -1128,14 +1139,22 @@ class ShelConfig(BaseWW3Config):
         validated: list[Artifact] = []
         for artifact in expected:
             artifact_path = Path(artifact.path)
-            # Resolve relative paths against output_dir
-            if not artifact_path.is_absolute():
-                artifact_path = output_dir / artifact_path
+            candidate = (output_root / artifact_path).resolve(strict=False)
+            try:
+                candidate.relative_to(output_root)
+            except ValueError:
+                warnings.warn(
+                    f"Expected artifact path escapes output directory: {artifact.path}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                validated.append(artifact.model_copy())
+                continue
 
-            if artifact_path.exists() and artifact_path.is_file():
+            if candidate.exists() and candidate.is_file():
                 validated.append(
                     artifact.model_copy(
-                        update={"size_bytes": artifact_path.stat().st_size}
+                        update={"size_bytes": candidate.stat().st_size}
                     )
                 )
             else:

@@ -11,6 +11,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from rompy.core import result_persistence
 from rompy.core.responses import (
     ArtifactType,
     ModelRunFailure,
@@ -38,10 +39,32 @@ class WW3TransferPostprocessor:
         self.config = config
 
     @staticmethod
+    def _restore_ww3_extensions(result: ModelRunPayload, root: Path | str | None):
+        if root is None:
+            return result
+        try:
+            sidecar = result_persistence.load_run_result(Path(root))
+        except (FileNotFoundError, ValueError, OSError):
+            return result
+        context = sidecar.normalized_context
+        if context is None or not context.extensions:
+            return result
+        metadata = dict(result.metadata or {})
+        ww3 = dict(metadata.get("ww3", {}))
+        ww3.update(context.extensions)
+        metadata["ww3"] = ww3
+        return result.model_copy(update={"metadata": metadata})
+
+    @staticmethod
     def _context(
         value: PostprocessContext | ModelRunPayload, persistence_dir: Path | str | None
     ) -> PostprocessContext:
         if isinstance(value, PostprocessContext):
+            restored = WW3TransferPostprocessor._restore_ww3_extensions(
+                value.run_result, persistence_dir or value.staging_dir
+            )
+            if restored is not value.run_result:
+                value = replace(value, run_result=restored)
             # Core creates contexts with ``output_dir`` from the run result.
             # WW3 artifacts are workspace-relative, so use the same workspace
             # authority as direct typed-result calls when a generated output
@@ -51,6 +74,9 @@ class WW3TransferPostprocessor:
                 return replace(value, output_dir=Path(workspace))
             return value
         if isinstance(value, (ModelRunSuccess, ModelRunFailure)):
+            value = WW3TransferPostprocessor._restore_ww3_extensions(
+                value, persistence_dir or value.workspace_dir or value.output_dir
+            )
             context = PostprocessContext.from_run_result(
                 value, staging_dir=persistence_dir
             )
