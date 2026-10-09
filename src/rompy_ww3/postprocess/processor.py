@@ -51,7 +51,14 @@ class WW3TransferPostprocessor:
             return result
         metadata = dict(result.metadata or {})
         ww3 = dict(metadata.get("ww3", {}))
-        ww3.update(context.extensions)
+        extensions = context.extensions
+        nested_ww3 = extensions.get("ww3")
+        if isinstance(nested_ww3, dict):
+            ww3.update(nested_ww3)
+            extensions = {
+                key: value for key, value in extensions.items() if key != "ww3"
+            }
+        ww3.update(extensions)
         metadata["ww3"] = ww3
         return result.model_copy(update={"metadata": metadata})
 

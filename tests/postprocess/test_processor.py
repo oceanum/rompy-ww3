@@ -32,6 +32,35 @@ def _typed_result(raw):
     )
 
 
+def test_persisted_ww3_extensions_are_flattened(monkeypatch, tmp_path):
+    sidecar = SimpleNamespace(
+        normalized_context=SimpleNamespace(
+            extensions={"ww3": {"restart_stride_seconds": 3600}}
+        )
+    )
+    monkeypatch.setattr(
+        "rompy_ww3.postprocess.processor.result_persistence.load_run_result",
+        lambda path: sidecar,
+    )
+    result = _typed_result(
+        SimpleNamespace(
+            run_id="test-run",
+            output_dir=str(tmp_path),
+            workspace_dir=str(tmp_path),
+            artifacts=[],
+            timing=TimingInfo(
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+            ),
+        )
+    )
+
+    restored = WW3TransferPostprocessor._restore_ww3_extensions(result, tmp_path)
+
+    assert restored.metadata["ww3"]["restart_stride_seconds"] == 3600
+    assert "ww3" not in restored.metadata["ww3"].get("ww3", {})
+
+
 def test_processor_initialization():
     """Test processor initializes without parameters (new framework pattern)."""
     processor = WW3TransferPostprocessor()
