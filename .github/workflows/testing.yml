@@ -1,7 +1,15 @@
 name: Test PyPI Publishing
 
 on:
+  # Full-repository validation is reserved for durable integration branches and tags.
   push:
+    branches:
+      - main
+      - response_schema
+    tags:
+      - '*'
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   test-deploy:
@@ -11,6 +19,8 @@ jobs:
     -
       name: Checkout repo
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     -
       name: Set up Python
       uses: actions/setup-python@v5
@@ -26,9 +36,20 @@ jobs:
       run: pytest -s -v tests
     -
       name: Run linting
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
       run: |
         pip install ruff
-        ruff check .
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          git diff --name-only --diff-filter=ACMRT "$BASE_SHA...HEAD" -- '*.py' > changed-python-files.txt
+          if [ -s changed-python-files.txt ]; then
+            xargs ruff check < changed-python-files.txt
+          else
+            echo "No changed Python files; Ruff check is not needed."
+          fi
+        else
+          ruff check .
+        fi
     -
       name: Build package
       run: python -m build

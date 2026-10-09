@@ -1,9 +1,10 @@
 # WW3 Transfer Postprocessor - Multi-Destination Example
 # This configuration demonstrates transferring WW3 outputs to multiple cloud
-# and local destinations with different output types.
+# and local destinations with artifact type filtering.
 #
 # Usage:
-#   rompy postprocess --processor-config examples/postprocessor_configs/ww3_transfer_multi_dest.yaml
+#   rompy postprocess --run-result simulations/glob3/run_result.json \
+#     --processor-config examples/postprocessor_configs/ww3_transfer_multi_dest.yaml
 #
 # Prerequisites:
 #   - For S3: AWS credentials configured (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
@@ -14,17 +15,15 @@ type: ww3_transfer
 
 # Multiple destinations: local backup + cloud archives
 destinations:
-  - "file:///local/ww3_backup/"           # Local filesystem backup
-  - "s3://my-bucket/ww3-outputs/"         # AWS S3 bucket
-  - "gs://my-gcs-bucket/model-runs/"      # Google Cloud Storage
-  - "az://my-container/ww3-data/"         # Azure Blob Storage
+    - "file:///tmp/ww3_backup/" # Local filesystem backup
+    # - "s3://my-bucket/ww3-outputs/"         # AWS S3 bucket
+    # - "gs://my-gcs-bucket/model-runs/"      # Google Cloud Storage
+    # - "az://my-container/ww3-data/"         # Azure Blob Storage
 
-# Output types: restart + field outputs
-output_types:
-  restart:
-    extra: DW                               # Restart files with extra output
-  field:
-    list: [1, 2, 3, 4]                     # Field output indices (HS, DIR, SPR, DP)
+# Only transfer restart and NetCDF output files
+artifact_types:
+    - restart
+    - netcdf
 
 # Failure policy: stop on first error (strict mode)
 failure_policy: FAIL_FAST
@@ -34,5 +33,5 @@ timeout: 7200
 
 # Environment variables: AWS profile selection
 env_vars:
-  AWS_PROFILE: "production"
-  AWS_REGION: "us-west-2"
+    AWS_PROFILE: "production"
+    AWS_REGION: "us-west-2"
