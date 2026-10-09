@@ -106,12 +106,10 @@ postprocessor:
     - "file:///tmp/ww3_backup/"
     - "file:///tmp/ww3_archive/"
   
-  # Output types to transfer (must match output_type configuration above)
-  output_types:
-    restart:
-      extra: DW
-    field:
-      list: [1, 2, 3, 4]  # Index-based reference to field outputs
+  # Artifact types to transfer
+  artifact_types:
+    - restart
+    - netcdf
   
   # Failure policy: "CONTINUE" or "FAIL_FAST"
   failure_policy: "CONTINUE"

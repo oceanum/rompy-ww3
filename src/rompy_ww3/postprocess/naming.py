@@ -48,7 +48,7 @@ def compute_restart_valid_date(
         validate_date_format(start_date), "%Y%m%d %H%M%S"
     ).replace(tzinfo=timezone.utc)
     valid_dt = start_dt + timedelta(
-        seconds=(_extract_restart_number(restart_path.name) - 1) * output_stride
+        seconds=_extract_restart_number(restart_path.name) * output_stride
     )
     return valid_dt.strftime("%Y%m%d_%H%M%S")
 

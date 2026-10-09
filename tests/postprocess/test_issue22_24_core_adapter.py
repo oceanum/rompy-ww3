@@ -45,7 +45,7 @@ def test_ww3_target_strategy_preserves_restart_and_policy_semantics():
     )
     restart = Artifact(path="restart002.ww3", artifact_type=ArtifactType.RESTART)
     field = Artifact(path="ww3.202401.nc", artifact_type=ArtifactType.NETCDF)
-    assert strategy(restart) == "20240101_010000_restart.ww3"
+    assert strategy(restart) == "20240101_020000_restart.ww3"
     assert strategy(field) == "ww3.202401.nc"
     all_dated = WW3TargetNaming(
         start_date="20240101 000000", output_stride=3600, naming_policy="datestamp_all"
@@ -188,4 +188,4 @@ def test_strategy_uses_typed_run_timing_and_ww3_metadata():
     strategy = target_naming_for_run(run)
     assert strategy(
         Artifact(path="restart003.ww3", artifact_type=ArtifactType.RESTART)
-    ) == ("20240101_040000_restart.ww3")
+    ) == ("20240101_060000_restart.ww3")

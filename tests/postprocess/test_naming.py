@@ -22,7 +22,7 @@ def test_compute_restart_valid_date():
         "20100101 000000",
         3600,
     )
-    assert result == "20100101_000000"
+    assert result == "20100101_010000"
 
 
 def test_compute_target_name_non_restart():
@@ -40,7 +40,7 @@ def test_compute_target_name_restart():
         start_date="20100101 000000",
         output_stride=3600,
     )
-    assert result == "20100101_000000_restart.ww3"
+    assert result == "20100101_010000_restart.ww3"
 
 
 def test_compute_target_name_missing_params_raises():

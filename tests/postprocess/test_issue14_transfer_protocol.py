@@ -130,12 +130,12 @@ def test_public_modelrun_path_delegates_ww3_naming_and_core_pairs(tmp_path):
     )
 
     assert isinstance(result, PostprocessSuccess)
-    assert (tmp_path / "destination" / "20240101_000000_restart.ww3").read_text() == "restart"
+    assert (tmp_path / "destination" / "20240101_010000_restart.ww3").read_text() == "restart"
     assert (tmp_path / "destination" / "field.nc").read_text() == "field"
     pairs = _pairs(result)
     assert {pair["status"] for pair in pairs} == {"succeeded"}
     assert {pair["destination"].rsplit("/", 1)[-1] for pair in pairs} == {
-        "20240101_000000_restart.ww3",
+        "20240101_010000_restart.ww3",
         "field.nc",
     }
     persisted = result_persistence.load_postprocess_result(root).payload

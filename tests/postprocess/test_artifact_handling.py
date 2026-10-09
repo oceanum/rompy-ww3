@@ -513,5 +513,5 @@ class TestArtifactDateNormalization:
         assert isinstance(result, PostprocessSuccess)
         assert len(result.metadata["transfer"]["pairs"]) == 1
         assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
-            "/20240115_010000_restart.ww3"
+            "/20240115_020000_restart.ww3"
         )

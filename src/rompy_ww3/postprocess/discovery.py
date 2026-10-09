@@ -177,7 +177,9 @@ def generate_manifest(
     manifest: list[Artifact] = []
 
     # --- Restart files ---
-    if output_type_config.get("restart") is not None:
+    if output_type_config.get("restart") is not None and output_stride != 0:
+        if output_stride is not None and output_stride < 0:
+            raise ValueError("output_stride must be non-negative")
         if start_date is None or stop_date is None or output_stride is None:
             raise ValueError(
                 "start_date, stop_date, and output_stride are required "

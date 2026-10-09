@@ -99,12 +99,13 @@ Automatically transfers WW3 model outputs (restart files, field outputs, point o
 **Configuration-Based Usage (Recommended):**
 
 ```python
+from rompy.core.responses import ArtifactType
 from rompy_ww3.postprocess import WW3TransferConfig
 
 # Create configuration object
 config = WW3TransferConfig(
     destinations=["file:///backup/ww3-outputs/", "s3://my-bucket/outputs/"],
-    output_types={"restart": {"extra": "DW"}, "field": {"list": [1, 2, 3]}},
+    artifact_types=[ArtifactType.RESTART, ArtifactType.NETCDF],
     failure_policy="CONTINUE"
 )
 
@@ -116,7 +117,7 @@ processor = processor_class()
 result = processor.process(
     model_run,
     destinations=config.destinations,
-    output_types=config.output_types,
+    artifact_types=config.artifact_types,
     failure_policy=config.failure_policy
 )
 
@@ -165,12 +166,9 @@ destinations:
   - "s3://my-bucket/model-outputs/"
   - "gs://my-gcs-bucket/ww3-data/"
 
-output_types:
-  restart:
-    extra: DW
-  field:
-    list: [1, 2, 3, 4]
-
+artifact_types:
+  - restart
+  - netcdf
 failure_policy: CONTINUE
 timeout: 3600
 

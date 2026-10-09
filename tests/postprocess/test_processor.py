@@ -249,7 +249,7 @@ def test_processor_uses_typed_timing_and_metadata(tmp_path):
     assert isinstance(result, PostprocessSuccess)
     assert result.success is True
     assert result.metadata["transfer"]["pairs"][0]["destination"].endswith(
-        "/20240115_000000_restart.ww3"
+        "/20240115_010000_restart.ww3"
     )
 
 def test_processor_restart_only_default_keeps_non_restart_name(tmp_path):
