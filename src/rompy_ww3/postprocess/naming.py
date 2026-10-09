@@ -121,14 +121,17 @@ class WW3TargetNaming:
             path.name.lower().startswith("restart")
             and path.name.lower().endswith(".ww3")
         )
-        if is_restart and date is not None and self.output_stride is not None:
-            return compute_target_name(
-                path,
-                is_restart=True,
-                start_date=date,
-                output_stride=self.output_stride,
-                restart_path=path,
-            )
+        if is_restart and date is not None:
+            if artifact.date is not None:
+                return f"{normalize_datestamp(date)}_{_get_restart_basename(path.name)}"
+            if self.output_stride is not None:
+                return compute_target_name(
+                    path,
+                    is_restart=True,
+                    start_date=date,
+                    output_stride=self.output_stride,
+                    restart_path=path,
+                )
         if (
             not is_restart
             and self.naming_policy == "datestamp_all"
